@@ -1,10 +1,32 @@
 "use client";
 
-import { useAppContext } from "@/app/AppContext";
 import ReactPlayer from "react-player/youtube";
+import { useState, useEffect } from "react";
+import { useAppContext } from "@/app/AppContext";
 
 export default function Player() {
-  const { selectedVideo } = useAppContext();
+  const { selectedVideo, playlist, setSelectedVideo } = useAppContext();
+  const [currentVideoIndex, setCurrentVideoIndex] = useState<number | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (selectedVideo) {
+      const index = playlist.findIndex(
+        (video) => video.id.videoId === selectedVideo
+      );
+      setCurrentVideoIndex(index);
+    }
+  }, [selectedVideo, playlist]);
+
+  const handlePlayNext = () => {
+    if (currentVideoIndex !== null && currentVideoIndex < playlist.length - 1) {
+      const nextVideo = playlist[currentVideoIndex + 1];
+      setSelectedVideo(nextVideo.id.videoId);
+    } else {
+      setSelectedVideo(null);
+    }
+  };
 
   if (!selectedVideo) return null;
 
@@ -16,6 +38,7 @@ export default function Player() {
         height="100%"
         controls
         playing={true}
+        onEnded={handlePlayNext}
       />
     </div>
   );

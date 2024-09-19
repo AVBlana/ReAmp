@@ -21,8 +21,8 @@ export default function Home() {
         <h1 className="text-3xl font-bold mb-8">ReAmp Project</h1>
         <Search onSearch={handleSearch} />
       </div>
-
-      <div className="flex flex-col md:flex-row gap-8">
+      <div className="flex justify-between gap-8">
+        <Player />
         <div className="w-full md:w-2/3">
           <h2 className="text-2xl font-bold mb-4">Search Results</h2>
           <YtSearchResultsList
@@ -30,11 +30,13 @@ export default function Home() {
             setSelectedVideo={setSelectedVideo}
           />
         </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-8">
         <div className="w-full md:w-1/3">
           <PlaylistView setSelectedVideo={setSelectedVideo} />
         </div>
       </div>
-      <Player />
     </div>
   );
 }
