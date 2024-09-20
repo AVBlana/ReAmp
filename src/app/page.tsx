@@ -44,6 +44,8 @@ export default function Home() {
       </div>
       <div className="flex w-full py-8">
         <Player />
+
+        <PlaylistView />
       </div>
 
       <div className="flex gap-8">
@@ -61,11 +63,6 @@ export default function Home() {
               Show More Results
             </button>
           )}
-        </div>
-        <div className="flex flex-col gap-8">
-          <div className="w-full">
-            <PlaylistView setSelectedVideo={setSelectedVideo} />
-          </div>
         </div>
       </div>
     </div>

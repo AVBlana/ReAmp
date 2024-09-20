@@ -22,6 +22,7 @@ interface AppContextType {
   setNextPageToken: (token: string | undefined) => void;
   currentSearchTerm: string;
   setCurrentSearchTerm: (term: string) => void;
+  setPlaylist: (playlist: YoutubeVideo[]) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -82,6 +83,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
         selectedVideo,
         setSelectedVideo,
         playlist,
+        setPlaylist,
         addToPlaylist,
         handleAddToPlaylist,
         removeFromPlaylist,
