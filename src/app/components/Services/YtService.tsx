@@ -15,23 +15,26 @@ export interface YoutubeVideo {
 
 const PLAYLIST_STORAGE_KEY = "youtube_playlist";
 
-export const getYouTubeVideos = async (
-  searchQuery: string
-): Promise<YoutubeVideo[]> => {
+export async function getYouTubeVideos(
+  query: string,
+  pageToken?: string
+): Promise<{ items: YoutubeVideo[]; nextPageToken?: string }> {
   try {
     const response = await fetch(
-      `/api/youtube?q=${encodeURIComponent(searchQuery)}`
+      `/api/youtube?q=${encodeURIComponent(query)}${
+        pageToken ? `&pageToken=${pageToken}` : ""
+      }`
     );
     if (!response.ok) {
       throw new Error("Failed to fetch YouTube data");
     }
     const data = await response.json();
-    return data.items;
+    return { items: data.items, nextPageToken: data.nextPageToken };
   } catch (error) {
     console.error("Error fetching YouTube videos:", error);
     throw error;
   }
-};
+}
 
 export const getPlaylist = (): YoutubeVideo[] => {
   const playlistJson = localStorage.getItem(PLAYLIST_STORAGE_KEY);

@@ -31,7 +31,7 @@ export default function Player() {
   if (!selectedVideo) return null;
 
   return (
-    <div className="aspect-video w-full max-w-3xl">
+    <div className="aspect-video w-full">
       <ReactPlayer
         url={`https://www.youtube.com/watch?v=${selectedVideo}`}
         width="100%"
