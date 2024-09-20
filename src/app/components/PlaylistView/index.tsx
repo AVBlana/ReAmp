@@ -53,7 +53,7 @@ const PlaylistView: React.FC = () => {
                       ref={provided.innerRef}
                       {...provided.draggableProps}
                       {...provided.dragHandleProps}
-                      className="flex items-center justify-between text-black border-2 border-gray-400 bg-gray-100 p-2 rounded"
+                      className="flex items-center justify-between text-black border-2 border-gray-400 bg-gray-100  transition-colors duration-200 ease-in-out hover:bg-gray-400 p-2 rounded"
                     >
                       <span className="truncate flex-grow">
                         {video.snippet.title}
