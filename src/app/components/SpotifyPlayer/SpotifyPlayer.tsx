@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useEffect, useState, useRef, useCallback } from "react";
+import { useContext, useEffect, useState, useRef } from "react";
 import {
   FaPlay,
   FaPause,
@@ -11,6 +11,7 @@ import {
 } from "react-icons/fa";
 import { PlayingContext } from "../../../context/Playing";
 import { ServiceType } from "../../../types/playerTypes";
+import Image from "next/image";
 
 declare global {
   interface Window {
@@ -21,30 +22,29 @@ declare global {
   }
 }
 
-const SpotifyPlayer = () => {
+export default function SpotifyPlayer() {
   const { currentSong, setCurrentSong, playlist } = useContext(PlayingContext);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(50);
+  const [volume] = useState(50);
   const [isMuted, setIsMuted] = useState(false);
   const [activeDeviceId, setActiveDeviceId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const maxRetries = 3;
+  const volumeUpdateTimeout = useRef<NodeJS.Timeout>();
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
   const playerRef = useRef<Spotify.Player | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
   const scriptRef = useRef<HTMLScriptElement | null>(null);
   const deviceTransferInProgress = useRef(false);
   const initializationInProgress = useRef(false);
-  const retryCount = useRef(0);
-  const maxRetries = 3;
-  const volumeUpdateTimeout = useRef<NodeJS.Timeout | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const progressUpdateInterval = useRef<NodeJS.Timeout | null>(null);
   const [seekPreview, setSeekPreview] = useState<number | null>(null);
   const [isSeeking, setIsSeeking] = useState(false);
-  const [volumePreview, setVolumePreview] = useState<number | null>(null);
-  const [isVolumeDragging, setIsVolumeDragging] = useState(false);
   const [isScratching, setIsScratching] = useState(false);
   const lastMouseX = useRef(0);
-  const [displayVolume, setDisplayVolume] = useState(50);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [isVolumeDragging, setIsVolumeDragging] = useState(false);
+  const [displayVolume, setDisplayVolume] = useState(volume);
 
   const spotifyToken = localStorage.getItem("spotify_token");
 
@@ -88,10 +88,10 @@ const SpotifyPlayer = () => {
         "initialization_error",
         ({ message }: { message: string }) => {
           console.error("Failed to initialize:", message);
-          setIsInitialized(false);
+          setIsLoading(false);
           setActiveDeviceId(null);
           initializationInProgress.current = false;
-          retryCount.current = 0;
+          setRetryCount(0);
         }
       );
 
@@ -100,10 +100,10 @@ const SpotifyPlayer = () => {
         ({ message }: { message: string }) => {
           console.error("Failed to authenticate:", message);
           localStorage.removeItem("spotify_token");
-          setIsInitialized(false);
+          setIsLoading(false);
           setActiveDeviceId(null);
           initializationInProgress.current = false;
-          retryCount.current = 0;
+          setRetryCount(0);
         }
       );
 
@@ -111,10 +111,10 @@ const SpotifyPlayer = () => {
         "account_error",
         ({ message }: { message: string }) => {
           console.error("Failed to validate Spotify account:", message);
-          setIsInitialized(false);
+          setIsLoading(false);
           setActiveDeviceId(null);
           initializationInProgress.current = false;
-          retryCount.current = 0;
+          setRetryCount(0);
         }
       );
 
@@ -168,22 +168,22 @@ const SpotifyPlayer = () => {
             }
 
             setActiveDeviceId(device_id);
-            setIsInitialized(true);
-            retryCount.current = 0;
+            setIsLoading(false);
+            setRetryCount(0);
           } catch (error) {
             console.error("Error transferring playback:", error);
 
             // Retry if we haven't exceeded max retries
-            if (retryCount.current < maxRetries) {
-              retryCount.current++;
+            if (retryCount < maxRetries) {
+              setRetryCount(retryCount + 1);
               console.log(
-                `Retrying device transfer (${retryCount.current}/${maxRetries})...`
+                `Retrying device transfer (${retryCount + 1}/${maxRetries})...`
               );
               setTimeout(() => {
                 if (playerRef.current) {
                   playerRef.current.connect();
                 }
-              }, 1000 * retryCount.current); // Exponential backoff
+              }, 1000 * (retryCount + 1)); // Exponential backoff
               return;
             }
 
@@ -193,8 +193,8 @@ const SpotifyPlayer = () => {
               playerRef.current = null;
             }
             setActiveDeviceId(null);
-            setIsInitialized(false);
-            retryCount.current = 0;
+            setIsLoading(false);
+            setRetryCount(0);
           } finally {
             deviceTransferInProgress.current = false;
             initializationInProgress.current = false;
@@ -209,7 +209,7 @@ const SpotifyPlayer = () => {
           console.log("Device ID has gone offline", device_id);
           if (activeDeviceId === device_id) {
             setActiveDeviceId(null);
-            setIsInitialized(false);
+            setIsLoading(false);
           }
         }
       );
@@ -221,7 +221,7 @@ const SpotifyPlayer = () => {
         } else {
           console.error("Failed to connect to Spotify");
           initializationInProgress.current = false;
-          retryCount.current = 0;
+          setRetryCount(0);
         }
       });
     };
@@ -237,10 +237,10 @@ const SpotifyPlayer = () => {
         scriptRef.current = null;
       }
       setActiveDeviceId(null);
-      setIsInitialized(false);
+      setIsLoading(false);
       deviceTransferInProgress.current = false;
       initializationInProgress.current = false;
-      retryCount.current = 0;
+      setRetryCount(0);
     };
   }, [spotifyToken, volume]);
 
@@ -252,10 +252,10 @@ const SpotifyPlayer = () => {
         playerRef.current = null;
       }
       setActiveDeviceId(null);
-      setIsInitialized(false);
+      setIsLoading(false);
       deviceTransferInProgress.current = false;
       initializationInProgress.current = false;
-      retryCount.current = 0;
+      setRetryCount(0);
     }
   }, [spotifyToken]);
 
@@ -264,7 +264,7 @@ const SpotifyPlayer = () => {
     if (
       currentSong?.type === ServiceType.Spotify &&
       activeDeviceId &&
-      isInitialized
+      !isLoading
     ) {
       const token = localStorage.getItem("spotify_token");
       if (!token) return;
@@ -286,11 +286,11 @@ const SpotifyPlayer = () => {
         console.error("Error playing track:", error);
       });
     }
-  }, [currentSong, activeDeviceId, isInitialized]);
+  }, [currentSong, activeDeviceId, isLoading]);
 
   // Add track completion handler
   useEffect(() => {
-    if (!playerRef.current || !isInitialized) return;
+    if (!playerRef.current || isLoading) return;
 
     const handleTrackEnd = async () => {
       // Find the current track's index in the playlist
@@ -339,10 +339,10 @@ const SpotifyPlayer = () => {
         );
       }
     };
-  }, [playlist, isInitialized, setCurrentSong, isPlaying, currentSong]);
+  }, [playlist, isLoading, setCurrentSong, isPlaying, currentSong]);
 
   const togglePlay = () => {
-    if (!activeDeviceId || !isInitialized) return;
+    if (!activeDeviceId || isLoading) return;
     const token = localStorage.getItem("spotify_token");
     if (!token) return;
 
@@ -399,7 +399,7 @@ const SpotifyPlayer = () => {
   };
 
   const handleStop = () => {
-    if (!activeDeviceId || !isInitialized) return;
+    if (!activeDeviceId || isLoading) return;
     const token = localStorage.getItem("spotify_token");
     if (!token) return;
 
@@ -425,7 +425,7 @@ const SpotifyPlayer = () => {
   };
 
   const handleFastForward = () => {
-    if (playerRef.current && isInitialized) {
+    if (playerRef.current && !isLoading) {
       const newPosition = Math.min(progress + 30000, duration);
       playerRef.current.seek(newPosition);
       setProgress(newPosition);
@@ -474,7 +474,7 @@ const SpotifyPlayer = () => {
     const percent = Math.max(0, Math.min(1, x / rect.width));
     const newPosition = Math.floor(percent * duration);
 
-    if (playerRef.current && isInitialized) {
+    if (playerRef.current && !isLoading) {
       playerRef.current.seek(newPosition).then(() => {
         setProgress(newPosition);
       });
@@ -501,7 +501,7 @@ const SpotifyPlayer = () => {
     const percent = Math.max(0, Math.min(1, x / rect.width));
     const newVolume = Math.round(percent * 100);
 
-    if (playerRef.current && isInitialized) {
+    if (playerRef.current && !isLoading) {
       playerRef.current.setVolume(newVolume / 100);
       setDisplayVolume(newVolume);
     }
@@ -514,7 +514,7 @@ const SpotifyPlayer = () => {
   };
 
   const toggleMute = async () => {
-    if (!playerRef.current || !isInitialized) return;
+    if (!playerRef.current || isLoading) return;
 
     try {
       if (isMuted) {
@@ -535,17 +535,18 @@ const SpotifyPlayer = () => {
 
   // Cleanup on unmount
   useEffect(() => {
+    const timeout = volumeUpdateTimeout.current;
     return () => {
-      if (volumeUpdateTimeout.current) {
-        clearTimeout(volumeUpdateTimeout.current);
+      if (timeout) {
+        clearTimeout(timeout);
       }
     };
   }, []);
 
   // Add progress update effect
   useEffect(() => {
-    if (isPlaying && isInitialized) {
-      progressUpdateInterval.current = setInterval(async () => {
+    if (isPlaying && !isLoading) {
+      const interval = setInterval(async () => {
         if (playerRef.current) {
           const state = await playerRef.current.getCurrentState();
           if (state) {
@@ -554,18 +555,11 @@ const SpotifyPlayer = () => {
           }
         }
       }, 1000);
-    } else {
-      if (progressUpdateInterval.current) {
-        clearInterval(progressUpdateInterval.current);
-      }
+      return () => {
+        clearInterval(interval);
+      };
     }
-
-    return () => {
-      if (progressUpdateInterval.current) {
-        clearInterval(progressUpdateInterval.current);
-      }
-    };
-  }, [isPlaying, isInitialized]);
+  }, [isPlaying, isLoading]);
 
   // Add style tag for animations
   useEffect(() => {
@@ -728,19 +722,13 @@ const SpotifyPlayer = () => {
           style={{ cursor: "pointer" }}
         >
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/5 h-3/5 rounded-full bg-[var(--background)] shadow-[0_0_0_2px_var(--foreground),0_0_12px_#fff8_inset] overflow-hidden z-10 flex items-center justify-center">
-            {currentSong ? (
-              <img
-                src={
-                  currentSong?.artwork.big?.url ||
-                  currentSong?.artwork.medium?.url ||
-                  currentSong?.artwork.small?.url
-                }
-                alt="Album Cover"
-                className="w-full h-full object-cover rounded-full"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-green-600 via-green-500 to-green-700 rounded-full shadow-[0_0_12px_#0008_inset]" />
-            )}
+            <Image
+              src={currentSong?.artwork?.big?.url || ""}
+              alt={currentSong?.title || "Album Art"}
+              width={currentSong?.artwork?.big?.width || 640}
+              height={currentSong?.artwork?.big?.height || 640}
+              className="w-full h-full object-cover"
+            />
           </div>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[var(--background)] border-2 border-[var(--foreground)] z-20" />
         </div>
@@ -893,6 +881,4 @@ const SpotifyPlayer = () => {
       </div>
     </div>
   );
-};
-
-export default SpotifyPlayer;
+}

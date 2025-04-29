@@ -9,6 +9,7 @@ import {
 } from "react-icons/fa";
 import { Song } from "../../../types/playerTypes";
 import { usePlaying } from "../../../context/Playing";
+import Image from "next/image";
 
 const SpotifyPlaylistView: React.FC = () => {
   const { currentSong, setCurrentSong, playlist, setPlaylist } = usePlaying();
@@ -110,13 +111,15 @@ const SpotifyPlaylistView: React.FC = () => {
                               {song.artwork?.big?.url ||
                               song.artwork?.medium?.url ||
                               song.artwork?.small?.url ? (
-                                <img
+                                <Image
                                   src={
                                     song.artwork.big?.url ||
                                     song.artwork.medium?.url ||
                                     song.artwork.small?.url
                                   }
                                   alt={song.title}
+                                  width={song.artwork.big?.width || 640}
+                                  height={song.artwork.big?.height || 640}
                                   className="w-full h-full object-cover rounded-full"
                                 />
                               ) : (

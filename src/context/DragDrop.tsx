@@ -1,16 +1,14 @@
-import { createContext, useContext, ReactNode } from "react";
+import React, { ReactNode } from "react";
 import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 
-interface DragDropContextProps {
+interface DragDropProviderProps {
   children: ReactNode;
   onDragEnd: (result: DropResult) => void;
 }
 
-const DragDropContextWrapper = ({
+export const DragDropProvider: React.FC<DragDropProviderProps> = ({
   children,
   onDragEnd,
-}: DragDropContextProps) => {
+}) => {
   return <DragDropContext onDragEnd={onDragEnd}>{children}</DragDropContext>;
 };
-
-export default DragDropContextWrapper;
