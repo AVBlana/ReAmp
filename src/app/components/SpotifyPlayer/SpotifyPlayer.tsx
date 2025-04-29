@@ -257,7 +257,7 @@ export default function SpotifyPlayer() {
       initializationInProgress.current = false;
       setRetryCount(0);
     }
-  }, [spotifyToken, setRetryCount]);
+  }, [spotifyToken, setRetryCount, activeDeviceId, retryCount]);
 
   // Effect to handle current song changes
   useEffect(() => {

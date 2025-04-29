@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useState, useContext, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import SpotifyPlayer from "../components/SpotifyPlayer/SpotifyPlayer";
@@ -15,6 +15,14 @@ import { FaSpotify, FaPlay } from "react-icons/fa";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { DragDropContext, DropResult, Droppable } from "@hello-pangea/dnd";
+
+// Helper function to safely access localStorage
+const getLocalStorage = (key: string): string | null => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem(key);
+  }
+  return null;
+};
 
 function SpotifyContent() {
   const searchParams = useSearchParams();
@@ -34,7 +42,9 @@ function SpotifyContent() {
         throw new Error("Failed to refresh token");
       }
       const data = await response.json();
-      localStorage.setItem("spotify_token", data.access_token);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("spotify_token", data.access_token);
+      }
       return data.access_token;
     } catch (error) {
       console.error("Error refreshing token:", error);
@@ -44,7 +54,7 @@ function SpotifyContent() {
 
   const handleSearch = async (searchTerm: string) => {
     setCurrentSearchTerm(searchTerm);
-    const token = localStorage.getItem("spotify_token");
+    const token = getLocalStorage("spotify_token");
     if (!token) return;
 
     try {
@@ -68,7 +78,7 @@ function SpotifyContent() {
 
   const handleLoadMore = async () => {
     if (nextPageToken && currentSearchTerm) {
-      const token = localStorage.getItem("spotify_token");
+      const token = getLocalStorage("spotify_token");
       if (!token) return;
 
       try {
@@ -94,8 +104,10 @@ function SpotifyContent() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("spotify_token");
-    window.location.href = "/api/spotify/login";
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("spotify_token");
+      window.location.href = "/api/spotify/login";
+    }
   };
 
   const onDragEnd = (result: DropResult) => {
@@ -132,7 +144,7 @@ function SpotifyContent() {
   };
 
   useEffect(() => {
-    if (accessToken) {
+    if (accessToken && typeof window !== "undefined") {
       localStorage.setItem("spotify_token", accessToken);
     }
   }, [accessToken]);
@@ -165,7 +177,7 @@ function SpotifyContent() {
     );
   }
 
-  if (!accessToken && !localStorage.getItem("spotify_token")) {
+  if (!accessToken && !getLocalStorage("spotify_token")) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] text-gray-100">
         <div className="container mx-auto px-4 py-8">
@@ -304,10 +316,12 @@ function SpotifyContent() {
 
 export default function SpotifySearchPage() {
   return (
-    <AppProvider>
-      <PlayingProvider>
-        <SpotifyContent />
-      </PlayingProvider>
-    </AppProvider>
+    <Suspense fallback={<div>Loading...</div>}>
+      <AppProvider>
+        <PlayingProvider>
+          <SpotifyContent />
+        </PlayingProvider>
+      </AppProvider>
+    </Suspense>
   );
 }
