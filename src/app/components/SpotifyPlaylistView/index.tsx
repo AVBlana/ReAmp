@@ -91,7 +91,7 @@ const SpotifyPlaylistView: React.FC = () => {
                         {...provided.dragHandleProps}
                         className={`flex-shrink-0 w-[180px] h-[180px] transition-all duration-300 ${
                           snapshot.isDragging
-                            ? "scale-110 z-[9999]"
+                            ? "scale-110 z-[9999] ring-2 ring-[#1DB954] ring-opacity-50 shadow-[0_0_30px_rgba(29,185,84,0.5)] animate-pulse"
                             : "hover:scale-105 hover:z-10"
                         } ${
                           song.id === currentSong?.id
@@ -188,7 +188,7 @@ const SpotifyPlaylistView: React.FC = () => {
                   draggableId={`list-${song.id}`}
                   index={index}
                 >
-                  {(provided) => (
+                  {(provided, snapshot) => (
                     <li
                       ref={provided.innerRef}
                       {...provided.draggableProps}
@@ -197,7 +197,11 @@ const SpotifyPlaylistView: React.FC = () => {
                         song.id === currentSong?.id
                           ? "border-green-500 bg-green-900/30"
                           : "border-white/10 bg-black/50"
-                      } transition-colors duration-200 ease-in-out hover:bg-black/70 p-3 rounded-lg cursor-grab active:cursor-grabbing`}
+                      } transition-colors duration-200 ease-in-out hover:bg-black/70 p-3 rounded-lg cursor-grab active:cursor-grabbing ${
+                        snapshot.isDragging
+                          ? "ring-2 ring-[#1DB954] ring-opacity-50 shadow-[0_0_30px_rgba(29,185,84,0.5)] animate-pulse"
+                          : ""
+                      }`}
                     >
                       <span className="truncate flex-grow">
                         {song.title} - {song.artist.name}

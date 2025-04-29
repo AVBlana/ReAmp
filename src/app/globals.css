@@ -26,6 +26,23 @@ body {
   }
 }
 
+/* Marquee Animation */
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 10s linear infinite;
+  display: inline-block;
+  white-space: nowrap;
+  will-change: transform;
+}
+
 .writing-mode-vertical {
   writing-mode: vertical-lr;
   text-orientation: upright;

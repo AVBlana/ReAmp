@@ -52,7 +52,7 @@ const PlaylistView: React.FC = () => {
                 draggableId={video.id.videoId}
                 index={index}
               >
-                {(provided) => (
+                {(provided, snapshot) => (
                   <li
                     ref={provided.innerRef}
                     {...provided.draggableProps}
@@ -63,7 +63,11 @@ const PlaylistView: React.FC = () => {
                       video.id.videoId === selectedVideo
                         ? "border-green-500 bg-green-900/30"
                         : "border-white/10 bg-black/50"
-                    } transition-colors duration-200 ease-in-out hover:bg-black/70 p-3 rounded-lg`}
+                    } transition-colors duration-200 ease-in-out hover:bg-black/70 p-3 rounded-lg ${
+                      snapshot.isDragging
+                        ? "ring-2 ring-[#FF0000] ring-opacity-50 shadow-[0_0_30px_rgba(255,0,0,0.5)] animate-pulse"
+                        : ""
+                    }`}
                   >
                     <div className="flex-grow min-w-0 overflow-hidden">
                       <div
@@ -72,6 +76,11 @@ const PlaylistView: React.FC = () => {
                             ? "animate-marquee whitespace-nowrap"
                             : "truncate"
                         }`}
+                        style={{
+                          animationDuration: "10s",
+                          animationTimingFunction: "linear",
+                          animationIterationCount: "infinite",
+                        }}
                       >
                         {video.snippet.title}
                       </div>

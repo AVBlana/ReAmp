@@ -72,15 +72,20 @@ export default function YouTubeSearch() {
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="min-h-screen bg-[#121212] text-gray-100">
+      <div className="min-h-screen bg-[#0A0A0A] text-gray-100">
+        {/* Background Grid */}
+        <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black_70%)]" />
+
         {/* Header */}
-        <header className="bg-black/80 border-b border-white/10 sticky top-0 z-50">
+        <header className="relative bg-[#0A0A0A]/80 backdrop-blur-md border-b border-[#FF0000]/10 sticky top-0 z-50">
           <div className="container mx-auto px-4 py-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="flex items-center justify-between w-full md:w-auto">
                 <div className="flex items-center space-x-2">
-                  <FaYoutube className="text-red-600" size={32} />
-                  <h1 className="text-2xl font-bold text-white">ReAMP</h1>
+                  <FaYoutube className="text-[#FF0000]" size={32} />
+                  <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#FF0000] to-[#FF0000]/80">
+                    ReAMP
+                  </h1>
                 </div>
                 <Link
                   href="/"
@@ -105,12 +110,10 @@ export default function YouTubeSearch() {
         </header>
 
         {/* Main Content */}
-        <main className="container mx-auto px-4 py-8">
+        <main className="container mx-auto px-4 py-8 relative z-10">
           {/* Player Section */}
-          <div className="relative rounded-2xl shadow-2xl p-6 mb-8 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#FF6B6B]/20 via-[#FF6B6B]/15 to-[#FF6B6B]/10"></div>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(255,107,107,0.2),transparent)]"></div>
+          <div className="relative rounded-2xl shadow-2xl p-6 mb-8 overflow-hidden bg-[#1A1A1A] border border-[#FF0000]/20">
+            <div className="absolute inset-0 bg-gradient-to-r from-[#FF0000]/5 to-transparent" />
             <div className="relative z-10">
               <Droppable droppableId="video-player">
                 {(provided, snapshot) => (
@@ -118,26 +121,27 @@ export default function YouTubeSearch() {
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className={`relative transition-all duration-300 ${
-                      snapshot.isDraggingOver ? "ring-2 ring-[#FF6B6B]" : ""
+                      snapshot.isDraggingOver
+                        ? "ring-2 ring-[#FF0000] ring-opacity-50"
+                        : ""
                     }`}
                   >
                     {selectedVideo ? (
                       <div className="relative">
                         <Player />
                         {snapshot.isDraggingOver && (
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
-                            <div className="bg-[#FF6B6B]/80 rounded-full p-4">
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10 backdrop-blur-sm">
+                            <div className="bg-[#FF0000]/80 rounded-full p-4 transform hover:scale-110 transition-transform duration-300 animate-pulse">
                               <FaPlay className="text-white text-3xl" />
                             </div>
                           </div>
                         )}
                       </div>
                     ) : (
-                      <div className="aspect-video w-full bg-gray-900 rounded-lg flex flex-col items-center justify-center relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 animate-pulse"></div>
+                      <div className="aspect-video w-full bg-[#1A1A1A] rounded-lg flex flex-col items-center justify-center relative overflow-hidden">
                         <div className="relative z-10 flex flex-col items-center space-y-4">
-                          <div className="w-20 h-20 rounded-full bg-gray-700 flex items-center justify-center">
-                            <FaPlay className="text-gray-500 text-3xl" />
+                          <div className="w-20 h-20 rounded-full bg-[#2A2A2A] flex items-center justify-center">
+                            <FaPlay className="text-gray-400 text-3xl" />
                           </div>
                           <p className="text-gray-400 text-lg">
                             {snapshot.isDraggingOver
@@ -158,11 +162,12 @@ export default function YouTubeSearch() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Playlist Section */}
             <div className="lg:col-span-1">
-              <div className="relative rounded-2xl shadow-2xl p-6 sticky top-24 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-[#FF6B6B]/20 via-[#FF6B6B]/15 to-[#FF6B6B]/10"></div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(255,107,107,0.2),transparent)]"></div>
+              <div className="relative rounded-2xl shadow-2xl p-6 sticky top-24 overflow-hidden bg-[#1A1A1A] border border-[#FF0000]/20">
+                <div className="absolute inset-0 bg-gradient-to-r from-[#FF0000]/5 to-transparent" />
                 <div className="relative z-10">
+                  <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#FF0000] to-[#FF0000]/80 mb-6">
+                    Your Playlist
+                  </h2>
                   <PlaylistView />
                 </div>
               </div>
@@ -170,17 +175,15 @@ export default function YouTubeSearch() {
 
             {/* Search Results Section */}
             <div className="lg:col-span-2">
-              <div className="relative rounded-2xl shadow-2xl p-6 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-[#FF6B6B]/20 via-[#FF6B6B]/15 to-[#FF6B6B]/10"></div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(255,107,107,0.2),transparent)]"></div>
+              <div className="relative rounded-2xl shadow-2xl p-6 overflow-hidden bg-[#1A1A1A] border border-[#FF0000]/20">
+                <div className="absolute inset-0 bg-gradient-to-r from-[#FF0000]/5 to-transparent" />
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-white">
+                    <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#FF0000] to-[#FF0000]/80">
                       Search Results
                     </h2>
                     {searchResults.length > 0 && (
-                      <span className="text-sm text-gray-400">
+                      <span className="text-sm text-gray-300 bg-[#FF0000]/10 px-3 py-1 rounded-full">
                         {searchResults.length} results found
                       </span>
                     )}
@@ -193,7 +196,7 @@ export default function YouTubeSearch() {
                     <div className="mt-6 flex justify-center">
                       <button
                         onClick={handleLoadMore}
-                        className="px-6 py-2 bg-[#FF6B6B] text-white rounded-full hover:bg-[#FF6B6B]/80 transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-[#FF6B6B]/20 hover:scale-105"
+                        className="px-6 py-2 bg-[#FF0000] text-white rounded-full hover:bg-[#FF0000]/80 transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-[#FF0000]/20 hover:scale-105 border border-[#FF0000]/20"
                       >
                         <span>Load More</span>
                         <svg
@@ -219,7 +222,7 @@ export default function YouTubeSearch() {
         </main>
 
         {/* Footer */}
-        <footer className="bg-black/80 border-t border-white/10 mt-8">
+        <footer className="relative bg-[#0A0A0A]/80 backdrop-blur-md border-t border-[#FF0000]/10 mt-8">
           <div className="container mx-auto px-4 py-6">
             <div className="text-center text-gray-400">
               <p>© 2024 ReAMP. All rights reserved.</p>
