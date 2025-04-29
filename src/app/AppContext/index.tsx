@@ -40,39 +40,48 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
   );
   const [currentSearchTerm, setCurrentSearchTerm] = useState<string>("");
 
+  // Load playlist from localStorage only once on initial mount
   useEffect(() => {
     const storedPlaylist = localStorage.getItem(PLAYLIST_STORAGE_KEY);
     if (storedPlaylist) {
-      setPlaylist(JSON.parse(storedPlaylist));
+      try {
+        const parsedPlaylist = JSON.parse(storedPlaylist);
+        setPlaylist(parsedPlaylist);
+      } catch (error) {
+        console.error("Error parsing stored playlist:", error);
+        localStorage.removeItem(PLAYLIST_STORAGE_KEY);
+      }
     }
   }, []);
 
+  // Sync playlist changes to localStorage
+  useEffect(() => {
+    if (playlist.length > 0) {
+      localStorage.setItem(PLAYLIST_STORAGE_KEY, JSON.stringify(playlist));
+    } else {
+      localStorage.removeItem(PLAYLIST_STORAGE_KEY);
+    }
+  }, [playlist]);
+
   const addToPlaylist = (video: YoutubeVideo) => {
-    setPlaylist((prevPlaylist) => {
-      const updatedPlaylist = [...prevPlaylist, video];
-      localStorage.setItem(
-        PLAYLIST_STORAGE_KEY,
-        JSON.stringify(updatedPlaylist)
-      );
-      return updatedPlaylist;
-    });
+    setPlaylist((prevPlaylist) => [...prevPlaylist, video]);
   };
 
   const handleAddToPlaylist = (video: YoutubeVideo) => {
-    addToPlaylist(video);
+    // Check if the video is already in the playlist
+    const isAlreadyInPlaylist = playlist.some(
+      (item) => item.id.videoId === video.id.videoId
+    );
+
+    if (!isAlreadyInPlaylist) {
+      addToPlaylist(video);
+    }
   };
 
   const removeFromPlaylist = (videoId: string) => {
-    setPlaylist((prevPlaylist) => {
-      const updatedPlaylist = prevPlaylist.filter(
-        (item) => item.id.videoId !== videoId
-      );
-      localStorage.setItem(
-        PLAYLIST_STORAGE_KEY,
-        JSON.stringify(updatedPlaylist)
-      );
-      return updatedPlaylist;
-    });
+    setPlaylist((prevPlaylist) =>
+      prevPlaylist.filter((item) => item.id.videoId !== videoId)
+    );
   };
 
   return (

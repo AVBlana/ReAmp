@@ -1,37 +1,48 @@
 import Image from "next/image";
 import { FaPlay, FaPlus } from "react-icons/fa";
-import { YoutubeVideo } from "../Services/YtService";
-import { useAppContext } from "@/app/AppContext";
+import { Song } from "../../../types/playerTypes";
+import { usePlaying } from "../../../context/Playing";
 
-interface YtSearchResultsListProps {
-  searchResults: YoutubeVideo[];
-  setSelectedVideo: (videoId: string) => void;
+interface SpotifySearchResultsListProps {
+  searchResults: Song[];
 }
 
-export default function YtSearchResultsList({
+export default function SpotifySearchResultsList({
   searchResults,
-  setSelectedVideo,
-}: YtSearchResultsListProps) {
-  const { handleAddToPlaylist, playlist } = useAppContext();
+}: SpotifySearchResultsListProps) {
+  const { setCurrentSong, playlist, setPlaylist } = usePlaying();
+
+  const handlePlay = (song: Song) => {
+    setCurrentSong(song);
+  };
+
+  const handleAddToPlaylist = (song: Song) => {
+    // Check if the song is already in the playlist
+    const isAlreadyInPlaylist = playlist.some((track) => track.id === song.id);
+
+    if (!isAlreadyInPlaylist) {
+      setPlaylist([...playlist, song]);
+    }
+  };
 
   return (
     <div className="space-y-4">
-      {searchResults.map((video) => (
+      {searchResults.map((song) => (
         <div
-          key={video.id.videoId}
+          key={song.id}
           className="flex border rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300"
         >
           <div className="w-48 flex-shrink-0 relative group">
             <Image
-              src={video.snippet.thumbnails.medium.url}
-              width={video.snippet.thumbnails.medium.width}
-              height={video.snippet.thumbnails.medium.height}
-              alt={video.snippet.title}
+              src={song.artwork.medium.url}
+              width={song.artwork.medium.width}
+              height={song.artwork.medium.height}
+              alt={song.title}
               className="object-cover w-full h-full"
             />
             <div
               className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center group-hover:bg-opacity-50 transition-all duration-300 cursor-pointer"
-              onClick={() => setSelectedVideo(video.id.videoId)}
+              onClick={() => handlePlay(song)}
             >
               <FaPlay
                 size={30}
@@ -43,32 +54,26 @@ export default function YtSearchResultsList({
           <div className="flex flex-col justify-between p-4 w-full">
             <div>
               <h3 className="font-bold text-lg mb-2 line-clamp-2">
-                {video.snippet.title}
+                {song.title}
               </h3>
-              <p className="text-sm text-gray-600 mb-2">
-                {video.snippet.channelTitle}
-              </p>
-              <p className="text-sm text-gray-500 line-clamp-2">
-                {video.snippet.description}
-              </p>
+              <p className="text-sm text-gray-600 mb-2">{song.artist.name}</p>
             </div>
           </div>
+
           <div className="flex items-center p-4">
             <button
-              onClick={() => handleAddToPlaylist(video)}
+              onClick={() => handleAddToPlaylist(song)}
               className={`p-2 rounded-full transition-colors duration-300 ${
-                playlist.some((item) => item.id.videoId === video.id.videoId)
+                playlist.some((track) => track.id === song.id)
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-green-500 hover:bg-green-600 text-white"
               }`}
               title={
-                playlist.some((item) => item.id.videoId === video.id.videoId)
+                playlist.some((track) => track.id === song.id)
                   ? "Already in playlist"
                   : "Add to playlist"
               }
-              disabled={playlist.some(
-                (item) => item.id.videoId === video.id.videoId
-              )}
+              disabled={playlist.some((track) => track.id === song.id)}
             >
               <FaPlus size={12} />
             </button>

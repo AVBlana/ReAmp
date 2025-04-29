@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 
-interface SearchProps {
+interface SpotifySearchProps {
   onSearch: (searchTerm: string) => void;
 }
 
-export default function Search({ onSearch }: SearchProps) {
+export default function SpotifySearch({ onSearch }: SpotifySearchProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSearchRef = useRef<string>("");
@@ -46,13 +46,13 @@ export default function Search({ onSearch }: SearchProps) {
           type="text"
           value={searchTerm}
           onChange={handleChange}
-          className="flex-grow border text-black border-gray-300 rounded-l px-4 py-2 focus:outline-none focus:border-red-500 focus:ring-0"
-          placeholder="Search for YouTube videos"
+          className="flex-grow border text-black border-gray-300 rounded-l px-4 py-2 focus:outline-none focus:border-green-500 focus:ring-0"
+          placeholder="Search for tracks on Spotify"
         />
         <button
           type="button"
           onClick={handleSearch}
-          className="bg-red-500 text-white px-6 py-2 rounded-r hover:bg-red-600 transition-colors duration-300"
+          className="bg-green-500 text-white px-6 py-2 rounded-r hover:bg-green-600 transition-colors duration-300"
         >
           Search
         </button>

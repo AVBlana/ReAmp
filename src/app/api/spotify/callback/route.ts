@@ -1,0 +1,66 @@
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+
+const SPOTIFY_CLIENT_ID = process.env.REACT_APP_SPOTIFY_CLIENT_ID;
+const SPOTIFY_CLIENT_SECRET = process.env.REACT_APP_SPOTIFY_API_KEY;
+const REDIRECT_URI =
+  process.env.REACT_APP_PUBLIC_REDIRECT_URI ||
+  "http://localhost:3000/api/spotify/callback";
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const code = searchParams.get("code");
+
+  if (!code) {
+    console.error("No authorization code received");
+    return NextResponse.redirect(`${BASE_URL}/spotify?error=no_code`);
+  }
+
+  if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET) {
+    console.error("Missing Spotify credentials");
+    return NextResponse.redirect(
+      `${BASE_URL}/spotify?error=missing_credentials`
+    );
+  }
+
+  try {
+    const response = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${Buffer.from(
+          `${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`
+        ).toString("base64")}`,
+      },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: REDIRECT_URI,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Failed to get tokens:", data);
+      return NextResponse.redirect(`${BASE_URL}/spotify?error=token_error`);
+    }
+
+    // Store the refresh token in a cookie
+    cookies().set("spotify_refresh_token", data.refresh_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+    });
+
+    // Store the access token in localStorage (will be handled by the client)
+    return NextResponse.redirect(
+      `${BASE_URL}/spotify?access_token=${data.access_token}`
+    );
+  } catch (error) {
+    console.error("Error getting tokens:", error);
+    return NextResponse.redirect(`${BASE_URL}/spotify?error=token_error`);
+  }
+}
