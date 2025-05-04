@@ -96,6 +96,41 @@ const PlaylistView: React.FC = () => {
       .animate-glow {
         animation: glow 1.5s ease-in-out infinite;
       }
+
+      /* YouTube Futuristic Scrollbar Styles */
+      .youtube-scrollbar::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+
+      .youtube-scrollbar::-webkit-scrollbar-track {
+        background: rgba(26, 26, 26, 0.3);
+        border-radius: 10px;
+        backdrop-filter: blur(10px);
+      }
+
+      .youtube-scrollbar::-webkit-scrollbar-thumb {
+        background: linear-gradient(45deg, #FF0000, #ff4d4d);
+        border-radius: 10px;
+        border: 2px solid rgba(255, 0, 0, 0.2);
+        box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+        transition: all 0.3s ease;
+      }
+
+      .youtube-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(45deg, #ff4d4d, #FF0000);
+        box-shadow: 0 0 20px rgba(255, 0, 0, 0.8);
+      }
+
+      .youtube-scrollbar::-webkit-scrollbar-corner {
+        background: transparent;
+      }
+
+      /* For Firefox */
+      .youtube-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: #FF0000 rgba(26, 26, 26, 0.3);
+      }
     `;
     document.head.appendChild(style);
     return () => {
@@ -174,7 +209,7 @@ const PlaylistView: React.FC = () => {
               <div
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className="flex space-x-4 overflow-x-auto scrollbar-hide py-2 px-28"
+                className="flex space-x-4 overflow-x-auto scrollbar-hide py-2 px-10"
                 style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
               >
                 {playlist.map((video, index) => (
@@ -274,7 +309,7 @@ const PlaylistView: React.FC = () => {
               <ul
                 {...provided.droppableProps}
                 ref={provided.innerRef}
-                className="space-y-1 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-[#FF0000]/20 scrollbar-track-transparent pr-2"
+                className="space-y-1 h-full overflow-y-auto youtube-scrollbar pr-2"
               >
                 {playlist.map((video, index) => (
                   <Draggable

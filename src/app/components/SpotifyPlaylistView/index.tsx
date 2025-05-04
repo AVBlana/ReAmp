@@ -45,6 +45,41 @@ const SpotifyPlaylistView: React.FC = () => {
       .animate-glow {
         animation: glow 1.5s ease-in-out infinite;
       }
+
+      /* Futuristic Scrollbar Styles */
+      .futuristic-scrollbar::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+
+      .futuristic-scrollbar::-webkit-scrollbar-track {
+        background: rgba(26, 26, 26, 0.3);
+        border-radius: 10px;
+        backdrop-filter: blur(10px);
+      }
+
+      .futuristic-scrollbar::-webkit-scrollbar-thumb {
+        background: linear-gradient(45deg, #1DB954, #00ff9d);
+        border-radius: 10px;
+        border: 2px solid rgba(29, 185, 84, 0.2);
+        box-shadow: 0 0 15px rgba(29, 185, 84, 0.5);
+        transition: all 0.3s ease;
+      }
+
+      .futuristic-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(45deg, #00ff9d, #1DB954);
+        box-shadow: 0 0 20px rgba(29, 185, 84, 0.8);
+      }
+
+      .futuristic-scrollbar::-webkit-scrollbar-corner {
+        background: transparent;
+      }
+
+      /* For Firefox */
+      .futuristic-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: #1DB954 rgba(26, 26, 26, 0.3);
+      }
     `;
     document.head.appendChild(style);
     return () => {
@@ -233,7 +268,7 @@ const SpotifyPlaylistView: React.FC = () => {
                   vinylContainerRef.current = el;
                 }}
                 {...provided.droppableProps}
-                className="flex space-x-4 overflow-x-auto scrollbar-hide py-2 px-10"
+                className="flex space-x-4 overflow-x-auto futuristic-scrollbar py-2 px-10"
                 style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
               >
                 {playlist.map((song: Song, index: number) =>
@@ -347,7 +382,7 @@ const SpotifyPlaylistView: React.FC = () => {
                   provided.innerRef(el);
                   listContainerRef.current = el;
                 }}
-                className="space-y-1 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-[#FF0000]/20 scrollbar-track-transparent pr-2"
+                className="space-y-1 h-full overflow-y-auto futuristic-scrollbar pr-2"
               >
                 {playlist.map((song: Song, index: number) =>
                   song && song.id ? (

@@ -402,41 +402,49 @@ export default function SpotifyPlayer() {
             // First, set the next track
             setCurrentSong(nextTrack);
 
-            // Use the SDK directly instead of the API
-            if (playerRef.current) {
-              // Pause current track
-              await playerRef.current.pause();
+            // Wait a moment for the state to update
+            await new Promise((resolve) => setTimeout(resolve, 100));
 
-              // Small delay to ensure the pause takes effect
-              await new Promise((resolve) => setTimeout(resolve, 100));
-
-              // Play the next track using the API
-              const response = await fetch(
-                `https://api.spotify.com/v1/me/player/play?device_id=${activeDeviceId}`,
-                {
-                  method: "PUT",
-                  headers: {
-                    Authorization: `Bearer ${spotifyToken}`,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    uris: [`spotify:track:${nextTrack.id}`],
-                    position_ms: 0,
-                  }),
-                }
-              );
-
-              if (!response.ok) {
-                throw new Error(
-                  `Failed to play next track: ${response.status}`
-                );
+            // Use the API to play the next track
+            const response = await fetch(
+              `https://api.spotify.com/v1/me/player/play?device_id=${activeDeviceId}`,
+              {
+                method: "PUT",
+                headers: {
+                  Authorization: `Bearer ${spotifyToken}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  uris: [`spotify:track:${nextTrack.id}`],
+                  position_ms: 0,
+                }),
               }
+            );
 
-              // Ensure playback starts
+            if (!response.ok) {
+              throw new Error(`Failed to play next track: ${response.status}`);
+            }
+
+            // Ensure playback starts
+            if (playerRef.current) {
               await playerRef.current.resume();
             }
           } catch (error) {
             console.error("Error transitioning to next track:", error);
+            // If there's an error, try to refresh the token and retry
+            try {
+              const refreshResponse = await fetch("/api/spotify/refresh");
+              if (!refreshResponse.ok) {
+                throw new Error("Failed to refresh token");
+              }
+              const data = await refreshResponse.json();
+              if (typeof window !== "undefined") {
+                localStorage.setItem("spotify_token", data.access_token);
+                setSpotifyToken(data.access_token);
+              }
+            } catch (refreshError) {
+              console.error("Error refreshing token:", refreshError);
+            }
           }
         }
       } else {
