@@ -34,6 +34,35 @@ function SpotifyContent() {
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const [currentSearchTerm, setCurrentSearchTerm] = useState<string>("");
 
+  // Initialize playlist from localStorage when component mounts
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const savedPlaylist = localStorage.getItem("spotify_playlist");
+        if (savedPlaylist) {
+          const parsedPlaylist = JSON.parse(savedPlaylist);
+          if (Array.isArray(parsedPlaylist)) {
+            setPlaylist(parsedPlaylist);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading saved playlist:", error);
+        localStorage.removeItem("spotify_playlist");
+      }
+    }
+  }, [setPlaylist]);
+
+  // Save playlist to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== "undefined" && playlist.length > 0) {
+      try {
+        localStorage.setItem("spotify_playlist", JSON.stringify(playlist));
+      } catch (error) {
+        console.error("Error saving playlist to localStorage:", error);
+      }
+    }
+  }, [playlist]);
+
   const refreshToken = async () => {
     try {
       const response = await fetch("/api/spotify/refresh");
@@ -143,18 +172,8 @@ function SpotifyContent() {
   useEffect(() => {
     if (accessToken && typeof window !== "undefined") {
       localStorage.setItem("spotify_token", accessToken);
-      // Load saved playlist
-      const savedPlaylist = localStorage.getItem("spotify_playlist");
-      if (savedPlaylist) {
-        try {
-          setPlaylist(JSON.parse(savedPlaylist));
-        } catch (error) {
-          console.error("Error loading saved playlist:", error);
-          localStorage.removeItem("spotify_playlist");
-        }
-      }
     }
-  }, [accessToken, setPlaylist]);
+  }, [accessToken]);
 
   useEffect(() => {
     configureWebGL();
