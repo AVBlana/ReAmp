@@ -24,6 +24,8 @@ function YouTubeSearchContent() {
     selectedVideo,
     playlist,
     setPlaylist,
+    playlistName,
+    setPlaylistName,
   } = useAppContext();
 
   useEffect(() => {
@@ -141,7 +143,7 @@ function YouTubeSearchContent() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
             {/* Player Section */}
             <div className="lg:col-span-2">
-              <div className="relative rounded-2xl shadow-2xl p-4 overflow-hidden bg-[#1A1A1A] border border-[#FF0000]/20 h-[600px]">
+              <div className="relative rounded-2xl shadow-2xl p-4 overflow-hidden bg-[#0A0A0A] border border-[#FF0000]/20 h-[600px]">
                 <div className="absolute inset-0 bg-gradient-to-r from-[#FF0000]/5 to-transparent" />
                 <div className="relative z-10 h-full flex flex-col">
                   <Droppable droppableId="video-player">
@@ -169,7 +171,7 @@ function YouTubeSearchContent() {
                             )}
                           </div>
                         ) : (
-                          <div className="h-full w-full bg-[#1A1A1A] rounded-lg flex flex-col items-center justify-center relative overflow-hidden">
+                          <div className="h-full w-full bg-[#0A0A0A] rounded-lg flex flex-col items-center justify-center relative overflow-hidden">
                             <div className="relative z-10 flex flex-col items-center space-y-4">
                               <div className="w-20 h-20 rounded-full bg-[#2A2A2A] flex items-center justify-center">
                                 <FaPlay className="text-gray-400 text-3xl" />
@@ -192,13 +194,22 @@ function YouTubeSearchContent() {
 
             {/* Playlist Section */}
             <div className="lg:col-span-1">
-              <div className="relative rounded-2xl shadow-2xl p-4 overflow-hidden bg-[#1A1A1A] border border-[#FF0000]/20 h-[600px]">
+              <div className="relative rounded-2xl shadow-2xl p-4 overflow-hidden bg-[#0A0A0A] border border-[#FF0000]/20 h-[700px]">
                 <div className="absolute inset-0 bg-gradient-to-r from-[#FF0000]/5 to-transparent" />
                 <div className="relative z-10 h-full flex flex-col">
-                  <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#FF0000] to-[#FF0000]/80 mb-4">
-                    Your Playlist
+                  <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#FF0000] to-[#FF0000]/80 mb-2">
+                    My Playlists
                   </h2>
-                  <div className="flex-1 overflow-hidden flex flex-col">
+                  <div className="flex items-center mb-4">
+                    <input
+                      type="text"
+                      value={playlistName}
+                      onChange={(e) => setPlaylistName(e.target.value)}
+                      className="text-lg bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-red-500 rounded px-2 py-1 text-gray-300"
+                      placeholder="Playlist Name"
+                    />
+                  </div>
+                  <div className="flex-1 overflow-hidden flex flex-col bg-[#0A0A0A] rounded-lg">
                     <PlaylistView />
                   </div>
                 </div>
@@ -207,7 +218,7 @@ function YouTubeSearchContent() {
           </div>
 
           {/* Search Results Section */}
-          <div className="relative rounded-2xl shadow-2xl p-6 overflow-hidden bg-[#1A1A1A] border border-[#FF0000]/20">
+          <div className="relative rounded-2xl shadow-2xl p-6 overflow-hidden bg-[#0A0A0A] border border-[#FF0000]/20">
             <div className="absolute inset-0 bg-gradient-to-r from-[#FF0000]/5 to-transparent" />
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-6">

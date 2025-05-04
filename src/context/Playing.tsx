@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import { Song } from "../types/playerTypes";
 
 interface PlayingContextType {
@@ -15,12 +21,40 @@ interface PlayingContextType {
 const PLAYLIST_STORAGE_KEY = "spotify_playlist";
 const PLAYLIST_NAME_KEY = "spotify_playlist_name";
 
+// Initialize state from localStorage if available
+const getInitialState = () => {
+  if (typeof window === "undefined") {
+    return {
+      playlist: [],
+      playlistName: "My Playlist",
+    };
+  }
+
+  try {
+    const savedPlaylist = localStorage.getItem(PLAYLIST_STORAGE_KEY);
+    const savedName = localStorage.getItem(PLAYLIST_NAME_KEY);
+
+    return {
+      playlist: savedPlaylist ? JSON.parse(savedPlaylist) : [],
+      playlistName: savedName || "My Playlist",
+    };
+  } catch (error) {
+    console.error("Error loading initial state:", error);
+    return {
+      playlist: [],
+      playlistName: "My Playlist",
+    };
+  }
+};
+
+const initialState = getInitialState();
+
 const PlayingContext = createContext<PlayingContextType>({
   currentSong: null,
   setCurrentSong: () => {},
-  playlist: [],
+  playlist: initialState.playlist,
   setPlaylist: () => {},
-  playlistName: "My Playlist",
+  playlistName: initialState.playlistName,
   setPlaylistName: () => {},
 });
 
@@ -30,39 +64,94 @@ export const PlayingProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
-  const [playlist, setPlaylist] = useState<Song[]>([]);
-  const [playlistName, setPlaylistName] = useState<string>("My Playlist");
+  const [playlist, setPlaylist] = useState<Song[]>(initialState.playlist);
+  const [playlistName, setPlaylistName] = useState<string>(
+    initialState.playlistName
+  );
 
-  // Load playlist and name from localStorage on mount
-  useEffect(() => {
-    const storedPlaylist = localStorage.getItem(PLAYLIST_STORAGE_KEY);
-    const storedName = localStorage.getItem(PLAYLIST_NAME_KEY);
-    if (storedPlaylist) {
+  // Create memoized setter for playlist name that ensures localStorage sync
+  const handleSetPlaylistName = useCallback((name: string) => {
+    setPlaylistName(name);
+    if (typeof window !== "undefined") {
       try {
-        const parsedPlaylist = JSON.parse(storedPlaylist);
-        setPlaylist(parsedPlaylist);
+        localStorage.setItem(PLAYLIST_NAME_KEY, name);
       } catch (error) {
-        console.error("Error parsing stored playlist:", error);
-        localStorage.removeItem(PLAYLIST_STORAGE_KEY);
+        console.error("Error saving playlist name to localStorage:", error);
       }
-    }
-    if (storedName) {
-      setPlaylistName(storedName);
     }
   }, []);
 
-  // Save playlist and name to localStorage whenever they change
-  useEffect(() => {
-    if (playlist.length > 0) {
-      localStorage.setItem(PLAYLIST_STORAGE_KEY, JSON.stringify(playlist));
-    } else {
-      localStorage.removeItem(PLAYLIST_STORAGE_KEY);
+  // Create memoized setter for playlist that ensures localStorage sync
+  const handleSetPlaylist = useCallback((songs: Song[]) => {
+    setPlaylist(songs);
+    if (typeof window !== "undefined") {
+      try {
+        if (songs.length > 0) {
+          localStorage.setItem(PLAYLIST_STORAGE_KEY, JSON.stringify(songs));
+        } else {
+          localStorage.removeItem(PLAYLIST_STORAGE_KEY);
+        }
+      } catch (error) {
+        console.error("Error saving playlist to localStorage:", error);
+      }
     }
-  }, [playlist]);
+  }, []);
 
+  // Load playlist and name from localStorage on mount
   useEffect(() => {
-    localStorage.setItem(PLAYLIST_NAME_KEY, playlistName);
-  }, [playlistName]);
+    if (typeof window !== "undefined") {
+      try {
+        const savedPlaylist = localStorage.getItem(PLAYLIST_STORAGE_KEY);
+        const savedName = localStorage.getItem(PLAYLIST_NAME_KEY);
+
+        if (savedPlaylist) {
+          const parsedPlaylist = JSON.parse(savedPlaylist);
+          if (Array.isArray(parsedPlaylist)) {
+            setPlaylist(parsedPlaylist);
+          }
+        }
+
+        if (savedName) {
+          setPlaylistName(savedName);
+        }
+      } catch (error) {
+        console.error("Error loading from localStorage:", error);
+        // Clean up potentially corrupted data
+        localStorage.removeItem(PLAYLIST_STORAGE_KEY);
+        localStorage.removeItem(PLAYLIST_NAME_KEY);
+      }
+    }
+  }, []);
+
+  // Sync state with localStorage on window focus
+  useEffect(() => {
+    const handleFocus = () => {
+      if (typeof window !== "undefined") {
+        try {
+          const savedName = localStorage.getItem(PLAYLIST_NAME_KEY);
+          if (savedName && savedName !== playlistName) {
+            setPlaylistName(savedName);
+          }
+
+          const savedPlaylist = localStorage.getItem(PLAYLIST_STORAGE_KEY);
+          if (savedPlaylist) {
+            const parsedPlaylist = JSON.parse(savedPlaylist);
+            if (
+              Array.isArray(parsedPlaylist) &&
+              JSON.stringify(parsedPlaylist) !== JSON.stringify(playlist)
+            ) {
+              setPlaylist(parsedPlaylist);
+            }
+          }
+        } catch (error) {
+          console.error("Error syncing state with localStorage:", error);
+        }
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [playlist, playlistName]);
 
   return (
     <PlayingContext.Provider
@@ -70,9 +159,9 @@ export const PlayingProvider: React.FC<{ children: React.ReactNode }> = ({
         currentSong,
         setCurrentSong,
         playlist,
-        setPlaylist,
+        setPlaylist: handleSetPlaylist,
         playlistName,
-        setPlaylistName,
+        setPlaylistName: handleSetPlaylistName,
       }}
     >
       {children}

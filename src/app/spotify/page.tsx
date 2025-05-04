@@ -28,40 +28,17 @@ function SpotifyContent() {
   const searchParams = useSearchParams();
   const accessToken = searchParams.get("access_token");
   const error = searchParams.get("error");
-  const { playlist, setPlaylist, setCurrentSong } = useContext(PlayingContext);
+  const {
+    playlist,
+    setPlaylist,
+    setCurrentSong,
+    playlistName,
+    setPlaylistName,
+  } = useContext(PlayingContext);
 
   const [searchResults, setSearchResults] = useState<Song[]>([]);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const [currentSearchTerm, setCurrentSearchTerm] = useState<string>("");
-
-  // Initialize playlist from localStorage when component mounts
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const savedPlaylist = localStorage.getItem("spotify_playlist");
-        if (savedPlaylist) {
-          const parsedPlaylist = JSON.parse(savedPlaylist);
-          if (Array.isArray(parsedPlaylist)) {
-            setPlaylist(parsedPlaylist);
-          }
-        }
-      } catch (error) {
-        console.error("Error loading saved playlist:", error);
-        localStorage.removeItem("spotify_playlist");
-      }
-    }
-  }, [setPlaylist]);
-
-  // Save playlist to localStorage whenever it changes
-  useEffect(() => {
-    if (typeof window !== "undefined" && playlist.length > 0) {
-      try {
-        localStorage.setItem("spotify_playlist", JSON.stringify(playlist));
-      } catch (error) {
-        console.error("Error saving playlist to localStorage:", error);
-      }
-    }
-  }, [playlist]);
 
   const refreshToken = async () => {
     try {
@@ -133,10 +110,6 @@ function SpotifyContent() {
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
-      // Save the current playlist before logging out
-      if (playlist.length > 0) {
-        localStorage.setItem("spotify_playlist", JSON.stringify(playlist));
-      }
       localStorage.removeItem("spotify_token");
       window.location.href = "/api/spotify/login";
     }
@@ -274,7 +247,7 @@ function SpotifyContent() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
             {/* Player Section */}
             <div className="lg:col-span-2">
-              <div className="relative rounded-2xl shadow-2xl p-4 overflow-visible bg-[#1A1A1A] border border-[#1DB954]/20 h-[700px]">
+              <div className="relative rounded-2xl shadow-2xl p-4 overflow-visible bg-[#0A0A0A] border border-[#1DB954]/20 h-[700px]">
                 <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent" />
                 <div className="relative z-10 h-full flex flex-col">
                   <Droppable droppableId="spotify-player">
@@ -299,13 +272,22 @@ function SpotifyContent() {
 
             {/* Playlist Section */}
             <div className="lg:col-span-1">
-              <div className="relative rounded-2xl shadow-2xl p-4 overflow-hidden bg-[#1A1A1A] border border-[#1DB954]/20 h-[700px]">
+              <div className="relative rounded-2xl shadow-2xl p-4 overflow-hidden bg-[#0A0A0A] border border-[#1DB954]/20 h-[700px]">
                 <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent" />
                 <div className="relative z-10 h-full flex flex-col">
-                  <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#1DB954] to-[#1DB954]/80 mb-4">
-                    Your Playlist
+                  <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#1DB954] to-[#1DB954]/80 mb-2">
+                    My Playlists
                   </h2>
-                  <div className="flex-1 overflow-hidden flex flex-col">
+                  <div className="flex items-center mb-4">
+                    <input
+                      type="text"
+                      value={playlistName}
+                      onChange={(e) => setPlaylistName(e.target.value)}
+                      className="text-lg bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-green-500 rounded px-2 py-1 text-gray-300"
+                      placeholder="Playlist Name"
+                    />
+                  </div>
+                  <div className="flex-1 overflow-hidden flex flex-col bg-[#0A0A0A] rounded-lg">
                     <SpotifyPlaylistView />
                   </div>
                 </div>
@@ -314,11 +296,26 @@ function SpotifyContent() {
           </div>
 
           {/* Search Results Section */}
-          <SpotifySearchResultsList
-            searchResults={searchResults}
-            onLoadMore={handleLoadMore}
-            hasMore={!!nextPageToken}
-          />
+          <div className="relative rounded-2xl shadow-2xl p-6 overflow-hidden bg-[#0A0A0A] border border-[#1DB954]/20">
+            <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent" />
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#1DB954] to-[#1DB954]/80">
+                  Search Results
+                </h2>
+                {searchResults.length > 0 && (
+                  <span className="text-sm text-gray-300 bg-[#1DB954]/10 px-3 py-1 rounded-full">
+                    {searchResults.length} results found
+                  </span>
+                )}
+              </div>
+              <SpotifySearchResultsList
+                searchResults={searchResults}
+                onLoadMore={handleLoadMore}
+                hasMore={!!nextPageToken}
+              />
+            </div>
+          </div>
         </main>
       </div>
     </DragDropContext>
