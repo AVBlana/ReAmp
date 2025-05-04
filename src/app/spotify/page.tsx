@@ -1,20 +1,20 @@
 "use client";
 
-import { useEffect, useState, useContext, Suspense } from "react";
+import { useEffect, useState, useContext } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import SpotifyPlayer from "../components/SpotifyPlayer/SpotifyPlayer";
-import { AppProvider } from "../../context/App";
 import { PlayingProvider, PlayingContext } from "../../context/Playing";
-import SpotifySearch from "../components/SpotifySearch";
 import SpotifySearchResultsList from "../components/SpotifySearchResultsList";
 import SpotifyPlaylistView from "../components/SpotifyPlaylistView/index";
 import { searchSpotify } from "../components/Services/SpotifyService";
 import { Song } from "../../types/playerTypes";
-import { FaSpotify, FaPlay } from "react-icons/fa";
-import Header from "../components/Header";
-import Footer from "../components/Footer";
 import { DragDropContext, DropResult, Droppable } from "@hello-pangea/dnd";
+import { configureWebGL } from "../utils/webglConfig";
+import { AppProvider } from "../AppContext";
+import { FaSpotify } from "react-icons/fa";
+import Header from "../components/Header";
+import Search from "../components/Search";
 
 // Helper function to safely access localStorage
 const getLocalStorage = (key: string): string | null => {
@@ -28,8 +28,7 @@ function SpotifyContent() {
   const searchParams = useSearchParams();
   const accessToken = searchParams.get("access_token");
   const error = searchParams.get("error");
-  const { playlist, setPlaylist, setCurrentSong, currentSong } =
-    useContext(PlayingContext);
+  const { playlist, setPlaylist, setCurrentSong } = useContext(PlayingContext);
 
   const [searchResults, setSearchResults] = useState<Song[]>([]);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
@@ -105,6 +104,10 @@ function SpotifyContent() {
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
+      // Save the current playlist before logging out
+      if (playlist.length > 0) {
+        localStorage.setItem("spotify_playlist", JSON.stringify(playlist));
+      }
       localStorage.removeItem("spotify_token");
       window.location.href = "/api/spotify/login";
     }
@@ -118,13 +121,7 @@ function SpotifyContent() {
       const songId = result.draggableId.replace(/^(vinyl-|list-)/, "");
       const song = playlist.find((s: Song) => s && s.id === songId);
       if (song) {
-        // If the song is already playing, restart it
-        if (song.id === currentSong?.id) {
-          setCurrentSong(null);
-          setTimeout(() => setCurrentSong(song), 0);
-        } else {
-          setCurrentSong(song);
-        }
+        setCurrentSong(song);
       }
       return;
     }
@@ -146,8 +143,44 @@ function SpotifyContent() {
   useEffect(() => {
     if (accessToken && typeof window !== "undefined") {
       localStorage.setItem("spotify_token", accessToken);
+      // Load saved playlist
+      const savedPlaylist = localStorage.getItem("spotify_playlist");
+      if (savedPlaylist) {
+        try {
+          setPlaylist(JSON.parse(savedPlaylist));
+        } catch (error) {
+          console.error("Error loading saved playlist:", error);
+          localStorage.removeItem("spotify_playlist");
+        }
+      }
     }
-  }, [accessToken]);
+  }, [accessToken, setPlaylist]);
+
+  useEffect(() => {
+    configureWebGL();
+  }, []);
+
+  // Add the animation styles
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.textContent = `
+      @keyframes glow {
+        0%, 100% {
+          box-shadow: 0 0 10px rgba(29,185,84,0.6), 0 0 20px rgba(29,185,84,0.4);
+        }
+        50% {
+          box-shadow: 0 0 30px rgba(29,185,84,0.8), 0 0 50px rgba(29,185,84,0.6);
+        }
+      }
+      .animate-glow {
+        animation: glow 1.5s ease-in-out infinite;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
 
   if (error) {
     return (
@@ -211,117 +244,74 @@ function SpotifyContent() {
         <Header
           icon={<FaSpotify className="text-[#1DB954]" size={32} />}
           title="ReAMP"
-          searchComponent={<SpotifySearch onSearch={handleSearch} />}
+          searchComponent={<Search onSearch={handleSearch} />}
           onLogout={handleLogout}
           showLogout={true}
         />
 
         {/* Main Content */}
         <main className="container mx-auto px-4 py-8 relative z-10">
-          {/* Player Section */}
-          <div className="relative rounded-2xl shadow-2xl p-6 mb-8 overflow-hidden bg-[#1A1A1A] border border-[#1DB954]/20">
-            <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent" />
-            <div className="relative z-10">
-              <Droppable droppableId="spotify-player">
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={`relative transition-all duration-300 ${
-                      snapshot.isDraggingOver
-                        ? "ring-2 ring-[#1DB954] ring-opacity-50"
-                        : ""
-                    }`}
-                  >
-                    <SpotifyPlayer />
-                    {snapshot.isDraggingOver && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10 backdrop-blur-sm">
-                        <div className="bg-[#1DB954]/80 rounded-full p-4 transform hover:scale-110 transition-transform duration-300 animate-pulse">
-                          <FaPlay className="text-white text-3xl" />
-                        </div>
+          {/* Player and Playlist Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+            {/* Player Section */}
+            <div className="lg:col-span-2">
+              <div className="relative rounded-2xl shadow-2xl p-4 overflow-visible bg-[#1A1A1A] border border-[#1DB954]/20 h-[700px]">
+                <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent" />
+                <div className="relative z-10 h-full flex flex-col">
+                  <Droppable droppableId="spotify-player">
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`relative transition-all duration-300 flex-1 h-full overflow-visible pt-20 ${
+                          snapshot.isDraggingOver
+                            ? "ring-2 ring-[#1DB954] ring-opacity-50 shadow-[0_0_30px_rgba(29,185,84,0.5)] animate-glow"
+                            : ""
+                        }`}
+                      >
+                        <SpotifyPlayer />
+                        {provided.placeholder}
                       </div>
                     )}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
+                  </Droppable>
+                </div>
+              </div>
             </div>
-          </div>
 
-          {/* Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Playlist Section */}
             <div className="lg:col-span-1">
-              <div className="relative rounded-2xl shadow-2xl p-6 sticky top-24 overflow-hidden bg-[#1A1A1A] border border-[#1DB954]/20">
+              <div className="relative rounded-2xl shadow-2xl p-4 overflow-hidden bg-[#1A1A1A] border border-[#1DB954]/20 h-[700px]">
                 <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent" />
-                <div className="relative z-10">
-                  <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#1DB954] to-[#1DB954]/80 mb-6">
+                <div className="relative z-10 h-full flex flex-col">
+                  <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#1DB954] to-[#1DB954]/80 mb-4">
                     Your Playlist
                   </h2>
-                  <SpotifyPlaylistView />
-                </div>
-              </div>
-            </div>
-
-            {/* Search Results Section */}
-            <div className="lg:col-span-2">
-              <div className="relative rounded-2xl shadow-2xl p-6 overflow-hidden bg-[#1A1A1A] border border-[#1DB954]/20">
-                <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent" />
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#1DB954] to-[#1DB954]/80">
-                      Search Results
-                    </h2>
-                    {searchResults.length > 0 && (
-                      <span className="text-sm text-gray-300 bg-[#1DB954]/10 px-3 py-1 rounded-full">
-                        {searchResults.length} results found
-                      </span>
-                    )}
+                  <div className="flex-1 overflow-hidden flex flex-col">
+                    <SpotifyPlaylistView />
                   </div>
-                  <SpotifySearchResultsList searchResults={searchResults} />
-                  {nextPageToken && (
-                    <div className="mt-6 flex justify-center">
-                      <button
-                        onClick={handleLoadMore}
-                        className="px-6 py-2 bg-[#1DB954] text-white rounded-full hover:bg-[#1DB954]/80 transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-[#1DB954]/20 hover:scale-105 border border-[#1DB954]/20"
-                      >
-                        <span>Load More</span>
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
           </div>
-        </main>
 
-        <Footer />
+          {/* Search Results Section */}
+          <SpotifySearchResultsList
+            searchResults={searchResults}
+            onLoadMore={handleLoadMore}
+            hasMore={!!nextPageToken}
+          />
+        </main>
       </div>
     </DragDropContext>
   );
 }
 
-export default function SpotifySearchPage() {
+export default function SpotifyPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <PlayingProvider>
       <AppProvider>
-        <PlayingProvider>
-          <SpotifyContent />
-        </PlayingProvider>
+        <SpotifyContent />
       </AppProvider>
-    </Suspense>
+    </PlayingProvider>
   );
 }

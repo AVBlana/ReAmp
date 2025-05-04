@@ -28,7 +28,7 @@ export const searchSpotify = async (
 ): Promise<SearchResponse> => {
   try {
     const response = await fetch(
-      `https://api.spotify.com/v1/search?q=${searchTerm}&type=track&limit=20${
+      `https://api.spotify.com/v1/search?q=${searchTerm}&type=track&limit=10${
         offset ? `&offset=${offset}` : ""
       }`,
       {
@@ -75,7 +75,7 @@ export const searchSpotify = async (
 
     return {
       items: songs,
-      nextPageToken: data.tracks.next ? data.tracks.offset + 20 : null,
+      nextPageToken: data.tracks.next ? data.tracks.offset + 10 : null,
     };
   } catch (error) {
     console.error("Error searching Spotify:", error);

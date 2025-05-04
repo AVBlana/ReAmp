@@ -29,7 +29,7 @@ export async function GET(request: Request) {
       {
         params: {
           part: "snippet",
-          maxResults: 5,
+          maxResults: 10,
           q: query,
           type: "video",
           key: API_KEY,

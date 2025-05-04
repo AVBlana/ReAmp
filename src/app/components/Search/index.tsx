@@ -46,13 +46,13 @@ export default function Search({ onSearch }: SearchProps) {
           type="text"
           value={searchTerm}
           onChange={handleChange}
-          className="flex-grow bg-[#1A1A1A] border border-[#FF0000]/10 text-white rounded-l px-4 py-2 focus:outline-none focus:border-[#FF0000] focus:ring-0 placeholder-gray-400"
-          placeholder="Search for YouTube videos"
+          className="flex-grow bg-[#1A1A1A] border border-[#1DB954]/20 text-white rounded-l px-4 py-2 focus:outline-none focus:border-[#1DB954] focus:ring-0 placeholder-gray-400"
+          placeholder="Search for tracks on Spotify"
         />
         <button
           type="button"
           onClick={handleSearch}
-          className="bg-[#FF0000] text-white px-6 py-2 rounded-r hover:bg-[#FF0000]/80 transition-colors duration-300"
+          className="bg-[#1DB954] text-white px-6 py-2 rounded-r hover:bg-[#1DB954]/80 transition-colors duration-300"
         >
           Search
         </button>

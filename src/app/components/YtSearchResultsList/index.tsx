@@ -24,10 +24,15 @@ export default function YtSearchResultsList({
           <div className="w-48 flex-shrink-0 relative group">
             <Image
               src={video.snippet.thumbnails.medium.url}
-              width={video.snippet.thumbnails.medium.width}
-              height={video.snippet.thumbnails.medium.height}
+              width={video.snippet.thumbnails.medium.width || 320}
+              height={video.snippet.thumbnails.medium.height || 180}
               alt={video.snippet.title}
               className="object-cover w-full h-full"
+              priority={searchResults.indexOf(video) === 0}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = video.snippet.thumbnails.default.url;
+              }}
             />
             <div
               className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center group-hover:bg-opacity-50 transition-all duration-300 cursor-pointer"

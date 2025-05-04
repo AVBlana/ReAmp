@@ -42,13 +42,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 
   // Load playlist from localStorage only once on initial mount
   useEffect(() => {
-    const storedPlaylist = localStorage.getItem(PLAYLIST_STORAGE_KEY);
-    if (storedPlaylist) {
+    if (typeof window !== "undefined") {
       try {
-        const parsedPlaylist = JSON.parse(storedPlaylist);
-        setPlaylist(parsedPlaylist);
+        const storedPlaylist = localStorage.getItem(PLAYLIST_STORAGE_KEY);
+        if (storedPlaylist) {
+          const parsedPlaylist = JSON.parse(storedPlaylist);
+          setPlaylist(parsedPlaylist);
+        }
       } catch (error) {
-        console.error("Error parsing stored playlist:", error);
+        console.error("Error loading playlist from localStorage:", error);
         localStorage.removeItem(PLAYLIST_STORAGE_KEY);
       }
     }
@@ -56,10 +58,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 
   // Sync playlist changes to localStorage
   useEffect(() => {
-    if (playlist.length > 0) {
-      localStorage.setItem(PLAYLIST_STORAGE_KEY, JSON.stringify(playlist));
-    } else {
-      localStorage.removeItem(PLAYLIST_STORAGE_KEY);
+    if (typeof window !== "undefined") {
+      try {
+        if (playlist.length > 0) {
+          localStorage.setItem(PLAYLIST_STORAGE_KEY, JSON.stringify(playlist));
+        } else {
+          localStorage.removeItem(PLAYLIST_STORAGE_KEY);
+        }
+      } catch (error) {
+        console.error("Error saving playlist to localStorage:", error);
+      }
     }
   }, [playlist]);
 
