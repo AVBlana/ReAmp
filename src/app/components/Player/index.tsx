@@ -3,10 +3,38 @@
 import { useAppContext } from "@/app/AppContext";
 import { useEffect, useRef, useState } from "react";
 
+interface YouTubePlayer {
+  destroy: () => void;
+  playVideo: () => void;
+  pauseVideo: () => void;
+  stopVideo: () => void;
+  seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  getPlayerState: () => number;
+}
+
+interface YouTubePlayerEvent {
+  target: YouTubePlayer;
+  data: number;
+}
+
 declare global {
   interface Window {
     YT: {
-      Player: any;
+      Player: new (
+        elementId: HTMLElement,
+        options: {
+          videoId: string;
+          playerVars?: {
+            autoplay?: number;
+            controls?: number;
+            modestbranding?: number;
+            rel?: number;
+          };
+          events?: {
+            onStateChange?: (event: YouTubePlayerEvent) => void;
+          };
+        }
+      ) => YouTubePlayer;
       PlayerState: {
         PLAYING: number;
         PAUSED: number;
@@ -19,9 +47,9 @@ declare global {
 
 export default function Player() {
   const {
-    youtube: { selectedVideo },
+    youtube: { selectedVideo, playlist, setSelectedVideo },
   } = useAppContext();
-  const playerRef = useRef<any>(null);
+  const playerRef = useRef<YouTubePlayer | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isApiReady, setIsApiReady] = useState(false);
 
@@ -48,55 +76,49 @@ export default function Player() {
     };
   }, []);
 
-  // Handle video changes
+  // Initialize player when API is ready and video is selected
   useEffect(() => {
-    if (!isApiReady || !selectedVideo) return;
+    if (!isApiReady || !selectedVideo || !containerRef.current) return;
 
-    const initializePlayer = () => {
-      if (containerRef.current) {
-        // Destroy existing player if it exists
-        if (playerRef.current) {
-          playerRef.current.destroy();
-          playerRef.current = null;
-        }
+    playerRef.current = new window.YT.Player(containerRef.current, {
+      videoId: selectedVideo,
+      playerVars: {
+        autoplay: 1,
+        controls: 1,
+        modestbranding: 1,
+        rel: 0,
+      },
+      events: {
+        onStateChange: (event: YouTubePlayerEvent) => {
+          if (event.data === window.YT.PlayerState.ENDED) {
+            // Find the current video index in the playlist
+            const currentIndex = playlist.findIndex(
+              (video) => video.id.videoId === selectedVideo
+            );
 
-        // Create new player
-        playerRef.current = new window.YT.Player(containerRef.current, {
-          height: "100%",
-          width: "100%",
-          videoId: selectedVideo,
-          playerVars: {
-            autoplay: 1,
-            modestbranding: 1,
-            rel: 0,
-            showinfo: 0,
-            playsinline: 1,
-          },
-          events: {
-            onReady: (event: any) => {
-              event.target.playVideo();
-            },
-            onStateChange: (event: any) => {
-              if (event.data === window.YT.PlayerState.ENDED) {
-                // Handle video end
-              }
-            },
-            onError: (event: any) => {
-              console.error("YouTube Player Error:", event.data);
-            },
-          },
-        });
+            // If there's a next video in the playlist, play it
+            if (currentIndex < playlist.length - 1) {
+              const nextVideo = playlist[currentIndex + 1];
+              setSelectedVideo(nextVideo.id.videoId);
+            }
+          }
+        },
+      },
+    });
+
+    return () => {
+      if (playerRef.current) {
+        playerRef.current.destroy();
+        playerRef.current = null;
       }
     };
-
-    initializePlayer();
-  }, [selectedVideo, isApiReady]);
+  }, [isApiReady, selectedVideo, playlist, setSelectedVideo]);
 
   if (!selectedVideo) return null;
 
   return (
-    <div className="relative w-full h-full">
-      <div ref={containerRef} className="absolute inset-0 w-full h-full" />
+    <div className="w-full aspect-video bg-black rounded-lg overflow-hidden">
+      <div ref={containerRef} className="w-full h-full" />
     </div>
   );
 }

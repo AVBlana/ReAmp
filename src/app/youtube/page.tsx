@@ -1,16 +1,16 @@
 "use client";
 
-import Search from "../components/Search";
+import YoutubeSearch from "../components/YoutubeSearch";
 import YtSearchResultsList from "../components/YtSearchResultsList";
 import PlaylistView from "../components/PlaylistView";
 import { getYouTubeVideos } from "../components/Services/YtService";
 import Player from "../components/Player";
 import { useAppContext, AppProvider } from "../AppContext";
-import Link from "next/link";
-import { FaYoutube, FaHome, FaPlay, FaMusic } from "react-icons/fa";
+import { FaYoutube, FaPlay, FaMusic } from "react-icons/fa";
 import { DragDropContext, Droppable, DropResult } from "@hello-pangea/dnd";
 import { configureWebGL } from "../utils/webglConfig";
 import { useEffect } from "react";
+import Header from "../components/Header";
 
 function YouTubeSearchContent() {
   const {
@@ -119,38 +119,11 @@ function YouTubeSearchContent() {
         {/* Background Grid */}
         <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black_70%)]" />
 
-        {/* Header */}
-        <header className="relative bg-[#0A0A0A]/80 backdrop-blur-md border-b border-[#FF0000]/10 sticky top-0 z-50">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="flex items-center justify-between w-full md:w-auto">
-                <div className="flex items-center space-x-2">
-                  <FaYoutube className="text-[#FF0000]" size={32} />
-                  <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#FF0000] to-[#FF0000]/80">
-                    ReAMP
-                  </h1>
-                </div>
-                <Link
-                  href="/"
-                  className="text-gray-400 hover:text-white transition-colors md:hidden"
-                >
-                  <FaHome size={24} />
-                </Link>
-              </div>
-              <div className="w-full md:w-1/2 lg:w-1/3">
-                <Search onSearch={handleSearch} />
-              </div>
-              <div className="hidden md:flex items-center">
-                <Link
-                  href="/"
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <FaHome size={24} />
-                </Link>
-              </div>
-            </div>
-          </div>
-        </header>
+        <Header
+          icon={<FaYoutube className="text-[#FF0000] animate-glow" size={24} />}
+          title="YouTube Player"
+          searchComponent={<YoutubeSearch onSearch={handleSearch} />}
+        />
 
         {/* Main Content */}
         <main className="container mx-auto px-4 py-8 relative z-10">
