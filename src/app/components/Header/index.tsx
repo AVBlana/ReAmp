@@ -26,30 +26,24 @@ export default function Header({
               {icon}
               <h1 className="text-2xl font-bold text-white">{title}</h1>
             </div>
-            <Link
-              href="/"
-              className="text-gray-400 hover:text-white transition-colors md:hidden"
-            >
-              <FaHome size={24} />
-            </Link>
+            <div className="flex items-center space-x-4">
+              <Link
+                href="/"
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <FaHome size={24} />
+              </Link>
+              {showLogout && onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                >
+                  Logout
+                </button>
+              )}
+            </div>
           </div>
           <div className="w-full md:w-1/2 lg:w-1/3">{searchComponent}</div>
-          <div className="hidden md:flex items-center space-x-4">
-            <Link
-              href="/"
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              <FaHome size={24} />
-            </Link>
-            {showLogout && onLogout && (
-              <button
-                onClick={onLogout}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-              >
-                Logout
-              </button>
-            )}
-          </div>
         </div>
       </div>
     </header>

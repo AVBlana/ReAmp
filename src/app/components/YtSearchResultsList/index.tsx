@@ -12,7 +12,20 @@ export default function YtSearchResultsList({
   searchResults,
   setSelectedVideo,
 }: YtSearchResultsListProps) {
-  const { handleAddToPlaylist, playlist } = useAppContext();
+  const {
+    youtube: { playlist, setPlaylist },
+  } = useAppContext();
+
+  const handleAddToPlaylist = (video: YoutubeVideo) => {
+    // Check if the video is already in the playlist
+    const isAlreadyInPlaylist = playlist.some(
+      (item) => item.id.videoId === video.id.videoId
+    );
+
+    if (!isAlreadyInPlaylist) {
+      setPlaylist((prevPlaylist) => [...prevPlaylist, video]);
+    }
+  };
 
   return (
     <div className="space-y-4">

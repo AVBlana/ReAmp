@@ -18,7 +18,9 @@ declare global {
 }
 
 export default function Player() {
-  const { selectedVideo } = useAppContext();
+  const {
+    youtube: { selectedVideo },
+  } = useAppContext();
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isApiReady, setIsApiReady] = useState(false);

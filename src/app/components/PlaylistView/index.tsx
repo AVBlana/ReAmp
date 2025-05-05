@@ -14,12 +14,14 @@ import Image from "next/image";
 
 const PlaylistView: React.FC = () => {
   const {
-    playlist,
-    setPlaylist,
-    setSelectedVideo,
-    selectedVideo,
-    playlistName,
-    setPlaylistName,
+    youtube: {
+      playlist,
+      setPlaylist,
+      setSelectedVideo,
+      selectedVideo,
+      playlistName,
+      setPlaylistName,
+    },
   } = useAppContext();
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);

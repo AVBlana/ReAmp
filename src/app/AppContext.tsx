@@ -1,45 +1,99 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback } from "react";
 import { YoutubeVideo } from "./components/Services/YtService";
 import { Song } from "@/types/playerTypes";
+import { DropResult } from "@hello-pangea/dnd";
 
-const YOUTUBE_PLAYLIST_KEY = "youtube_playlist";
-const YOUTUBE_PLAYLIST_NAME_KEY = "youtube_playlist_name";
-const SPOTIFY_PLAYLIST_KEY = "spotify_playlist";
+// Storage keys
+const STORAGE_KEYS = {
+  YOUTUBE: {
+    PLAYLIST: "youtube_playlist",
+    PLAYLIST_NAME: "youtube_playlist_name",
+  },
+  SPOTIFY: {
+    PLAYLIST: "spotify_playlist",
+    PLAYLIST_NAME: "spotify_playlist_name",
+  },
+} as const;
 
 interface AppContextType {
   // YouTube state
-  searchResults: YoutubeVideo[];
-  setSearchResults: React.Dispatch<React.SetStateAction<YoutubeVideo[]>>;
-  playlist: YoutubeVideo[];
-  setPlaylist: React.Dispatch<React.SetStateAction<YoutubeVideo[]>>;
-  playlistName: string;
-  setPlaylistName: React.Dispatch<React.SetStateAction<string>>;
-  selectedVideo: string | null;
-  setSelectedVideo: React.Dispatch<React.SetStateAction<string | null>>;
-  nextPageToken: string | undefined;
-  setNextPageToken: React.Dispatch<React.SetStateAction<string | undefined>>;
-  currentSearchTerm: string;
-  setCurrentSearchTerm: React.Dispatch<React.SetStateAction<string>>;
-  handleAddToPlaylist: (video: YoutubeVideo) => void;
+  youtube: {
+    searchResults: YoutubeVideo[];
+    setSearchResults: React.Dispatch<React.SetStateAction<YoutubeVideo[]>>;
+    playlist: YoutubeVideo[];
+    setPlaylist: React.Dispatch<React.SetStateAction<YoutubeVideo[]>>;
+    playlistName: string;
+    setPlaylistName: React.Dispatch<React.SetStateAction<string>>;
+    selectedVideo: string | null;
+    setSelectedVideo: React.Dispatch<React.SetStateAction<string | null>>;
+    nextPageToken: string | undefined;
+    setNextPageToken: React.Dispatch<React.SetStateAction<string | undefined>>;
+    currentSearchTerm: string;
+    setCurrentSearchTerm: React.Dispatch<React.SetStateAction<string>>;
+  };
 
   // Spotify state
-  spotifyPlaylist: Song[];
-  setSpotifyPlaylist: React.Dispatch<React.SetStateAction<Song[]>>;
-  currentSong: Song | null;
-  setCurrentSong: React.Dispatch<React.SetStateAction<Song | null>>;
+  spotify: {
+    playlist: Song[];
+    setPlaylist: React.Dispatch<React.SetStateAction<Song[]>>;
+    currentSong: Song | null;
+    setCurrentSong: React.Dispatch<React.SetStateAction<Song | null>>;
+    playlistName: string;
+    setPlaylistName: React.Dispatch<React.SetStateAction<string>>;
+  };
+
+  // Drag and Drop
+  onDragEnd: (result: DropResult) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
+
+// Helper function to safely handle localStorage operations
+const safeLocalStorage = {
+  get: (key: string) => {
+    if (typeof window === "undefined") return null;
+    try {
+      return localStorage.getItem(key);
+    } catch (error) {
+      console.error(`Error reading from localStorage (${key}):`, error);
+      return null;
+    }
+  },
+  set: (key: string, value: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(key, value);
+    } catch (error) {
+      console.error(`Error writing to localStorage (${key}):`, error);
+    }
+  },
+  remove: (key: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      console.error(`Error removing from localStorage (${key}):`, error);
+    }
+  },
+};
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   // YouTube state
   const [searchResults, setSearchResults] = useState<YoutubeVideo[]>([]);
-  const [playlist, setPlaylist] = useState<YoutubeVideo[]>([]);
-  const [playlistName, setPlaylistName] = useState<string>("My Playlist");
+  const [youtubePlaylist, setYoutubePlaylist] = useState<YoutubeVideo[]>(() => {
+    const saved = safeLocalStorage.get(STORAGE_KEYS.YOUTUBE.PLAYLIST);
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [youtubePlaylistName, setYoutubePlaylistName] = useState<string>(() => {
+    return (
+      safeLocalStorage.get(STORAGE_KEYS.YOUTUBE.PLAYLIST_NAME) ||
+      "My YouTube Playlist"
+    );
+  });
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [nextPageToken, setNextPageToken] = useState<string | undefined>(
     undefined
@@ -47,150 +101,106 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const [currentSearchTerm, setCurrentSearchTerm] = useState<string>("");
 
   // Spotify state
-  const [spotifyPlaylist, setSpotifyPlaylist] = useState<Song[]>([]);
+  const [spotifyPlaylist, setSpotifyPlaylist] = useState<Song[]>(() => {
+    const saved = safeLocalStorage.get(STORAGE_KEYS.SPOTIFY.PLAYLIST);
+    return saved ? JSON.parse(saved) : [];
+  });
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
-
-  // Load saved playlists from localStorage on mount
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      // Load YouTube playlist
-      try {
-        const savedYoutubePlaylist = localStorage.getItem(YOUTUBE_PLAYLIST_KEY);
-        if (savedYoutubePlaylist) {
-          const parsedPlaylist = JSON.parse(savedYoutubePlaylist);
-          if (Array.isArray(parsedPlaylist)) {
-            setPlaylist(parsedPlaylist);
-          } else {
-            console.error("Invalid YouTube playlist format in localStorage");
-            localStorage.removeItem(YOUTUBE_PLAYLIST_KEY);
-          }
-        }
-      } catch (error) {
-        console.error(
-          "Error loading YouTube playlist from localStorage:",
-          error
-        );
-        localStorage.removeItem(YOUTUBE_PLAYLIST_KEY);
-      }
-
-      // Load YouTube playlist name
-      try {
-        const savedYoutubePlaylistName = localStorage.getItem(
-          YOUTUBE_PLAYLIST_NAME_KEY
-        );
-        if (savedYoutubePlaylistName) {
-          setPlaylistName(savedYoutubePlaylistName);
-        }
-      } catch (error) {
-        console.error(
-          "Error loading YouTube playlist name from localStorage:",
-          error
-        );
-        localStorage.removeItem(YOUTUBE_PLAYLIST_NAME_KEY);
-      }
-
-      // Load Spotify playlist
-      try {
-        const savedSpotifyPlaylist = localStorage.getItem(SPOTIFY_PLAYLIST_KEY);
-        if (savedSpotifyPlaylist) {
-          const parsedPlaylist = JSON.parse(savedSpotifyPlaylist);
-          if (Array.isArray(parsedPlaylist)) {
-            setSpotifyPlaylist(parsedPlaylist);
-          } else {
-            console.error("Invalid Spotify playlist format in localStorage");
-            localStorage.removeItem(SPOTIFY_PLAYLIST_KEY);
-          }
-        }
-      } catch (error) {
-        console.error(
-          "Error loading Spotify playlist from localStorage:",
-          error
-        );
-        localStorage.removeItem(SPOTIFY_PLAYLIST_KEY);
-      }
-    }
-  }, []);
-
-  // Save playlists to localStorage whenever they change
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        if (playlist.length > 0) {
-          localStorage.setItem(YOUTUBE_PLAYLIST_KEY, JSON.stringify(playlist));
-        } else {
-          localStorage.removeItem(YOUTUBE_PLAYLIST_KEY);
-        }
-      } catch (error) {
-        console.error("Error saving YouTube playlist to localStorage:", error);
-      }
-    }
-  }, [playlist]);
-
-  // Save playlist name to localStorage whenever it changes
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem(YOUTUBE_PLAYLIST_NAME_KEY, playlistName);
-      } catch (error) {
-        console.error(
-          "Error saving YouTube playlist name to localStorage:",
-          error
-        );
-      }
-    }
-  }, [playlistName]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        if (spotifyPlaylist.length > 0) {
-          localStorage.setItem(
-            SPOTIFY_PLAYLIST_KEY,
-            JSON.stringify(spotifyPlaylist)
-          );
-        } else {
-          localStorage.removeItem(SPOTIFY_PLAYLIST_KEY);
-        }
-      } catch (error) {
-        console.error("Error saving Spotify playlist to localStorage:", error);
-      }
-    }
-  }, [spotifyPlaylist]);
-
-  const handleAddToPlaylist = (video: YoutubeVideo) => {
-    // Check if the video is already in the playlist
-    const isAlreadyInPlaylist = playlist.some(
-      (item) => item.id.videoId === video.id.videoId
+  const [spotifyPlaylistName, setSpotifyPlaylistName] = useState<string>(() => {
+    return (
+      safeLocalStorage.get(STORAGE_KEYS.SPOTIFY.PLAYLIST_NAME) ||
+      "My Spotify Playlist"
     );
+  });
 
-    if (!isAlreadyInPlaylist) {
-      setPlaylist((prevPlaylist) => [...prevPlaylist, video]);
-    }
-  };
+  // Memoized handlers for playlist updates
+  const handleYoutubePlaylistChange = useCallback(
+    (value: React.SetStateAction<YoutubeVideo[]>) => {
+      setYoutubePlaylist(value);
+      const newPlaylist =
+        typeof value === "function" ? value(youtubePlaylist) : value;
+      if (newPlaylist.length > 0) {
+        safeLocalStorage.set(
+          STORAGE_KEYS.YOUTUBE.PLAYLIST,
+          JSON.stringify(newPlaylist)
+        );
+      } else {
+        safeLocalStorage.remove(STORAGE_KEYS.YOUTUBE.PLAYLIST);
+      }
+    },
+    [youtubePlaylist]
+  );
+
+  const handleSpotifyPlaylistChange = useCallback(
+    (value: React.SetStateAction<Song[]>) => {
+      setSpotifyPlaylist(value);
+      const newPlaylist =
+        typeof value === "function" ? value(spotifyPlaylist) : value;
+      if (newPlaylist.length > 0) {
+        safeLocalStorage.set(
+          STORAGE_KEYS.SPOTIFY.PLAYLIST,
+          JSON.stringify(newPlaylist)
+        );
+      } else {
+        safeLocalStorage.remove(STORAGE_KEYS.SPOTIFY.PLAYLIST);
+      }
+    },
+    [spotifyPlaylist]
+  );
+
+  // Memoized handlers for playlist name updates
+  const handleYoutubePlaylistNameChange = useCallback(
+    (value: React.SetStateAction<string>) => {
+      setYoutubePlaylistName(value);
+      const newName =
+        typeof value === "function" ? value(youtubePlaylistName) : value;
+      safeLocalStorage.set(STORAGE_KEYS.YOUTUBE.PLAYLIST_NAME, newName);
+    },
+    [youtubePlaylistName]
+  );
+
+  const handleSpotifyPlaylistNameChange = useCallback(
+    (value: React.SetStateAction<string>) => {
+      setSpotifyPlaylistName(value);
+      const newName =
+        typeof value === "function" ? value(spotifyPlaylistName) : value;
+      safeLocalStorage.set(STORAGE_KEYS.SPOTIFY.PLAYLIST_NAME, newName);
+    },
+    [spotifyPlaylistName]
+  );
+
+  // Drag and drop handler
+  const onDragEnd = useCallback((result: DropResult) => {
+    // Implement your drag and drop logic here
+    console.log("Drag end result:", result);
+  }, []);
 
   return (
     <AppContext.Provider
       value={{
-        // YouTube state
-        searchResults,
-        setSearchResults,
-        playlist,
-        setPlaylist,
-        playlistName,
-        setPlaylistName,
-        selectedVideo,
-        setSelectedVideo,
-        nextPageToken,
-        setNextPageToken,
-        currentSearchTerm,
-        setCurrentSearchTerm,
-        handleAddToPlaylist,
-
-        // Spotify state
-        spotifyPlaylist,
-        setSpotifyPlaylist,
-        currentSong,
-        setCurrentSong,
+        youtube: {
+          searchResults,
+          setSearchResults,
+          playlist: youtubePlaylist,
+          setPlaylist: handleYoutubePlaylistChange,
+          playlistName: youtubePlaylistName,
+          setPlaylistName: handleYoutubePlaylistNameChange,
+          selectedVideo,
+          setSelectedVideo,
+          nextPageToken,
+          setNextPageToken,
+          currentSearchTerm,
+          setCurrentSearchTerm,
+        },
+        spotify: {
+          playlist: spotifyPlaylist,
+          setPlaylist: handleSpotifyPlaylistChange,
+          currentSong,
+          setCurrentSong,
+          playlistName: spotifyPlaylistName,
+          setPlaylistName: handleSpotifyPlaylistNameChange,
+        },
+        onDragEnd,
       }}
     >
       {children}

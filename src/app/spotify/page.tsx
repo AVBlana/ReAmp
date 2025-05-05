@@ -12,7 +12,7 @@ import { Song } from "../../types/playerTypes";
 import { DragDropContext, DropResult, Droppable } from "@hello-pangea/dnd";
 import { configureWebGL } from "../utils/webglConfig";
 import { AppProvider } from "../AppContext";
-import { FaSpotify } from "react-icons/fa";
+import { FaSpotify, FaMusic } from "react-icons/fa";
 import Header from "../components/Header";
 import Search from "../components/Search";
 
@@ -28,13 +28,7 @@ function SpotifyContent() {
   const searchParams = useSearchParams();
   const accessToken = searchParams.get("access_token");
   const error = searchParams.get("error");
-  const {
-    playlist,
-    setPlaylist,
-    setCurrentSong,
-    playlistName,
-    setPlaylistName,
-  } = useContext(PlayingContext);
+  const { playlist, setPlaylist, setCurrentSong } = useContext(PlayingContext);
 
   const [searchResults, setSearchResults] = useState<Song[]>([]);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
@@ -271,25 +265,43 @@ function SpotifyContent() {
             </div>
 
             {/* Playlist Section */}
-            <div className="lg:col-span-1">
-              <div className="relative rounded-2xl shadow-2xl p-4 overflow-hidden bg-[#0A0A0A] border border-[#1DB954]/20 h-[700px]">
+            <div className="lg:col-span-1 flex gap-4">
+              {/* My Playlists Section */}
+              <div className="w-[50px] relative rounded-2xl shadow-2xl p-4 overflow-hidden bg-[#0A0A0A] border border-[#1DB954]/20 h-[700px]">
                 <div className="absolute inset-0 bg-gradient-to-r from-[#1DB954]/5 to-transparent" />
-                <div className="relative z-10 h-full flex flex-col">
-                  <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#1DB954] to-[#1DB954]/80 mb-2">
-                    My Playlists
-                  </h2>
-                  <div className="flex items-center mb-4">
-                    <input
-                      type="text"
-                      value={playlistName}
-                      onChange={(e) => setPlaylistName(e.target.value)}
-                      className="text-lg bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-green-500 rounded px-2 py-1 text-gray-300"
-                      placeholder="Playlist Name"
-                    />
+                <div className="relative z-10 h-full flex flex-col items-center">
+                  <FaMusic className="text-[#1DB954] text-xl mb-4" />
+                  <div className="flex flex-col space-y-2">
+                    <div className="w-[40px] h-[40px] rounded bg-[#1A1A1A] hover:bg-[#252525] transition-colors cursor-pointer relative overflow-hidden">
+                      <div className="grid grid-rows-2 grid-cols-2 w-full h-full">
+                        {playlist.slice(0, 4).map((song, index) => (
+                          <div key={index} className="relative overflow-hidden">
+                            <img
+                              src={song.artwork.medium.url}
+                              alt={song.title}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ))}
+                        {playlist.length < 4 &&
+                          Array(4 - playlist.length)
+                            .fill(0)
+                            .map((_, index) => (
+                              <div
+                                key={`empty-${index}`}
+                                className="bg-[#2A2A2A]"
+                              />
+                            ))}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1 overflow-hidden flex flex-col bg-[#0A0A0A] rounded-lg">
-                    <SpotifyPlaylistView />
-                  </div>
+                </div>
+              </div>
+
+              {/* Main Playlist View */}
+              <div className="flex-1 h-[700px] overflow-hidden">
+                <div className="flex-1 overflow-hidden flex flex-col bg-[#0A0A0A] rounded-lg">
+                  <SpotifyPlaylistView />
                 </div>
               </div>
             </div>
