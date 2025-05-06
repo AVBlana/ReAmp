@@ -1,7 +1,9 @@
+"use client";
+
 import Image from "next/image";
 import { FaPlay, FaPlus } from "react-icons/fa";
-import { Song } from "../../../types/playerTypes";
-import { PlayingContext } from "../../../context/Playing";
+import { Song } from "@/types/playerTypes";
+import { PlayingContext } from "@/app/context/Playing";
 import { useContext } from "react";
 
 interface SpotifySearchResultsListProps {

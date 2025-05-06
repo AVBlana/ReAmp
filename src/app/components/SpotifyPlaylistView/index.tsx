@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect, useRef } from "react";
 import { Droppable, Draggable } from "@hello-pangea/dnd";
 import {
@@ -10,7 +12,7 @@ import {
   FaCheck,
 } from "react-icons/fa";
 import { Song } from "@/types/playerTypes";
-import { PlayingContext } from "@/context/playing";
+import { PlayingContext } from "@/app/context/Playing";
 import Image from "next/image";
 import { useContext } from "react";
 

@@ -9,15 +9,16 @@ import {
   FaStop,
   FaFastForward,
 } from "react-icons/fa";
-import { PlayingContext } from "../../../context/playing";
-import { ServiceType } from "../../../types/playerTypes";
+import { PlayingContext } from "@/app/context/Playing";
+import { ServiceType } from "@/types/playerTypes";
 import Image from "next/image";
+import type { Player, PlaybackState } from "spotify-web-playback-sdk";
 
 declare global {
   interface Window {
     onSpotifyWebPlaybackSDKReady: () => void;
     Spotify: {
-      Player: typeof Spotify.Player;
+      Player: typeof import("spotify-web-playback-sdk").Player;
     };
   }
 }
@@ -34,7 +35,7 @@ export default function SpotifyPlayer() {
   const volumeUpdateTimeout = useRef<NodeJS.Timeout>();
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
-  const playerRef = useRef<Spotify.Player | null>(null);
+  const playerRef = useRef<Player | null>(null);
   const scriptRef = useRef<HTMLScriptElement | null>(null);
   const deviceTransferInProgress = useRef(false);
   const initializationInProgress = useRef(false);
@@ -94,7 +95,7 @@ export default function SpotifyPlayer() {
 
       // Create new player instance with error handling
       try {
-        playerRef.current = new window.Spotify.Player({
+        const player = new window.Spotify.Player({
           name: "ReAMP Player",
           getOAuthToken: (cb: (token: string) => void) => {
             cb(spotifyToken);
@@ -102,8 +103,10 @@ export default function SpotifyPlayer() {
           volume: volume / 100,
         });
 
+        playerRef.current = player;
+
         // Error handling
-        playerRef.current.addListener(
+        player.addListener(
           "initialization_error",
           async ({ message }: { message: string }) => {
             console.error("Failed to initialize:", message);
@@ -134,7 +137,7 @@ export default function SpotifyPlayer() {
           }
         );
 
-        playerRef.current.addListener(
+        player.addListener(
           "authentication_error",
           ({ message }: { message: string }) => {
             console.error("Failed to authenticate:", message);
@@ -146,7 +149,7 @@ export default function SpotifyPlayer() {
           }
         );
 
-        playerRef.current.addListener(
+        player.addListener(
           "account_error",
           ({ message }: { message: string }) => {
             console.error("Failed to validate Spotify account:", message);
@@ -157,7 +160,7 @@ export default function SpotifyPlayer() {
           }
         );
 
-        playerRef.current.addListener(
+        player.addListener(
           "playback_error",
           ({ message }: { message: string }) => {
             console.error("Playback error:", message);
@@ -167,9 +170,9 @@ export default function SpotifyPlayer() {
         );
 
         // Playback status updates
-        playerRef.current.addListener(
+        player.addListener(
           "player_state_changed",
-          (state: Spotify.PlaybackState | null) => {
+          (state: PlaybackState | null) => {
             if (state) {
               setIsPlaying(!state.paused);
             }
@@ -177,7 +180,7 @@ export default function SpotifyPlayer() {
         );
 
         // Ready
-        playerRef.current.addListener(
+        player.addListener(
           "ready",
           async ({ device_id }: { device_id: string }) => {
             console.log("Ready with Device ID", device_id);
@@ -256,7 +259,7 @@ export default function SpotifyPlayer() {
         );
 
         // Not Ready
-        playerRef.current.addListener(
+        player.addListener(
           "not_ready",
           ({ device_id }: { device_id: string }) => {
             console.log("Device ID has gone offline", device_id);
@@ -268,7 +271,7 @@ export default function SpotifyPlayer() {
         );
 
         // Connect to the player
-        playerRef.current
+        player
           .connect()
           .then((success: boolean) => {
             if (success) {
@@ -307,7 +310,7 @@ export default function SpotifyPlayer() {
       initializationInProgress.current = false;
       setRetryCount(0);
     };
-  }, [spotifyToken, volume]);
+  }, [spotifyToken, volume, activeDeviceId]);
 
   // Effect to handle token changes
   useEffect(() => {
@@ -454,7 +457,7 @@ export default function SpotifyPlayer() {
     };
 
     const handleStateChange = (data: unknown) => {
-      const state = data as Spotify.PlaybackState | null;
+      const state = data as PlaybackState | null;
       if (state) {
         const wasPlaying = isPlaying;
         const isNowPlaying = !state.paused;
@@ -802,7 +805,7 @@ export default function SpotifyPlayer() {
           <div
             className={`relative w-4/5 h-4/5 min-w-[180px] min-h-[180px] max-w-[320px] max-h-[320px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_8px_var(--background),0_0_32px_#0008_inset] flex items-center justify-center border-4 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
               isPlaying ? "animate-spin" : ""
-            } ${isScratching ? "animate-scratch animate-needle-shake" : ""}`}
+            } ${isScratching ? "animate-needle-shake" : ""}`}
             onMouseDown={handleSeekBarMouseDown}
             style={
               {
@@ -934,7 +937,7 @@ export default function SpotifyPlayer() {
         <div
           className={`relative w-4/5 h-4/5 min-w-[180px] min-h-[180px] max-w-[320px] max-h-[320px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_8px_var(--background),0_0_32px_#0008_inset] flex items-center justify-center border-4 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
             isPlaying ? "animate-spin" : ""
-          } ${isScratching ? "animate-scratch animate-needle-shake" : ""}`}
+          } ${isScratching ? "animate-needle-shake" : ""}`}
           onMouseDown={handleSeekBarMouseDown}
           style={
             {
@@ -1101,10 +1104,10 @@ export default function SpotifyPlayer() {
 
       {/* Song Info */}
       <div className="mt-4 sm:mt-5 text-center w-full max-w-[400px]">
-        <span className="text-[var(--foreground)] font-mono text-base font-bold text-lg block">
+        <span className="text-[var(--foreground)] font-mono text-lg font-bold block">
           {currentSong.title}
         </span>
-        <span className="text-[var(--foreground)] font-mono text-base text-sm block">
+        <span className="text-[var(--foreground)] font-mono text-sm block">
           {currentSong.artist.name}
         </span>
       </div>

@@ -1,5 +1,5 @@
-declare namespace Spotify {
-  class Player {
+declare module "spotify-web-playback-sdk" {
+  export class Player {
     constructor(options: PlayerOptions);
     connect(): Promise<boolean>;
     disconnect(): void;
@@ -24,58 +24,50 @@ declare namespace Spotify {
         | "playback_error",
       callback: (error: { message: string }) => void
     ): void;
-    removeListener(event: string, callback: (data: unknown) => void): void;
+    removeListener(event: string, callback?: (data: unknown) => void): void;
   }
 
-  interface PlayerOptions {
+  export interface PlayerOptions {
     name: string;
     getOAuthToken: (cb: (token: string) => void) => void;
     volume?: number;
   }
 
-  interface PlaybackState {
+  export interface PlaybackState {
     paused: boolean;
     position: number;
     duration: number;
     track_window: {
       current_track: Track;
       previous_tracks: Track[];
+      next_tracks: Track[];
     };
     volume: number;
   }
 
-  interface Track {
+  export interface Track {
     id: string;
     uri: string;
     name: string;
-    artists: Artist[];
-    album: Album;
-  }
-
-  interface Artist {
-    name: string;
-    id: string;
-    uri: string;
-  }
-
-  interface Album {
-    name: string;
-    id: string;
-    uri: string;
-    images: Image[];
-  }
-
-  interface Image {
-    height: number;
-    width: number;
-    url: string;
+    artists: {
+      uri: string;
+      name: string;
+    }[];
+    album: {
+      uri: string;
+      name: string;
+      images: {
+        url: string;
+      }[];
+    };
   }
 }
 
 declare global {
   interface Window {
+    onSpotifyWebPlaybackSDKReady: () => void;
     Spotify: {
-      Player: typeof Spotify.Player;
+      Player: typeof import("spotify-web-playback-sdk").Player;
     };
   }
 }

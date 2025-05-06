@@ -4,7 +4,7 @@ import { useEffect, useState, useContext } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import SpotifyPlayer from "../components/SpotifyPlayer/SpotifyPlayer";
-import { PlayingProvider, PlayingContext } from "../../context/playing";
+import { PlayingProvider, PlayingContext } from "../context/Playing";
 import SpotifySearchResultsList from "../components/SpotifySearchResultsList";
 import SpotifyPlaylistView from "../components/SpotifyPlaylistView/index";
 import { searchSpotify } from "../components/Services/SpotifyService";
@@ -339,10 +339,10 @@ function SpotifyContent() {
 
 export default function SpotifyPage() {
   return (
-    <PlayingProvider>
-      <AppProvider>
+    <AppProvider>
+      <PlayingProvider>
         <SpotifyContent />
-      </AppProvider>
-    </PlayingProvider>
+      </PlayingProvider>
+    </AppProvider>
   );
 }

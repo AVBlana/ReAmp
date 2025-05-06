@@ -1,123 +1,142 @@
 "use client";
 
-import { useAppContext } from "@/app/AppContext";
+import { useYoutube } from "@/app/AppContext/index";
 import { useEffect, useRef, useState } from "react";
+import { YoutubeVideo } from "../Services/YtService";
 
-interface YouTubePlayer {
-  destroy: () => void;
-  playVideo: () => void;
-  pauseVideo: () => void;
-  stopVideo: () => void;
-  seekTo: (seconds: number, allowSeekAhead: boolean) => void;
-  getPlayerState: () => number;
-}
-
-interface YouTubePlayerEvent {
+interface YouTubeEvent {
   target: YouTubePlayer;
   data: number;
 }
 
+interface YouTubePlayer {
+  playVideo: () => void;
+  pauseVideo: () => void;
+  seekTo: (seconds: number) => void;
+  getPlayerState: () => number;
+  getCurrentTime: () => number;
+  getDuration: () => number;
+  addEventListener: (
+    event: string,
+    listener: (event: YouTubeEvent) => void
+  ) => void;
+  removeEventListener: (
+    event: string,
+    listener: (event: YouTubeEvent) => void
+  ) => void;
+}
+
+interface YouTubeAPI {
+  Player: new (
+    elementId: HTMLElement,
+    options: {
+      videoId: string;
+      playerVars: {
+        autoplay: number;
+        modestbranding: number;
+        rel: number;
+      };
+      events: {
+        onReady: (event: YouTubeEvent) => void;
+        onStateChange: (event: YouTubeEvent) => void;
+      };
+    }
+  ) => YouTubePlayer;
+  PlayerState: {
+    ENDED: number;
+    PLAYING: number;
+    PAUSED: number;
+    BUFFERING: number;
+    CUED: number;
+    UNSTARTED: number;
+  };
+}
+
 declare global {
   interface Window {
-    YT: {
-      Player: new (
-        elementId: HTMLElement,
-        options: {
-          videoId: string;
-          playerVars?: {
-            autoplay?: number;
-            controls?: number;
-            modestbranding?: number;
-            rel?: number;
-          };
-          events?: {
-            onStateChange?: (event: YouTubePlayerEvent) => void;
-          };
-        }
-      ) => YouTubePlayer;
-      PlayerState: {
-        PLAYING: number;
-        PAUSED: number;
-        ENDED: number;
-      };
-    };
+    YT: YouTubeAPI;
     onYouTubeIframeAPIReady: () => void;
   }
 }
 
 export default function Player() {
-  const {
-    youtube: { selectedVideo, playlist, setSelectedVideo },
-  } = useAppContext();
+  const { selectedVideo, setSelectedVideo, youtubePlaylist } = useYoutube();
   const playerRef = useRef<YouTubePlayer | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isApiReady, setIsApiReady] = useState(false);
 
-  // Initialize YouTube API
   useEffect(() => {
-    if (typeof window.YT === "undefined") {
-      const tag = document.createElement("script");
-      tag.src = "https://www.youtube.com/iframe_api";
-      const firstScriptTag = document.getElementsByTagName("script")[0];
-      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+    // Load the YouTube IFrame API
+    const tag = document.createElement("script");
+    tag.src = "https://www.youtube.com/iframe_api";
+    const firstScriptTag = document.getElementsByTagName("script")[0];
+    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
 
-      window.onYouTubeIframeAPIReady = () => {
-        setIsApiReady(true);
-      };
-    } else {
+    window.onYouTubeIframeAPIReady = () => {
       setIsApiReady(true);
-    }
+    };
 
     return () => {
       if (playerRef.current) {
-        playerRef.current.destroy();
-        playerRef.current = null;
+        playerRef.current.removeEventListener(
+          "onStateChange",
+          handleStateChange
+        );
       }
     };
   }, []);
 
-  // Initialize player when API is ready and video is selected
   useEffect(() => {
     if (!isApiReady || !selectedVideo || !containerRef.current) return;
+
+    if (playerRef.current) {
+      playerRef.current.removeEventListener("onStateChange", handleStateChange);
+    }
 
     playerRef.current = new window.YT.Player(containerRef.current, {
       videoId: selectedVideo,
       playerVars: {
         autoplay: 1,
-        controls: 1,
         modestbranding: 1,
         rel: 0,
       },
       events: {
-        onStateChange: (event: YouTubePlayerEvent) => {
-          if (event.data === window.YT.PlayerState.ENDED) {
-            // Find the current video index in the playlist
-            const currentIndex = playlist.findIndex(
-              (video) => video.id.videoId === selectedVideo
-            );
-
-            // If there's a next video in the playlist, play it
-            if (currentIndex < playlist.length - 1) {
-              const nextVideo = playlist[currentIndex + 1];
-              setSelectedVideo(nextVideo.id.videoId);
-            }
-          }
+        onReady: (event: YouTubeEvent) => {
+          event.target.playVideo();
         },
+        onStateChange: handleStateChange,
       },
     });
 
     return () => {
       if (playerRef.current) {
-        playerRef.current.destroy();
-        playerRef.current = null;
+        playerRef.current.removeEventListener(
+          "onStateChange",
+          handleStateChange
+        );
       }
     };
-  }, [isApiReady, selectedVideo, playlist, setSelectedVideo]);
+  }, [isApiReady, selectedVideo]);
+
+  const handleStateChange = (event: YouTubeEvent) => {
+    if (event.data === window.YT.PlayerState.ENDED) {
+      // Find the current video index in the playlist
+      const currentIndex = youtubePlaylist.findIndex(
+        (video: YoutubeVideo) => video.id.videoId === selectedVideo
+      );
+
+      // If there's a next video in the playlist, play it
+      if (currentIndex < youtubePlaylist.length - 1) {
+        const nextVideo = youtubePlaylist[currentIndex + 1];
+        setSelectedVideo(nextVideo.id.videoId);
+      }
+    }
+  };
 
   if (!selectedVideo) return null;
 
   return (
-    <div className="w-full aspect-video bg-black rounded-lg overflow-hidden">
+    <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" />
     </div>
   );

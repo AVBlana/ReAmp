@@ -3,9 +3,12 @@
 import YoutubeSearch from "../components/YoutubeSearch";
 import YtSearchResultsList from "../components/YtSearchResultsList";
 import PlaylistView from "../components/PlaylistView";
-import { getYouTubeVideos } from "../components/Services/YtService";
+import {
+  getYouTubeVideos,
+  YoutubeVideo,
+} from "../components/Services/YtService";
 import Player from "../components/Player";
-import { useAppContext, AppProvider } from "../AppContext";
+import { useYoutube, AppProvider } from "../AppContext/index";
 import { FaYoutube, FaPlay, FaMusic } from "react-icons/fa";
 import { DragDropContext, Droppable, DropResult } from "@hello-pangea/dnd";
 import { configureWebGL } from "../utils/webglConfig";
@@ -14,19 +17,18 @@ import Header from "../components/Header";
 
 function YouTubeSearchContent() {
   const {
-    youtube: {
-      searchResults,
-      setSearchResults,
-      setSelectedVideo,
-      nextPageToken,
-      setNextPageToken,
-      currentSearchTerm,
-      setCurrentSearchTerm,
-      selectedVideo,
-      playlist,
-      setPlaylist,
-    },
-  } = useAppContext();
+    searchResults,
+    setSearchResults,
+    selectedVideo,
+    setSelectedVideo,
+    youtubePlaylist,
+    addToYoutubePlaylist,
+    nextPageToken,
+    setNextPageToken,
+    currentSearchTerm,
+    setCurrentSearchTerm,
+    setYoutubePlaylist,
+  } = useYoutube();
 
   useEffect(() => {
     configureWebGL();
@@ -91,10 +93,10 @@ function YouTubeSearchContent() {
       (result.destination.droppableId === "thumbnail-slider" &&
         result.source.droppableId === "thumbnail-slider")
     ) {
-      const items = Array.from(playlist);
+      const items = Array.from(youtubePlaylist);
       const [reorderedItem] = items.splice(result.source.index, 1);
       items.splice(result.destination.index, 0, reorderedItem);
-      setPlaylist(items);
+      setYoutubePlaylist(items);
     }
 
     // Handle dropping from search results to playlist
@@ -104,12 +106,18 @@ function YouTubeSearchContent() {
     ) {
       const videoId = result.draggableId;
       const video = searchResults.find((v) => v.id.videoId === videoId);
-      if (
-        video &&
-        !playlist.some((item) => item.id.videoId === video.id.videoId)
-      ) {
-        setPlaylist([...playlist, video]);
+      if (video) {
+        handleAddToPlaylist(video);
       }
+    }
+  };
+
+  const handleAddToPlaylist = (video: YoutubeVideo) => {
+    if (
+      video &&
+      !youtubePlaylist.some((item) => item.id.videoId === video.id.videoId)
+    ) {
+      addToYoutubePlaylist(video);
     }
   };
 
@@ -190,7 +198,7 @@ function YouTubeSearchContent() {
                   <div className="flex flex-col space-y-2">
                     <div className="w-[40px] h-[40px] rounded bg-[#1A1A1A] hover:bg-[#252525] transition-colors cursor-pointer relative overflow-hidden">
                       <div className="grid grid-rows-2 grid-cols-2 w-full h-full">
-                        {playlist.slice(0, 4).map((song, index) => (
+                        {youtubePlaylist.slice(0, 4).map((song, index) => (
                           <div key={index} className="relative overflow-hidden">
                             <img
                               src={song.snippet.thumbnails.medium.url}
@@ -199,8 +207,8 @@ function YouTubeSearchContent() {
                             />
                           </div>
                         ))}
-                        {playlist.length < 4 &&
-                          Array(4 - playlist.length)
+                        {youtubePlaylist.length < 4 &&
+                          Array(4 - youtubePlaylist.length)
                             .fill(0)
                             .map((_, index) => (
                               <div

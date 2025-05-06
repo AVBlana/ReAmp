@@ -1,29 +1,27 @@
 import Image from "next/image";
 import { FaPlay, FaPlus } from "react-icons/fa";
 import { YoutubeVideo } from "../Services/YtService";
-import { useAppContext } from "@/app/AppContext";
+import { useYoutube } from "@/app/AppContext/index";
 
 interface YtSearchResultsListProps {
   searchResults: YoutubeVideo[];
   setSelectedVideo: (videoId: string) => void;
 }
 
-export default function YtSearchResultsList({
+const YtSearchResultsList: React.FC<YtSearchResultsListProps> = ({
   searchResults,
   setSelectedVideo,
-}: YtSearchResultsListProps) {
-  const {
-    youtube: { playlist, setPlaylist },
-  } = useAppContext();
+}: YtSearchResultsListProps) => {
+  const { addToYoutubePlaylist, youtubePlaylist } = useYoutube();
 
   const handleAddToPlaylist = (video: YoutubeVideo) => {
     // Check if the video is already in the playlist
-    const isAlreadyInPlaylist = playlist.some(
-      (item) => item.id.videoId === video.id.videoId
+    const isAlreadyInPlaylist = youtubePlaylist.some(
+      (item: YoutubeVideo) => item.id.videoId === video.id.videoId
     );
 
     if (!isAlreadyInPlaylist) {
-      setPlaylist((prevPlaylist) => [...prevPlaylist, video]);
+      addToYoutubePlaylist(video);
     }
   };
 
@@ -76,17 +74,21 @@ export default function YtSearchResultsList({
             <button
               onClick={() => handleAddToPlaylist(video)}
               className={`p-2 rounded-full transition-all duration-300 ${
-                playlist.some((item) => item.id.videoId === video.id.videoId)
+                youtubePlaylist.some(
+                  (item: YoutubeVideo) => item.id.videoId === video.id.videoId
+                )
                   ? "bg-gray-400/20 cursor-not-allowed text-gray-400"
                   : "bg-[#FF0000] hover:bg-[#FF0000]/80 text-white hover:scale-105 shadow-lg hover:shadow-[#FF0000]/20 group-hover:animate-pulse"
               }`}
               title={
-                playlist.some((item) => item.id.videoId === video.id.videoId)
+                youtubePlaylist.some(
+                  (item: YoutubeVideo) => item.id.videoId === video.id.videoId
+                )
                   ? "Already in playlist"
                   : "Add to playlist"
               }
-              disabled={playlist.some(
-                (item) => item.id.videoId === video.id.videoId
+              disabled={youtubePlaylist.some(
+                (item: YoutubeVideo) => item.id.videoId === video.id.videoId
               )}
             >
               <FaPlus size={12} />
@@ -96,4 +98,6 @@ export default function YtSearchResultsList({
       ))}
     </div>
   );
-}
+};
+
+export default YtSearchResultsList;

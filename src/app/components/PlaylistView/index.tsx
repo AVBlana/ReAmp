@@ -1,28 +1,20 @@
 import { Droppable, Draggable } from "@hello-pangea/dnd";
-import { useAppContext } from "@/app/AppContext";
-import {
-  FaTrash,
-  FaPlay,
-  FaTrashAlt,
-  FaChevronLeft,
-  FaChevronRight,
-  FaEdit,
-  FaCheck,
-} from "react-icons/fa";
-import { useState, useEffect, useRef } from "react";
+import { useYoutube } from "@/app/AppContext/index";
+import { YoutubeVideo } from "../Services/YtService";
+import { FaTrash, FaPlay, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 
 const PlaylistView: React.FC = () => {
   const {
-    youtube: {
-      playlist,
-      setPlaylist,
-      setSelectedVideo,
-      selectedVideo,
-      playlistName,
-      setPlaylistName,
-    },
-  } = useAppContext();
+    youtubePlaylist,
+    removeFromYoutubePlaylist,
+    setSelectedVideo,
+    selectedVideo,
+    setPlaylistName,
+    playlistName,
+    setYoutubePlaylist,
+  } = useYoutube();
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(playlistName);
@@ -44,7 +36,7 @@ const PlaylistView: React.FC = () => {
     setIsEditingName(false);
   };
 
-  const handleNameKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       handleNameSave();
     } else if (e.key === "Escape") {
@@ -54,9 +46,9 @@ const PlaylistView: React.FC = () => {
   };
 
   const handleRemove = (index: number) => {
-    const updatedPlaylist = [...playlist];
+    const updatedPlaylist = [...youtubePlaylist];
     updatedPlaylist.splice(index, 1);
-    setPlaylist(updatedPlaylist);
+    removeFromYoutubePlaylist(updatedPlaylist[index].id.videoId);
   };
 
   const handlePlay = (videoId: string) => {
@@ -66,7 +58,7 @@ const PlaylistView: React.FC = () => {
 
   const handleClearAll = () => {
     if (window.confirm("Are you sure you want to clear the entire playlist?")) {
-      setPlaylist([]);
+      setYoutubePlaylist([]);
     }
   };
 
@@ -149,49 +141,32 @@ const PlaylistView: React.FC = () => {
       <div className="absolute inset-0 bg-gradient-to-r from-[#FF0000]/5 to-transparent" />
       <div className="relative z-10 h-full flex flex-col">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center space-x-2">
             {isEditingName ? (
-              <div className="flex items-center gap-2">
-                <input
-                  ref={nameInputRef}
-                  type="text"
-                  value={tempName}
-                  onChange={(e) => setTempName(e.target.value)}
-                  onKeyDown={handleNameKeyDown}
-                  className="text-2xl font-bold bg-transparent border-b border-[#FF0000] focus:outline-none focus:border-[#FF0000] text-white"
-                />
-                <button
-                  onClick={handleNameSave}
-                  className="p-1 text-[#FF0000] hover:text-[#FF0000]/80 transition-colors"
-                >
-                  <FaCheck size={16} />
-                </button>
-              </div>
+              <input
+                ref={nameInputRef}
+                type="text"
+                value={tempName}
+                onChange={(e) => setTempName(e.target.value)}
+                onBlur={handleNameSave}
+                onKeyDown={handleKeyDown}
+                className="text-2xl font-bold text-white bg-transparent border-b border-white/30 focus:border-white/50 outline-none"
+              />
             ) : (
-              <div className="flex items-center gap-2">
-                <h2
-                  onDoubleClick={handleNameEdit}
-                  className="text-2xl font-bold text-white cursor-pointer hover:text-[#FF0000] transition-colors"
-                >
-                  {playlistName}
-                </h2>
-                <button
-                  onClick={handleNameEdit}
-                  className="p-1 text-[#FF0000] hover:text-[#FF0000]/80 transition-colors"
-                >
-                  <FaEdit size={16} />
-                </button>
-              </div>
+              <h2
+                onClick={handleNameEdit}
+                className="text-2xl font-bold text-white cursor-pointer hover:text-[#FF0000] transition-colors"
+              >
+                {playlistName}
+              </h2>
             )}
           </div>
-          {playlist.length > 0 && (
+          {youtubePlaylist.length > 0 && (
             <button
               onClick={handleClearAll}
-              className="flex items-center gap-2 px-3 py-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors duration-300"
-              title="Clear all tracks"
+              className="text-red-500 hover:text-red-400 transition-colors"
             >
-              <FaTrashAlt size={14} />
-              <span>Clear All</span>
+              Clear All
             </button>
           )}
         </div>
@@ -214,19 +189,19 @@ const PlaylistView: React.FC = () => {
                 className="flex space-x-4 overflow-x-auto scrollbar-hide py-2 px-10"
                 style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
               >
-                {playlist.map((video, index) => (
+                {youtubePlaylist.map((video: YoutubeVideo, index: number) => (
                   <Draggable
                     key={`thumbnail-${video.id.videoId}`}
                     draggableId={`thumbnail-${video.id.videoId}`}
                     index={index}
                   >
-                    {(provided, snapshot) => (
+                    {(provided) => (
                       <div
                         ref={provided.innerRef}
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
                         className={`flex-shrink-0 w-[140px] h-[140px] transition-all duration-300 ${
-                          snapshot.isDragging
+                          hoveredIndex === index
                             ? "scale-110 z-[9999] ring-2 ring-[#FF0000] ring-opacity-50"
                             : "hover:scale-105"
                         } ${
@@ -236,7 +211,8 @@ const PlaylistView: React.FC = () => {
                         }`}
                         style={{
                           ...provided.draggableProps.style,
-                          position: snapshot.isDragging ? "fixed" : "relative",
+                          position:
+                            hoveredIndex === index ? "fixed" : "relative",
                         }}
                       >
                         <div className="relative w-full h-full">
@@ -313,13 +289,13 @@ const PlaylistView: React.FC = () => {
                 ref={provided.innerRef}
                 className="space-y-1 h-full overflow-y-auto youtube-scrollbar pr-2"
               >
-                {playlist.map((video, index) => (
+                {youtubePlaylist.map((video: YoutubeVideo, index: number) => (
                   <Draggable
                     key={`list-${video.id.videoId}`}
                     draggableId={`list-${video.id.videoId}`}
                     index={index}
                   >
-                    {(provided, snapshot) => (
+                    {(provided) => (
                       <li
                         ref={provided.innerRef}
                         {...provided.draggableProps}
@@ -331,7 +307,7 @@ const PlaylistView: React.FC = () => {
                             ? "border-red-500 bg-red-900/30 shadow-[0_0_30px_rgba(255,0,0,0.5)] animate-glow"
                             : "border-white/10 bg-black/50"
                         } transition-colors duration-200 ease-in-out hover:bg-black/70 p-2 rounded-lg cursor-grab active:cursor-grabbing ${
-                          snapshot.isDragging
+                          hoveredIndex === index
                             ? "ring-2 ring-[#FF0000] ring-opacity-50 shadow-[0_0_30px_rgba(255,0,0,0.5)] animate-glow"
                             : ""
                         }`}
