@@ -10,7 +10,7 @@ import {
   FaCheck,
 } from "react-icons/fa";
 import { Song } from "@/types/playerTypes";
-import { PlayingContext } from "@/context/Playing";
+import { PlayingContext } from "@/context/playing";
 import Image from "next/image";
 import { useContext } from "react";
 
@@ -263,10 +263,7 @@ const SpotifyPlaylistView: React.FC = () => {
           <Droppable droppableId="vinyl-slider" direction="horizontal">
             {(provided) => (
               <div
-                ref={(el) => {
-                  provided.innerRef(el);
-                  vinylContainerRef.current = el;
-                }}
+                ref={provided.innerRef}
                 {...provided.droppableProps}
                 className="flex space-x-4 overflow-x-auto futuristic-scrollbar py-2 px-10"
                 style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
@@ -378,10 +375,7 @@ const SpotifyPlaylistView: React.FC = () => {
             {(provided) => (
               <ul
                 {...provided.droppableProps}
-                ref={(el) => {
-                  provided.innerRef(el);
-                  listContainerRef.current = el;
-                }}
+                ref={provided.innerRef}
                 className="space-y-1 h-full overflow-y-auto futuristic-scrollbar pr-2"
               >
                 {playlist.map((song: Song, index: number) =>

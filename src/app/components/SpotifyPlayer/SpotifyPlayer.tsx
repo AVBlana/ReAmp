@@ -9,7 +9,7 @@ import {
   FaStop,
   FaFastForward,
 } from "react-icons/fa";
-import { PlayingContext } from "../../../context/Playing";
+import { PlayingContext } from "../../../context/playing";
 import { ServiceType } from "../../../types/playerTypes";
 import Image from "next/image";
 

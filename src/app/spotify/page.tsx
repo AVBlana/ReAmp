@@ -4,7 +4,7 @@ import { useEffect, useState, useContext } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import SpotifyPlayer from "../components/SpotifyPlayer/SpotifyPlayer";
-import { PlayingProvider, PlayingContext } from "../../context/Playing";
+import { PlayingProvider, PlayingContext } from "../../context/playing";
 import SpotifySearchResultsList from "../components/SpotifySearchResultsList";
 import SpotifyPlaylistView from "../components/SpotifyPlaylistView/index";
 import { searchSpotify } from "../components/Services/SpotifyService";
@@ -15,6 +15,7 @@ import { AppProvider } from "../AppContext";
 import { FaSpotify, FaMusic } from "react-icons/fa";
 import Header from "../components/Header";
 import Search from "../components/Search";
+import Image from "next/image";
 
 // Helper function to safely access localStorage
 const getLocalStorage = (key: string): string | null => {
@@ -276,10 +277,12 @@ function SpotifyContent() {
                       <div className="grid grid-rows-2 grid-cols-2 w-full h-full">
                         {playlist.slice(0, 4).map((song, index) => (
                           <div key={index} className="relative overflow-hidden">
-                            <img
+                            <Image
                               src={song.artwork.medium.url}
                               alt={song.title}
                               className="w-full h-full object-cover"
+                              width={song.artwork.medium.width}
+                              height={song.artwork.medium.height}
                             />
                           </div>
                         ))}
