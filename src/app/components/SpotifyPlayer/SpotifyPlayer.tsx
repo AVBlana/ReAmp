@@ -69,36 +69,40 @@ export default function SpotifyPlayer() {
   useEffect(() => {
     if (!spotifyToken) return;
 
-    if (!scriptRef.current) {
-      scriptRef.current = document.createElement("script");
-      scriptRef.current.src = "https://sdk.scdn.co/spotify-player.js";
-      scriptRef.current.async = true;
-      document.body.appendChild(scriptRef.current);
+    // Prevent multiple script loads
+    if (scriptRef.current) {
+      return;
     }
+
+    scriptRef.current = document.createElement("script");
+    scriptRef.current.src = "https://sdk.scdn.co/spotify-player.js";
+    scriptRef.current.async = true;
 
     window.onSpotifyWebPlaybackSDKReady = () => {
       if (!spotifyToken) return;
 
       // Prevent multiple initializations
-      if (initializationInProgress.current) {
-        console.log("Initialization already in progress, skipping");
+      if (initializationInProgress.current || playerRef.current) {
+        console.log(
+          "Player already initialized or initialization in progress, skipping"
+        );
         return;
       }
 
       initializationInProgress.current = true;
-
-      // Cleanup existing player
-      if (playerRef.current) {
-        playerRef.current.disconnect();
-        playerRef.current = null;
-      }
 
       // Create new player instance with error handling
       try {
         const player = new window.Spotify.Player({
           name: "ReAMP Player",
           getOAuthToken: (cb: (token: string) => void) => {
-            cb(spotifyToken);
+            // Ensure we're using the latest token
+            const currentToken = localStorage.getItem("spotify_token");
+            if (!currentToken) {
+              console.error("No Spotify token available");
+              return;
+            }
+            cb(currentToken);
           },
           volume: volume / 100,
         });
@@ -118,7 +122,8 @@ export default function SpotifyPlayer() {
             // If initialization fails, try to refresh the token
             if (
               message.includes("404") ||
-              message.includes("MediaKeySystemAccess")
+              message.includes("MediaKeySystemAccess") ||
+              message.includes("CloudPlaybackClientError")
             ) {
               try {
                 const response = await fetch("/api/spotify/refresh");
@@ -294,6 +299,8 @@ export default function SpotifyPlayer() {
       }
     };
 
+    document.body.appendChild(scriptRef.current);
+
     return () => {
       // Cleanup on unmount
       if (playerRef.current) {
@@ -310,7 +317,7 @@ export default function SpotifyPlayer() {
       initializationInProgress.current = false;
       setRetryCount(0);
     };
-  }, [spotifyToken, volume, activeDeviceId]);
+  }, [spotifyToken, volume]);
 
   // Effect to handle token changes
   useEffect(() => {
@@ -325,7 +332,7 @@ export default function SpotifyPlayer() {
       initializationInProgress.current = false;
       setRetryCount(0);
     }
-  }, [spotifyToken, setRetryCount, activeDeviceId, retryCount]);
+  }, [spotifyToken]);
 
   // Effect to handle current song changes
   useEffect(() => {
@@ -391,68 +398,79 @@ export default function SpotifyPlayer() {
   useEffect(() => {
     if (!playerRef.current || isLoading) return;
 
+    let isHandlingTrackEnd = false;
+
     const handleTrackEnd = async () => {
-      // Find the current track's index in the playlist
-      const currentIndex = playlist.findIndex(
-        (track) => track.id === currentSong?.id
-      );
+      if (isHandlingTrackEnd) return;
+      isHandlingTrackEnd = true;
 
-      // If we have a next track, play it
-      if (currentIndex < playlist.length - 1) {
-        const nextTrack = playlist[currentIndex + 1];
-        if (nextTrack && nextTrack.type === ServiceType.Spotify) {
-          try {
-            // First, set the next track
-            setCurrentSong(nextTrack);
+      try {
+        // Find the current track's index in the playlist
+        const currentIndex = playlist.findIndex(
+          (track) => track.id === currentSong?.id
+        );
 
-            // Wait a moment for the state to update
-            await new Promise((resolve) => setTimeout(resolve, 100));
-
-            // Use the API to play the next track
-            const response = await fetch(
-              `https://api.spotify.com/v1/me/player/play?device_id=${activeDeviceId}`,
-              {
-                method: "PUT",
-                headers: {
-                  Authorization: `Bearer ${spotifyToken}`,
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  uris: [`spotify:track:${nextTrack.id}`],
-                  position_ms: 0,
-                }),
-              }
-            );
-
-            if (!response.ok) {
-              throw new Error(`Failed to play next track: ${response.status}`);
-            }
-
-            // Ensure playback starts
-            if (playerRef.current) {
-              await playerRef.current.resume();
-            }
-          } catch (error) {
-            console.error("Error transitioning to next track:", error);
-            // If there's an error, try to refresh the token and retry
+        // If we have a next track, play it
+        if (currentIndex < playlist.length - 1) {
+          const nextTrack = playlist[currentIndex + 1];
+          if (nextTrack && nextTrack.type === ServiceType.Spotify) {
             try {
-              const refreshResponse = await fetch("/api/spotify/refresh");
-              if (!refreshResponse.ok) {
-                throw new Error("Failed to refresh token");
+              // First, set the next track
+              setCurrentSong(nextTrack);
+
+              // Wait a moment for the state to update
+              await new Promise((resolve) => setTimeout(resolve, 100));
+
+              // Use the API to play the next track
+              const response = await fetch(
+                `https://api.spotify.com/v1/me/player/play?device_id=${activeDeviceId}`,
+                {
+                  method: "PUT",
+                  headers: {
+                    Authorization: `Bearer ${spotifyToken}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    uris: [`spotify:track:${nextTrack.id}`],
+                    position_ms: 0,
+                  }),
+                }
+              );
+
+              if (!response.ok) {
+                throw new Error(
+                  `Failed to play next track: ${response.status}`
+                );
               }
-              const data = await refreshResponse.json();
-              if (typeof window !== "undefined") {
-                localStorage.setItem("spotify_token", data.access_token);
-                setSpotifyToken(data.access_token);
+
+              // Ensure playback starts
+              if (playerRef.current) {
+                await playerRef.current.resume();
               }
-            } catch (refreshError) {
-              console.error("Error refreshing token:", refreshError);
+            } catch (error) {
+              console.error("Error transitioning to next track:", error);
+              // If there's an error, try to refresh the token and retry
+              try {
+                const refreshResponse = await fetch("/api/spotify/refresh");
+                if (!refreshResponse.ok) {
+                  throw new Error("Failed to refresh token");
+                }
+                const data = await refreshResponse.json();
+                if (typeof window !== "undefined") {
+                  localStorage.setItem("spotify_token", data.access_token);
+                  setSpotifyToken(data.access_token);
+                }
+              } catch (refreshError) {
+                console.error("Error refreshing token:", refreshError);
+              }
             }
           }
+        } else {
+          // End of playlist
+          setIsPlaying(false);
         }
-      } else {
-        // End of playlist
-        setIsPlaying(false);
+      } finally {
+        isHandlingTrackEnd = false;
       }
     };
 
@@ -488,8 +506,9 @@ export default function SpotifyPlayer() {
             setProgress(state.position);
             setDuration(state.duration);
 
-            // Check if we're near the end of the track
-            if (state.position >= state.duration - 2000 && !state.paused) {
+            // Only check for track end in the interval if we're very close to the end
+            // This prevents double-triggering with the state change handler
+            if (state.position >= state.duration - 100 && !state.paused) {
               handleTrackEnd();
             }
           }
