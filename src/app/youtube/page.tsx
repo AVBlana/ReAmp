@@ -80,7 +80,8 @@ function YouTubeSearchContent() {
     // Handle dropping to video player
     if (result.destination.droppableId === "video-player") {
       const videoId = result.draggableId
-        .replace("youtube-", "")
+        .replace("youtube-list-", "")
+        .replace("youtube-slider-", "")
         .replace("list-", "")
         .replace("thumbnail-", "");
       setSelectedVideo(videoId);

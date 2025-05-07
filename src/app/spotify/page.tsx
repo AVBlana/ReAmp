@@ -52,7 +52,9 @@ function SpotifySearchContent() {
 
     // Handle dropping to player
     if (result.destination.droppableId === "spotify-player") {
-      const songId = result.draggableId.replace("spotify-", "");
+      const songId = result.draggableId
+        .replace("spotify-list-", "")
+        .replace("spotify-slider-", "");
       const song = playlist.find((s) => s.id === songId);
       if (song) {
         setCurrentSong(song);

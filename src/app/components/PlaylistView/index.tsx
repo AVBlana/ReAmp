@@ -8,7 +8,6 @@ import {
 } from "react-icons/fa";
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import "./styles.css";
 
 interface PlaylistItem {
   id: string;
@@ -195,20 +194,20 @@ const PlaylistView: React.FC<PlaylistViewProps> = ({
 
       {/* Thumbnail Slider */}
       <div className="relative mb-4">
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 z-10">
-          <button
-            onClick={scrollLeft}
-            className="w-12 h-12 bg-black/90 rounded-full flex items-center justify-center text-white hover:bg-black transition-colors duration-300 shadow-lg hover:shadow-xl border border-white/10"
-          >
-            <FaChevronLeft size={20} />
-          </button>
+        <div
+          onClick={scrollLeft}
+          className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-black/90 to-transparent z-10 flex items-center cursor-pointer hover:from-black transition-colors duration-300"
+        >
+          <div className="w-12 h-12 flex items-center justify-center text-white/80 hover:text-white transition-colors duration-300">
+            <FaChevronLeft size={24} />
+          </div>
         </div>
         <Droppable droppableId={`${droppableId}-slider`} direction="horizontal">
           {(provided) => (
             <div
               ref={provided.innerRef}
               {...provided.droppableProps}
-              className="flex space-x-8 overflow-x-auto scrollbar-hide py-4 px-16 futuristic-scrollbar"
+              className="flex space-x-8 overflow-x-auto scrollbar-hide py-4 px-24 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-track]:rounded [&::-webkit-scrollbar-thumb]:bg-[var(--theme-primary)] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:border-2 [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb]:bg-clip-padding hover:[&::-webkit-scrollbar-thumb]:bg-[var(--theme-primary-hover)]"
               style={{
                 scrollbarWidth: "thin",
                 scrollbarColor: `${theme.primary} transparent`,
@@ -217,8 +216,8 @@ const PlaylistView: React.FC<PlaylistViewProps> = ({
               <div ref={sliderContainerRef} className="flex space-x-8">
                 {items.map((item, index) => (
                   <Draggable
-                    key={`${draggablePrefix}-${item.id}`}
-                    draggableId={`${draggablePrefix}-${item.id}`}
+                    key={`${draggablePrefix}-slider-${item.id}`}
+                    draggableId={`${draggablePrefix}-slider-${item.id}`}
                     index={index}
                   >
                     {(provided) => (
@@ -227,7 +226,7 @@ const PlaylistView: React.FC<PlaylistViewProps> = ({
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
                         data-slider-item-id={item.id}
-                        className="flex-shrink-0 w-[160px] transition-all duration-300 group"
+                        className="flex-shrink-0 w-[160px] transition-all duration-300 group first:ml-4 last:mr-4"
                         style={{
                           ...provided.draggableProps.style,
                         }}
@@ -310,24 +309,25 @@ const PlaylistView: React.FC<PlaylistViewProps> = ({
             </div>
           )}
         </Droppable>
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 z-10">
-          <button
-            onClick={scrollRight}
-            className="w-12 h-12 bg-black/90 rounded-full flex items-center justify-center text-white hover:bg-black transition-colors duration-300 shadow-lg hover:shadow-xl border border-white/10"
-          >
-            <FaChevronRight size={20} />
-          </button>
+        <div
+          onClick={scrollRight}
+          className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-black/90 to-transparent z-10 flex items-center justify-end cursor-pointer hover:from-black transition-colors duration-300"
+        >
+          <div className="w-12 h-12 flex items-center justify-center text-white/80 hover:text-white transition-colors duration-300">
+            <FaChevronRight size={24} />
+          </div>
         </div>
       </div>
 
       {/* List View */}
-      <div className="flex-1 min-h-0" ref={listContainerRef}>
+      <div className="flex-1 min-h-0 relative" ref={listContainerRef}>
+        <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-black/90 to-transparent z-10 pointer-events-none" />
         <Droppable droppableId={droppableId}>
           {(provided) => (
             <ul
               {...provided.droppableProps}
               ref={provided.innerRef}
-              className="space-y-1 h-full overflow-y-auto futuristic-scrollbar pr-2"
+              className="space-y-1 h-full overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-track]:rounded [&::-webkit-scrollbar-thumb]:bg-[var(--theme-primary)] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:border-2 [&::-webkit-scrollbar-thumb]:border-transparent [&::-webkit-scrollbar-thumb]:bg-clip-padding hover:[&::-webkit-scrollbar-thumb]:bg-[var(--theme-primary-hover)] pr-2 pt-12 pb-12"
               style={{
                 scrollbarWidth: "thin",
                 scrollbarColor: `${theme.primary} transparent`,
@@ -335,8 +335,8 @@ const PlaylistView: React.FC<PlaylistViewProps> = ({
             >
               {items.map((item, index) => (
                 <Draggable
-                  key={`${draggablePrefix}-${item.id}`}
-                  draggableId={`${draggablePrefix}-${item.id}`}
+                  key={`${draggablePrefix}-list-${item.id}`}
+                  draggableId={`${draggablePrefix}-list-${item.id}`}
                   index={index}
                 >
                   {(provided) => (
@@ -430,6 +430,7 @@ const PlaylistView: React.FC<PlaylistViewProps> = ({
             </ul>
           )}
         </Droppable>
+        <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/90 to-transparent z-10 pointer-events-none" />
       </div>
     </div>
   );
