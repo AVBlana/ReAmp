@@ -63,6 +63,8 @@ const PlaylistView: React.FC<PlaylistViewProps> = ({
   const [tempName, setTempName] = useState(playlistName);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const sliderContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -74,6 +76,52 @@ const PlaylistView: React.FC<PlaylistViewProps> = ({
       `${theme.primary}80`
     );
   }, [theme]);
+
+  useEffect(() => {
+    if (currentItemId && listContainerRef.current) {
+      const currentItem = listContainerRef.current.querySelector(
+        `[data-item-id="${currentItemId}"]`
+      );
+      if (currentItem) {
+        const containerRect = listContainerRef.current.getBoundingClientRect();
+        const itemRect = currentItem.getBoundingClientRect();
+
+        if (
+          itemRect.top < containerRect.top ||
+          itemRect.bottom > containerRect.bottom
+        ) {
+          currentItem.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }
+      }
+    }
+  }, [currentItemId]);
+
+  useEffect(() => {
+    if (currentItemId && sliderContainerRef.current) {
+      const currentItem = sliderContainerRef.current.querySelector(
+        `[data-slider-item-id="${currentItemId}"]`
+      );
+      if (currentItem) {
+        const containerRect =
+          sliderContainerRef.current.getBoundingClientRect();
+        const itemRect = currentItem.getBoundingClientRect();
+
+        if (
+          itemRect.left < containerRect.left ||
+          itemRect.right > containerRect.right
+        ) {
+          currentItem.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest",
+            inline: "center",
+          });
+        }
+      }
+    }
+  }, [currentItemId]);
 
   const handleNameEdit = () => {
     setIsEditingName(true);
@@ -166,102 +214,99 @@ const PlaylistView: React.FC<PlaylistViewProps> = ({
                 scrollbarColor: `${theme.primary} transparent`,
               }}
             >
-              {items.map((item, index) => (
-                <Draggable
-                  key={`${draggablePrefix}-${item.id}`}
-                  draggableId={`${draggablePrefix}-${item.id}`}
-                  index={index}
-                >
-                  {(provided) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.draggableProps}
-                      {...provided.dragHandleProps}
-                      className={`flex-shrink-0 w-[160px] transition-all duration-300 ${
-                        item.id === currentItemId
-                          ? `ring-2 ring-[${theme.primary}]`
-                          : ""
-                      }`}
-                      style={{
-                        ...provided.draggableProps.style,
-                      }}
-                    >
-                      <div className="relative w-[160px] h-[160px] group">
-                        {/* Vinyl Record */}
-                        <div
-                          className={`absolute inset-0 rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_4px_var(--background),0_0_16px_#0008_inset] flex items-center justify-center border-2 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
-                            item.id === currentItemId ? "animate-spin" : ""
-                          }`}
-                        >
-                          {/* Album Art */}
-                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/5 h-3/5 rounded-full bg-[var(--background)] shadow-[0_0_0_2px_var(--foreground),0_0_8px_#fff8_inset] overflow-hidden z-10 flex items-center justify-center">
-                            <Image
-                              src={
-                                item.artwork?.small.url ||
-                                item.thumbnail?.url ||
-                                ""
-                              }
-                              alt={item.title}
-                              width={
-                                item.artwork?.small.width ||
-                                item.thumbnail?.width ||
-                                140
-                              }
-                              height={
-                                item.artwork?.small.height ||
-                                item.thumbnail?.height ||
-                                140
-                              }
-                              className="w-full h-full object-cover"
-                            />
+              <div ref={sliderContainerRef} className="flex space-x-8">
+                {items.map((item, index) => (
+                  <Draggable
+                    key={`${draggablePrefix}-${item.id}`}
+                    draggableId={`${draggablePrefix}-${item.id}`}
+                    index={index}
+                  >
+                    {(provided) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        data-slider-item-id={item.id}
+                        className="flex-shrink-0 w-[160px] transition-all duration-300 group"
+                        style={{
+                          ...provided.draggableProps.style,
+                        }}
+                      >
+                        <div className="relative w-[160px] h-[160px] rounded-full group">
+                          {/* Vinyl Record */}
+                          <div
+                            className={`absolute inset-0 rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_4px_var(--background),0_0_16px_#0008_inset] flex items-center justify-center border-2 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
+                              item.id === currentItemId ? "animate-spin" : ""
+                            }`}
+                          >
+                            {/* Album Art */}
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/5 h-3/5 rounded-full bg-[var(--background)] shadow-[0_0_0_2px_var(--foreground),0_0_8px_#fff8_inset] overflow-hidden z-10 flex items-center justify-center">
+                              <Image
+                                src={
+                                  item.artwork?.small.url ||
+                                  item.thumbnail?.url ||
+                                  ""
+                                }
+                                alt={item.title}
+                                width={
+                                  item.artwork?.small.width ||
+                                  item.thumbnail?.width ||
+                                  140
+                                }
+                                height={
+                                  item.artwork?.small.height ||
+                                  item.thumbnail?.height ||
+                                  140
+                                }
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
                           </div>
-                          {/* Center Hole */}
-                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-[var(--background)] border border-[var(--foreground)] z-20" />
+
+                          {/* Overlay with Controls */}
+                          <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-full flex flex-col items-center justify-center gap-3 z-20">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onPlay(item);
+                              }}
+                              className="p-3 rounded-full bg-[var(--theme-primary)] hover:bg-[var(--theme-primary)]/90 transition-all duration-200 hover:scale-110 shadow-lg"
+                            >
+                              {item.id === currentItemId ? (
+                                <FaPause size={20} className="text-white" />
+                              ) : (
+                                <FaPlay size={20} className="text-white" />
+                              )}
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRemove(index);
+                              }}
+                              className="p-3 rounded-full bg-red-500 hover:bg-red-500/90 transition-all duration-200 hover:scale-110 shadow-lg"
+                            >
+                              <FaTrash size={16} className="text-white" />
+                            </button>
+                          </div>
                         </div>
 
-                        {/* Overlay with Controls */}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-full flex flex-col items-center justify-center gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onPlay(item);
-                            }}
-                            className={`p-2 rounded-full bg-[${theme.primary}]/80 hover:bg-[${theme.primary}] transition-colors duration-200`}
-                          >
-                            {item.id === currentItemId ? (
-                              <FaPause size={16} className="text-white" />
-                            ) : (
-                              <FaPlay size={16} className="text-white" />
-                            )}
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onRemove(index);
-                            }}
-                            className="p-2 rounded-full bg-red-500/80 hover:bg-red-500 transition-colors duration-200"
-                          >
-                            <FaTrash size={14} className="text-white" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Title and Artist */}
-                      <div className="mt-2 text-center">
-                        <span className="text-white text-sm font-medium truncate block">
-                          {item.title}
-                        </span>
-                        {item.artist && (
-                          <span className="text-white/70 text-xs truncate block">
-                            {item.artist.name}
+                        {/* Title and Artist */}
+                        <div className="mt-2 text-center">
+                          <span className="text-white text-sm font-medium truncate block">
+                            {item.title}
                           </span>
-                        )}
+                          {item.artist && (
+                            <span className="text-white/70 text-xs truncate block">
+                              {item.artist.name}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </Draggable>
-              ))}
-              {provided.placeholder}
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </div>
             </div>
           )}
         </Droppable>
@@ -276,7 +321,7 @@ const PlaylistView: React.FC<PlaylistViewProps> = ({
       </div>
 
       {/* List View */}
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0" ref={listContainerRef}>
         <Droppable droppableId={droppableId}>
           {(provided) => (
             <ul
@@ -299,6 +344,7 @@ const PlaylistView: React.FC<PlaylistViewProps> = ({
                       ref={provided.innerRef}
                       {...provided.draggableProps}
                       {...provided.dragHandleProps}
+                      data-item-id={item.id}
                       onMouseEnter={() => setHoveredIndex(index)}
                       onMouseLeave={() => setHoveredIndex(null)}
                       className={`flex items-center justify-between text-white border-2 ${

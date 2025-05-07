@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSpotify } from "@/context/UnifiedContext";
-import { ServiceType, Song } from "@/types/playerTypes";
-import Image from "next/image";
-import { FaPlay, FaPlus } from "react-icons/fa";
+import { ServiceType } from "@/types/playerTypes";
+import SpotifySongItem from "../SpotifySongItem";
 
 interface SpotifyTrack {
   id: string;
@@ -24,8 +23,7 @@ interface SpotifySearchResponse {
 export default function SpotifySearch() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const { playlist, addToPlaylist, searchResults, setSearchResults } =
-    useSpotify();
+  const { searchResults, setSearchResults, setCurrentSong } = useSpotify();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSearchRef = useRef<string>("");
   const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -110,10 +108,6 @@ export default function SpotifySearch() {
     }
   };
 
-  const handleAddToPlaylist = (song: Song) => {
-    addToPlaylist(song);
-  };
-
   return (
     <div className="relative" ref={searchContainerRef}>
       <form onSubmit={(e) => e.preventDefault()}>
@@ -144,47 +138,12 @@ export default function SpotifySearch() {
         <div className="absolute top-full left-0 right-0 mt-2 bg-[#0A0A0A] border border-[#1DB954]/20 rounded-lg shadow-xl z-50 max-h-[400px] overflow-y-auto spotify-scrollbar">
           <div className="p-2 space-y-2">
             {searchResults.map((song) => (
-              <div
+              <SpotifySongItem
                 key={song.id}
-                className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#1DB954]/10 transition-colors duration-200 group"
-              >
-                <div className="relative w-12 h-12 flex-shrink-0">
-                  <Image
-                    src={song.artwork.small.url}
-                    alt={song.title}
-                    width={song.artwork.small.width}
-                    height={song.artwork.small.height}
-                    className="rounded-md"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                    <FaPlay className="text-white text-lg" />
-                  </div>
-                </div>
-                <div className="flex-grow min-w-0">
-                  <h3 className="text-sm font-medium text-white truncate">
-                    {song.title}
-                  </h3>
-                  <p className="text-xs text-gray-400 truncate">
-                    {song.artist.name}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleAddToPlaylist(song)}
-                  className={`p-2 rounded-full transition-all duration-300 ${
-                    playlist.some((item) => item.id === song.id)
-                      ? "bg-gray-400/20 cursor-not-allowed text-gray-400"
-                      : "bg-[#1DB954] hover:bg-[#1DB954]/80 text-white hover:scale-105 shadow-lg hover:shadow-[#1DB954]/20 group-hover:animate-pulse"
-                  }`}
-                  title={
-                    playlist.some((item) => item.id === song.id)
-                      ? "Already in playlist"
-                      : "Add to playlist"
-                  }
-                  disabled={playlist.some((item) => item.id === song.id)}
-                >
-                  <FaPlus size={12} />
-                </button>
-              </div>
+                song={song}
+                variant="compact"
+                onPlay={setCurrentSong}
+              />
             ))}
           </div>
         </div>

@@ -425,6 +425,7 @@ export default function SpotifyPlayer() {
     if (!playerRef.current || isActive) return;
 
     let isHandlingTrackEnd = false;
+    let trackEndTimeout: NodeJS.Timeout | null = null;
 
     const handleTrackEnd = async () => {
       if (isHandlingTrackEnd) return;
@@ -512,13 +513,20 @@ export default function SpotifyPlayer() {
         setDuration(state.duration);
 
         // Check if track ended naturally (not by user pause)
-        // We check if the position is very close to the end (within 2 seconds)
         if (
           wasPlaying &&
           !isNowPlaying &&
-          state.position >= state.duration - 2000
+          state.position >= state.duration - 1000
         ) {
-          handleTrackEnd();
+          // Clear any existing timeout
+          if (trackEndTimeout) {
+            clearTimeout(trackEndTimeout);
+          }
+
+          // Set a new timeout to handle track end
+          trackEndTimeout = setTimeout(() => {
+            handleTrackEnd();
+          }, 500); // Small delay to ensure state is stable
         }
       }
     };
@@ -532,10 +540,17 @@ export default function SpotifyPlayer() {
             setProgress(state.position);
             setDuration(state.duration);
 
-            // Only check for track end in the interval if we're very close to the end
-            // This prevents double-triggering with the state change handler
-            if (state.position >= state.duration - 100 && !state.paused) {
-              handleTrackEnd();
+            // Check if we're very close to the end (within 1 second)
+            if (state.position >= state.duration - 1000 && !state.paused) {
+              // Clear any existing timeout
+              if (trackEndTimeout) {
+                clearTimeout(trackEndTimeout);
+              }
+
+              // Set a new timeout to handle track end
+              trackEndTimeout = setTimeout(() => {
+                handleTrackEnd();
+              }, 500); // Small delay to ensure state is stable
             }
           }
         } catch (error) {
@@ -554,6 +569,9 @@ export default function SpotifyPlayer() {
         );
       }
       clearInterval(progressInterval);
+      if (trackEndTimeout) {
+        clearTimeout(trackEndTimeout);
+      }
     };
   }, [
     playlist,
