@@ -1,40 +1,46 @@
 "use client";
 
-import { useContext, useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   FaPlay,
   FaPause,
+  FaStop,
   FaVolumeUp,
   FaVolumeMute,
-  FaStop,
   FaFastForward,
 } from "react-icons/fa";
-import { PlayingContext } from "@/app/context/Playing";
 import { ServiceType } from "@/types/playerTypes";
 import Image from "next/image";
 import type { Player, PlaybackState } from "spotify-web-playback-sdk";
+import { useSpotify } from "@/context/UnifiedContext";
 
 declare global {
   interface Window {
     onSpotifyWebPlaybackSDKReady: () => void;
     Spotify: {
-      Player: typeof import("spotify-web-playback-sdk").Player;
+      Player: new (options: PlayerOptions) => Player;
     };
   }
 }
 
+interface PlayerOptions {
+  name: string;
+  getOAuthToken: (cb: (token: string) => void) => void;
+  volume?: number;
+}
+
 export default function SpotifyPlayer() {
-  const { currentSong, setCurrentSong, playlist } = useContext(PlayingContext);
+  const { currentSong, setCurrentSong, playlist } = useSpotify();
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume] = useState(50);
+  const [isActive, setIsActive] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [activeDeviceId, setActiveDeviceId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 3;
-  const volumeUpdateTimeout = useRef<NodeJS.Timeout>();
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [retryCount, setRetryCount] = useState(0);
+  const maxRetries = 3;
+  const progressInterval = useRef<NodeJS.Timeout | null>(null);
   const playerRef = useRef<Player | null>(null);
   const scriptRef = useRef<HTMLScriptElement | null>(null);
   const deviceTransferInProgress = useRef(false);
@@ -45,6 +51,7 @@ export default function SpotifyPlayer() {
   const lastMouseX = useRef(0);
   const [displayVolume, setDisplayVolume] = useState(volume);
   const [spotifyToken, setSpotifyToken] = useState<string | null>(null);
+  const [activeDeviceId, setActiveDeviceId] = useState<string | null>(null);
 
   // Safely access localStorage only on client side
   useEffect(() => {
@@ -67,10 +74,16 @@ export default function SpotifyPlayer() {
 
   // Initialize Spotify Web Playback SDK
   useEffect(() => {
-    if (!spotifyToken) return;
+    if (!spotifyToken) {
+      console.log("No Spotify token available, skipping initialization");
+      return;
+    }
+
+    console.log("Initializing Spotify Web Playback SDK...");
 
     // Prevent multiple script loads
     if (scriptRef.current) {
+      console.log("Spotify SDK script already loaded");
       return;
     }
 
@@ -79,7 +92,11 @@ export default function SpotifyPlayer() {
     scriptRef.current.async = true;
 
     window.onSpotifyWebPlaybackSDKReady = () => {
-      if (!spotifyToken) return;
+      console.log("Spotify Web Playback SDK is ready");
+      if (!spotifyToken) {
+        console.log("No Spotify token available after SDK ready");
+        return;
+      }
 
       // Prevent multiple initializations
       if (initializationInProgress.current || playerRef.current) {
@@ -90,6 +107,7 @@ export default function SpotifyPlayer() {
       }
 
       initializationInProgress.current = true;
+      console.log("Creating new Spotify player instance...");
 
       // Create new player instance with error handling
       try {
@@ -99,23 +117,24 @@ export default function SpotifyPlayer() {
             // Ensure we're using the latest token
             const currentToken = localStorage.getItem("spotify_token");
             if (!currentToken) {
-              console.error("No Spotify token available");
+              console.error("No Spotify token available in getOAuthToken");
               return;
             }
+            console.log("Providing OAuth token to player");
             cb(currentToken);
           },
           volume: volume / 100,
         });
 
         playerRef.current = player;
+        console.log("Player instance created successfully");
 
         // Error handling
         player.addListener(
           "initialization_error",
           async ({ message }: { message: string }) => {
             console.error("Failed to initialize:", message);
-            setIsLoading(false);
-            setActiveDeviceId(null);
+            setIsActive(false);
             initializationInProgress.current = false;
             setRetryCount(0);
 
@@ -126,6 +145,9 @@ export default function SpotifyPlayer() {
               message.includes("CloudPlaybackClientError")
             ) {
               try {
+                console.log(
+                  "Attempting to refresh token after initialization error"
+                );
                 const response = await fetch("/api/spotify/refresh");
                 if (!response.ok) {
                   throw new Error("Failed to refresh token");
@@ -147,8 +169,7 @@ export default function SpotifyPlayer() {
           ({ message }: { message: string }) => {
             console.error("Failed to authenticate:", message);
             localStorage.removeItem("spotify_token");
-            setIsLoading(false);
-            setActiveDeviceId(null);
+            setIsActive(false);
             initializationInProgress.current = false;
             setRetryCount(0);
           }
@@ -158,8 +179,7 @@ export default function SpotifyPlayer() {
           "account_error",
           ({ message }: { message: string }) => {
             console.error("Failed to validate Spotify account:", message);
-            setIsLoading(false);
-            setActiveDeviceId(null);
+            setIsActive(false);
             initializationInProgress.current = false;
             setRetryCount(0);
           }
@@ -170,7 +190,7 @@ export default function SpotifyPlayer() {
           ({ message }: { message: string }) => {
             console.error("Playback error:", message);
             // Don't reset everything on playback error
-            setIsLoading(false);
+            setIsActive(false);
           }
         );
 
@@ -178,6 +198,7 @@ export default function SpotifyPlayer() {
         player.addListener(
           "player_state_changed",
           (state: PlaybackState | null) => {
+            console.log("Player state changed:", state);
             if (state) {
               setIsPlaying(!state.paused);
             }
@@ -188,7 +209,7 @@ export default function SpotifyPlayer() {
         player.addListener(
           "ready",
           async ({ device_id }: { device_id: string }) => {
-            console.log("Ready with Device ID", device_id);
+            console.log("Player is ready with Device ID:", device_id);
 
             // Only proceed if we don't already have an active device
             if (activeDeviceId === device_id) {
@@ -204,6 +225,7 @@ export default function SpotifyPlayer() {
               // Transfer playback to our device with retry logic
               const transferPlayback = async (retryCount = 0) => {
                 try {
+                  console.log("Transferring playback to device:", device_id);
                   const response = await fetch(
                     `https://api.spotify.com/v1/me/player`,
                     {
@@ -236,8 +258,9 @@ export default function SpotifyPlayer() {
                     );
                   }
 
+                  console.log("Successfully transferred playback to device");
                   setActiveDeviceId(device_id);
-                  setIsLoading(false);
+                  setIsActive(false);
                   setRetryCount(0);
                   deviceTransferInProgress.current = false;
                 } catch (error) {
@@ -255,8 +278,7 @@ export default function SpotifyPlayer() {
               await transferPlayback();
             } catch (error) {
               console.error("Error in device transfer process:", error);
-              setIsLoading(false);
-              setActiveDeviceId(null);
+              setIsActive(false);
               deviceTransferInProgress.current = false;
               initializationInProgress.current = false;
             }
@@ -267,15 +289,16 @@ export default function SpotifyPlayer() {
         player.addListener(
           "not_ready",
           ({ device_id }: { device_id: string }) => {
-            console.log("Device ID has gone offline", device_id);
+            console.log("Device ID has gone offline:", device_id);
             if (activeDeviceId === device_id) {
               setActiveDeviceId(null);
-              setIsLoading(false);
+              setIsActive(false);
             }
           }
         );
 
         // Connect to the player
+        console.log("Connecting to Spotify player...");
         player
           .connect()
           .then((success: boolean) => {
@@ -300,8 +323,10 @@ export default function SpotifyPlayer() {
     };
 
     document.body.appendChild(scriptRef.current);
+    console.log("Spotify SDK script added to document");
 
     return () => {
+      console.log("Cleaning up Spotify player...");
       // Cleanup on unmount
       if (playerRef.current) {
         playerRef.current.disconnect();
@@ -312,7 +337,7 @@ export default function SpotifyPlayer() {
         scriptRef.current = null;
       }
       setActiveDeviceId(null);
-      setIsLoading(false);
+      setIsActive(false);
       deviceTransferInProgress.current = false;
       initializationInProgress.current = false;
       setRetryCount(0);
@@ -327,7 +352,7 @@ export default function SpotifyPlayer() {
         playerRef.current = null;
       }
       setActiveDeviceId(null);
-      setIsLoading(false);
+      setIsActive(false);
       deviceTransferInProgress.current = false;
       initializationInProgress.current = false;
       setRetryCount(0);
@@ -339,7 +364,7 @@ export default function SpotifyPlayer() {
     if (
       currentSong?.type === ServiceType.Spotify &&
       activeDeviceId &&
-      !isLoading
+      !isActive
     ) {
       const token = localStorage.getItem("spotify_token");
       if (!token) return;
@@ -378,6 +403,7 @@ export default function SpotifyPlayer() {
           // Ensure playback starts
           if (playerRef.current) {
             await playerRef.current.resume();
+            setIsPlaying(true);
           }
         } catch (error) {
           console.error("Error playing track:", error);
@@ -392,11 +418,11 @@ export default function SpotifyPlayer() {
 
       playTrack();
     }
-  }, [currentSong, activeDeviceId, isLoading]);
+  }, [currentSong, activeDeviceId, isActive]);
 
   // Add track completion handler
   useEffect(() => {
-    if (!playerRef.current || isLoading) return;
+    if (!playerRef.current || isActive) return;
 
     let isHandlingTrackEnd = false;
 
@@ -531,7 +557,7 @@ export default function SpotifyPlayer() {
     };
   }, [
     playlist,
-    isLoading,
+    isActive,
     setCurrentSong,
     isPlaying,
     currentSong,
@@ -539,65 +565,56 @@ export default function SpotifyPlayer() {
     spotifyToken,
   ]);
 
-  const togglePlay = () => {
-    if (!activeDeviceId || isLoading) return;
+  const togglePlay = async () => {
+    if (!activeDeviceId || isActive) return;
     const token = localStorage.getItem("spotify_token");
     if (!token) return;
 
-    // Get current playback state
-    fetch(`https://api.spotify.com/v1/me/player`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    })
-      .then((response) => {
+    try {
+      if (isPlaying) {
+        // Pause playback
+        const response = await fetch(
+          `https://api.spotify.com/v1/me/player/pause?device_id=${activeDeviceId}`,
+          {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(`Failed to pause: ${response.status}`);
         }
-        return response.json();
-      })
-      .then((data) => {
-        if (data.is_playing) {
-          // Pause playback
-          fetch(
-            `https://api.spotify.com/v1/me/player/pause?device_id=${activeDeviceId}`,
-            {
-              method: "PUT",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-            }
-          ).catch((error: Error) => {
-            console.error("Error pausing:", error);
-          });
-          setIsPlaying(false);
-        } else {
-          // Resume playback
-          fetch(
-            `https://api.spotify.com/v1/me/player/play?device_id=${activeDeviceId}`,
-            {
-              method: "PUT",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-            }
-          ).catch((error: Error) => {
-            console.error("Error playing:", error);
-          });
-          setIsPlaying(true);
+
+        setIsPlaying(false);
+      } else {
+        // Resume playback
+        const response = await fetch(
+          `https://api.spotify.com/v1/me/player/play?device_id=${activeDeviceId}`,
+          {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Failed to play: ${response.status}`);
         }
-      })
-      .catch((error: Error) => {
-        console.error("Error getting playback state:", error);
-      });
+
+        setIsPlaying(true);
+      }
+    } catch (error) {
+      console.error("Error toggling playback:", error);
+    }
   };
 
   const handleStop = () => {
-    if (!activeDeviceId || isLoading) return;
+    if (!activeDeviceId || isActive) return;
     const token = localStorage.getItem("spotify_token");
     if (!token) return;
 
@@ -623,7 +640,7 @@ export default function SpotifyPlayer() {
   };
 
   const handleFastForward = () => {
-    if (playerRef.current && !isLoading) {
+    if (playerRef.current && !isActive) {
       const newPosition = Math.min(progress + 30000, duration);
       playerRef.current.seek(newPosition);
       setProgress(newPosition);
@@ -672,7 +689,7 @@ export default function SpotifyPlayer() {
     const percent = Math.max(0, Math.min(1, x / rect.width));
     const newPosition = Math.floor(percent * duration);
 
-    if (playerRef.current && !isLoading) {
+    if (playerRef.current && !isActive) {
       playerRef.current.seek(newPosition).then(() => {
         setProgress(newPosition);
       });
@@ -698,7 +715,7 @@ export default function SpotifyPlayer() {
     const percent = Math.max(0, Math.min(1, x / rect.width));
     const newVolume = Math.round(percent * 100);
 
-    if (playerRef.current && !isLoading) {
+    if (playerRef.current && !isActive) {
       playerRef.current.setVolume(newVolume / 100);
       setDisplayVolume(newVolume);
     }
@@ -710,7 +727,7 @@ export default function SpotifyPlayer() {
   };
 
   const toggleMute = async () => {
-    if (!playerRef.current || isLoading) return;
+    if (!playerRef.current || isActive) return;
 
     try {
       if (isMuted) {
@@ -731,7 +748,7 @@ export default function SpotifyPlayer() {
 
   // Cleanup on unmount
   useEffect(() => {
-    const timeout = volumeUpdateTimeout.current;
+    const timeout = progressInterval.current;
     return () => {
       if (timeout) {
         clearTimeout(timeout);
@@ -741,7 +758,7 @@ export default function SpotifyPlayer() {
 
   // Add progress update effect
   useEffect(() => {
-    if (isPlaying && !isLoading) {
+    if (isPlaying && !isActive) {
       const interval = setInterval(async () => {
         if (playerRef.current) {
           const state = await playerRef.current.getCurrentState();
@@ -755,7 +772,7 @@ export default function SpotifyPlayer() {
         clearInterval(interval);
       };
     }
-  }, [isPlaying, isLoading]);
+  }, [isPlaying, isActive]);
 
   // Add style tag for animations
   useEffect(() => {

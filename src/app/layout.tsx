@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { PlayingProvider } from "@/app/context/Playing";
-import { AppProvider } from "@/app/AppContext";
+import { UnifiedProvider } from "@/context/UnifiedContext";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -22,17 +21,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <PlayingProvider>
-          <AppProvider>{children}</AppProvider>
-        </PlayingProvider>
+        <UnifiedProvider>{children}</UnifiedProvider>
       </body>
     </html>
   );

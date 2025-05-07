@@ -1,45 +1,47 @@
 import Image from "next/image";
 import { FaPlay, FaPlus } from "react-icons/fa";
 import { YoutubeVideo } from "../Services/YtService";
-import { useYoutube } from "@/app/AppContext/index";
+import { useYoutube } from "@/context/UnifiedContext";
 
 interface YtSearchResultsListProps {
-  searchResults: YoutubeVideo[];
-  setSelectedVideo: (videoId: string) => void;
+  results: YoutubeVideo[];
+  onLoadMore?: () => void;
+  hasMore?: boolean;
 }
 
 const YtSearchResultsList: React.FC<YtSearchResultsListProps> = ({
-  searchResults,
-  setSelectedVideo,
+  results,
+  onLoadMore,
+  hasMore,
 }: YtSearchResultsListProps) => {
-  const { addToYoutubePlaylist, youtubePlaylist } = useYoutube();
+  const { addToPlaylist, playlist, setSelectedVideo } = useYoutube();
 
   const handleAddToPlaylist = (video: YoutubeVideo) => {
     // Check if the video is already in the playlist
-    const isAlreadyInPlaylist = youtubePlaylist.some(
+    const isAlreadyInPlaylist = playlist.some(
       (item: YoutubeVideo) => item.id.videoId === video.id.videoId
     );
 
     if (!isAlreadyInPlaylist) {
-      addToYoutubePlaylist(video);
+      addToPlaylist(video);
     }
   };
 
   return (
     <div className="space-y-4">
-      {searchResults.map((video) => (
+      {results.map((video) => (
         <div
           key={video.id.videoId}
           className="flex border border-[#FF0000]/20 rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 bg-gradient-to-r from-[#FF0000]/5 to-transparent hover:from-[#FF0000]/10 group"
         >
-          <div className="w-48 flex-shrink-0 relative group">
+          <div className="relative w-[320px] h-[180px] flex-shrink-0">
             <Image
               src={video.snippet.thumbnails.medium.url}
               width={video.snippet.thumbnails.medium.width || 320}
               height={video.snippet.thumbnails.medium.height || 180}
               alt={video.snippet.title}
               className="object-cover w-full h-full"
-              priority={searchResults.indexOf(video) === 0}
+              priority={results.indexOf(video) === 0}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.src = video.snippet.thumbnails.default.url;
@@ -74,20 +76,20 @@ const YtSearchResultsList: React.FC<YtSearchResultsListProps> = ({
             <button
               onClick={() => handleAddToPlaylist(video)}
               className={`p-2 rounded-full transition-all duration-300 ${
-                youtubePlaylist.some(
+                playlist.some(
                   (item: YoutubeVideo) => item.id.videoId === video.id.videoId
                 )
                   ? "bg-gray-400/20 cursor-not-allowed text-gray-400"
                   : "bg-[#FF0000] hover:bg-[#FF0000]/80 text-white hover:scale-105 shadow-lg hover:shadow-[#FF0000]/20 group-hover:animate-pulse"
               }`}
               title={
-                youtubePlaylist.some(
+                playlist.some(
                   (item: YoutubeVideo) => item.id.videoId === video.id.videoId
                 )
                   ? "Already in playlist"
                   : "Add to playlist"
               }
-              disabled={youtubePlaylist.some(
+              disabled={playlist.some(
                 (item: YoutubeVideo) => item.id.videoId === video.id.videoId
               )}
             >
@@ -96,6 +98,30 @@ const YtSearchResultsList: React.FC<YtSearchResultsListProps> = ({
           </div>
         </div>
       ))}
+
+      {hasMore && onLoadMore && (
+        <div className="mt-6 flex justify-center">
+          <button
+            onClick={onLoadMore}
+            className="px-6 py-2 bg-[#FF0000] text-white rounded-full hover:bg-[#FF0000]/80 transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-[#FF0000]/20 hover:scale-105 border border-[#FF0000]/20"
+          >
+            <span>Load More</span>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

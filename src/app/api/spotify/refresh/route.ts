@@ -35,7 +35,31 @@ export async function GET() {
       throw new Error(data.error_description || "Failed to refresh token");
     }
 
-    return NextResponse.json(data);
+    // Store the new access token in a cookie
+    cookies().set("spotify_access_token", data.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60, // 1 hour
+    });
+
+    // Create a response that will set the token in localStorage
+    const html = `
+      <html>
+        <body>
+          <script>
+            localStorage.setItem('spotify_token', '${data.access_token}');
+            window.location.reload();
+          </script>
+        </body>
+      </html>
+    `;
+
+    return new NextResponse(html, {
+      headers: {
+        "Content-Type": "text/html",
+      },
+    });
   } catch (error) {
     console.error("Error refreshing token:", error);
     return NextResponse.json(

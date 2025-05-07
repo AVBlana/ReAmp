@@ -3,8 +3,7 @@
 import Image from "next/image";
 import { FaPlay, FaPlus } from "react-icons/fa";
 import { Song } from "@/types/playerTypes";
-import { PlayingContext } from "@/app/context/Playing";
-import { useContext } from "react";
+import { useSpotify } from "@/context/UnifiedContext";
 
 interface SpotifySearchResultsListProps {
   searchResults: Song[];
@@ -17,20 +16,30 @@ export default function SpotifySearchResultsList({
   onLoadMore,
   hasMore,
 }: SpotifySearchResultsListProps) {
-  const { setCurrentSong, playlist, setPlaylist } = useContext(PlayingContext);
+  const { setCurrentSong, playlist, setPlaylist } = useSpotify();
 
   const handlePlay = (song: Song) => {
     setCurrentSong(song);
   };
 
   const handleAddToPlaylist = (song: Song) => {
-    if (!playlist.some((track) => track && track.id === song.id)) {
+    if (!playlist.some((track: Song) => track && track.id === song.id)) {
       setPlaylist([...playlist, song]);
     }
   };
 
   return (
     <div className="space-y-4">
+      <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+        <span className="bg-gradient-to-r from-[#1DB954] to-[#1DB954]/80 bg-clip-text text-transparent">
+          Search Results
+        </span>
+        {searchResults.length > 0 && (
+          <span className="ml-3 text-sm text-gray-400">
+            ({searchResults.length} tracks)
+          </span>
+        )}
+      </h2>
       {searchResults.map((song) => (
         <div
           key={song.id}
@@ -65,16 +74,18 @@ export default function SpotifySearchResultsList({
             <button
               onClick={() => handleAddToPlaylist(song)}
               className={`p-2 rounded-full transition-all duration-300 ${
-                playlist.some((track) => track && track.id === song.id)
+                playlist.some((track: Song) => track && track.id === song.id)
                   ? "bg-gray-400/20 cursor-not-allowed text-gray-400"
                   : "bg-[#1DB954] hover:bg-[#1DB954]/80 text-white hover:scale-105 shadow-lg hover:shadow-[#1DB954]/20 group-hover:animate-pulse"
               }`}
               title={
-                playlist.some((track) => track && track.id === song.id)
+                playlist.some((track: Song) => track && track.id === song.id)
                   ? "Already in playlist"
                   : "Add to playlist"
               }
-              disabled={playlist.some((track) => track && track.id === song.id)}
+              disabled={playlist.some(
+                (track: Song) => track && track.id === song.id
+              )}
             >
               <FaPlus size={12} />
             </button>

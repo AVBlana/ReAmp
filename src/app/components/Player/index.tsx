@@ -1,6 +1,6 @@
 "use client";
 
-import { useYoutube } from "@/app/AppContext/index";
+import { useYoutube } from "@/context/UnifiedContext";
 import { useEffect, useRef, useState } from "react";
 import { YoutubeVideo } from "../Services/YtService";
 
@@ -59,8 +59,8 @@ declare global {
   }
 }
 
-export default function Player() {
-  const { selectedVideo, setSelectedVideo, youtubePlaylist } = useYoutube();
+const Player: React.FC = () => {
+  const { selectedVideo, setSelectedVideo, playlist } = useYoutube();
   const playerRef = useRef<YouTubePlayer | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isApiReady, setIsApiReady] = useState(false);
@@ -121,13 +121,13 @@ export default function Player() {
   const handleStateChange = (event: YouTubeEvent) => {
     if (event.data === window.YT.PlayerState.ENDED) {
       // Find the current video index in the playlist
-      const currentIndex = youtubePlaylist.findIndex(
+      const currentIndex = playlist.findIndex(
         (video: YoutubeVideo) => video.id.videoId === selectedVideo
       );
 
       // If there's a next video in the playlist, play it
-      if (currentIndex < youtubePlaylist.length - 1) {
-        const nextVideo = youtubePlaylist[currentIndex + 1];
+      if (currentIndex < playlist.length - 1) {
+        const nextVideo = playlist[currentIndex + 1];
         setSelectedVideo(nextVideo.id.videoId);
       }
     }
@@ -140,4 +140,6 @@ export default function Player() {
       <div ref={containerRef} className="w-full h-full" />
     </div>
   );
-}
+};
+
+export default Player;

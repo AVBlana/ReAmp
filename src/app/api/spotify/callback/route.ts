@@ -47,7 +47,7 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${BASE_URL}/spotify?error=token_error`);
     }
 
-    // Store the refresh token in a cookie
+    // Store both tokens in cookies
     cookies().set("spotify_refresh_token", data.refresh_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -55,10 +55,30 @@ export async function GET(request: Request) {
       maxAge: 60 * 60 * 24 * 30, // 30 days
     });
 
-    // Store the access token in localStorage (will be handled by the client)
-    return NextResponse.redirect(
-      `${BASE_URL}/spotify?access_token=${data.access_token}`
-    );
+    cookies().set("spotify_access_token", data.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60, // 1 hour
+    });
+
+    // Create a response that will set the token in localStorage
+    const html = `
+      <html>
+        <body>
+          <script>
+            localStorage.setItem('spotify_token', '${data.access_token}');
+            window.location.href = '${BASE_URL}/spotify';
+          </script>
+        </body>
+      </html>
+    `;
+
+    return new NextResponse(html, {
+      headers: {
+        "Content-Type": "text/html",
+      },
+    });
   } catch (error) {
     console.error("Error getting tokens:", error);
     return NextResponse.redirect(`${BASE_URL}/spotify?error=token_error`);
