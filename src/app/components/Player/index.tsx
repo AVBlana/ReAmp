@@ -24,6 +24,7 @@ interface YouTubePlayer {
     event: string,
     listener: (event: YouTubeEvent) => void
   ) => void;
+  destroy: () => void;
 }
 
 interface YouTubeAPI {
@@ -35,6 +36,9 @@ interface YouTubeAPI {
         autoplay: number;
         modestbranding: number;
         rel: number;
+        enablejsapi: number;
+        playsinline: number;
+        controls: number;
       };
       events: {
         onReady: (event: YouTubeEvent) => void;
@@ -89,16 +93,16 @@ const Player: React.FC = () => {
   useEffect(() => {
     if (!isApiReady || !selectedVideo || !containerRef.current) return;
 
-    if (playerRef.current) {
-      playerRef.current.removeEventListener("onStateChange", handleStateChange);
-    }
-
-    playerRef.current = new window.YT.Player(containerRef.current, {
+    // Create new player instance
+    const player = new window.YT.Player(containerRef.current, {
       videoId: selectedVideo,
       playerVars: {
         autoplay: 1,
         modestbranding: 1,
         rel: 0,
+        enablejsapi: 1,
+        playsinline: 1,
+        controls: 1,
       },
       events: {
         onReady: (event: YouTubeEvent) => {
@@ -108,18 +112,22 @@ const Player: React.FC = () => {
       },
     });
 
+    playerRef.current = player;
+
     return () => {
+      // Cleanup: destroy the player instance
       if (playerRef.current) {
-        playerRef.current.removeEventListener(
-          "onStateChange",
-          handleStateChange
-        );
+        playerRef.current.destroy();
+        playerRef.current = null;
       }
     };
   }, [isApiReady, selectedVideo]);
 
   const handleStateChange = (event: YouTubeEvent) => {
-    if (event.data === window.YT.PlayerState.ENDED) {
+    const state = event.data;
+
+    // Handle video end
+    if (state === window.YT.PlayerState.ENDED) {
       // Find the current video index in the playlist
       const currentIndex = playlist.findIndex(
         (video: YoutubeVideo) => video.id.videoId === selectedVideo
@@ -132,6 +140,34 @@ const Player: React.FC = () => {
       }
     }
   };
+
+  // Add a progress check effect
+  useEffect(() => {
+    if (!playerRef.current || !selectedVideo) return;
+
+    const checkProgress = setInterval(() => {
+      if (playerRef.current) {
+        try {
+          const currentTime = playerRef.current.getCurrentTime();
+          const duration = playerRef.current.getDuration();
+          const state = playerRef.current.getPlayerState();
+
+          // If we're at the end and the video is still playing
+          if (
+            state === window.YT.PlayerState.PLAYING &&
+            Math.abs(currentTime - duration) < 0.1
+          ) {
+            // Force the video to end
+            playerRef.current.seekTo(duration);
+          }
+        } catch (error) {
+          console.error("Error checking video progress:", error);
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(checkProgress);
+  }, [selectedVideo]);
 
   if (!selectedVideo) return null;
 

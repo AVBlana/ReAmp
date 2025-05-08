@@ -422,7 +422,7 @@ export default function SpotifyPlayer() {
 
   // Add track completion handler
   useEffect(() => {
-    if (!playerRef.current || isActive) return;
+    if (!playerRef.current) return;
 
     let isHandlingTrackEnd = false;
     let trackEndTimeout: NodeJS.Timeout | null = null;
@@ -518,15 +518,7 @@ export default function SpotifyPlayer() {
           !isNowPlaying &&
           state.position >= state.duration - 1000
         ) {
-          // Clear any existing timeout
-          if (trackEndTimeout) {
-            clearTimeout(trackEndTimeout);
-          }
-
-          // Set a new timeout to handle track end
-          trackEndTimeout = setTimeout(() => {
-            handleTrackEnd();
-          }, 500); // Small delay to ensure state is stable
+          handleTrackEnd();
         }
       }
     };
@@ -542,15 +534,7 @@ export default function SpotifyPlayer() {
 
             // Check if we're very close to the end (within 1 second)
             if (state.position >= state.duration - 1000 && !state.paused) {
-              // Clear any existing timeout
-              if (trackEndTimeout) {
-                clearTimeout(trackEndTimeout);
-              }
-
-              // Set a new timeout to handle track end
-              trackEndTimeout = setTimeout(() => {
-                handleTrackEnd();
-              }, 500); // Small delay to ensure state is stable
+              handleTrackEnd();
             }
           }
         } catch (error) {
@@ -575,7 +559,6 @@ export default function SpotifyPlayer() {
     };
   }, [
     playlist,
-    isActive,
     setCurrentSong,
     isPlaying,
     currentSong,

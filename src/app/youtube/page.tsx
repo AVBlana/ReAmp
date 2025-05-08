@@ -121,7 +121,7 @@ function YouTubeSearchContent() {
         <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black_70%)]" />
 
         <Header
-          icon={<FaYoutube className="text-[#FF0000] animate-glow" size={24} />}
+          icon={<FaYoutube className="text-[#FF0000]" size={24} />}
           title="YouTube Player"
           searchComponent={<YoutubeSearch onSearch={handleSearch} />}
         />

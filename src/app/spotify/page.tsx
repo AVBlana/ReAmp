@@ -95,7 +95,7 @@ function SpotifySearchContent() {
         <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black_70%)]" />
 
         <Header
-          icon={<FaSpotify className="text-[#1DB954] animate-glow" size={24} />}
+          icon={<FaSpotify className="text-[#1DB954]" size={24} />}
           title="Spotify Player"
           searchComponent={<SpotifySearch />}
         />
