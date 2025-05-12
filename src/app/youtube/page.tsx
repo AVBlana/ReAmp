@@ -3,17 +3,28 @@
 import YoutubeSearch from "../components/YoutubeSearch";
 import YtSearchResultsList from "../components/YtSearchResultsList";
 import YoutubePlaylistView from "../components/YoutubePlaylistView";
-import {
-  getYouTubeVideos,
-  YoutubeVideo,
-} from "../components/Services/YtService";
+import { getYouTubeVideos } from "../components/Services/YtService";
 import Player from "../components/Player";
 import { useYoutube, UnifiedProvider } from "@/context/UnifiedContext";
 import { FaYoutube, FaPlay } from "react-icons/fa";
-import { DragDropContext, Droppable, DropResult } from "@hello-pangea/dnd";
+import { DropResult } from "@hello-pangea/dnd";
 import { configureWebGL } from "../utils/webglConfig";
 import { useEffect } from "react";
 import Header from "../components/Header";
+import dynamic from "next/dynamic";
+import { YouTubeFooter } from "../components/Footer";
+import PlaylistLibrary from "../components/PlaylistLibrary";
+
+// Dynamically import DragDropContext with no SSR
+const DragDropContext = dynamic(
+  () => import("@hello-pangea/dnd").then((mod) => mod.DragDropContext),
+  { ssr: false }
+);
+
+const Droppable = dynamic(
+  () => import("@hello-pangea/dnd").then((mod) => mod.Droppable),
+  { ssr: false }
+);
 
 function YouTubeSearchContent() {
   const {
@@ -116,7 +127,7 @@ function YouTubeSearchContent() {
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="min-h-screen bg-[#0A0A0A] text-gray-100">
+      <div className="min-h-screen bg-[#0A0A0A] text-gray-100 flex flex-col">
         {/* Background Grid */}
         <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black_70%)]" />
 
@@ -127,66 +138,83 @@ function YouTubeSearchContent() {
         />
 
         {/* Main Content */}
-        <main className="container mx-auto px-4 py-8 relative z-10">
-          {/* Player and Playlist Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Video Player */}
-            <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-              <Droppable droppableId="video-player">
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className="h-full w-full"
-                  >
-                    {selectedVideo ? (
-                      <div className="relative h-full w-full">
-                        <div className="absolute inset-0">
-                          <Player />
-                        </div>
-                        {snapshot.isDraggingOver && (
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10 backdrop-blur-sm">
-                            <div className="bg-[#FF0000]/80 rounded-full p-4 transform hover:scale-110 transition-transform duration-300 animate-pulse">
-                              <FaPlay className="text-white text-3xl" />
+        <main className="container mx-auto px-4 py-8 relative z-10 flex-grow flex gap-4">
+          <div className="flex-grow">
+            {/* Player and Playlist Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Video Player */}
+              <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
+                <Droppable droppableId="video-player">
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className="h-full w-full"
+                    >
+                      {selectedVideo ? (
+                        <div className="relative h-full w-full">
+                          <div className="absolute inset-0">
+                            <Player />
+                          </div>
+                          {snapshot.isDraggingOver && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10 backdrop-blur-sm">
+                              <div className="bg-[#FF0000]/80 rounded-full p-4 transform hover:scale-110 transition-transform duration-300 animate-pulse">
+                                <FaPlay className="text-white text-3xl" />
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="h-full w-full bg-[#0A0A0A] rounded-lg flex flex-col items-center justify-center relative overflow-hidden">
-                        <div className="relative z-10 flex flex-col items-center space-y-4">
-                          <div className="w-20 h-20 rounded-full bg-[#2A2A2A] flex items-center justify-center">
-                            <FaPlay className="text-gray-400 text-3xl" />
-                          </div>
-                          <p className="text-gray-400 text-lg">
-                            {snapshot.isDraggingOver
-                              ? "Drop to play"
-                              : "Select a video to play"}
-                          </p>
+                          )}
                         </div>
-                      </div>
-                    )}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
+                      ) : (
+                        <div className="h-full w-full bg-[#0A0A0A] rounded-lg flex flex-col items-center justify-center relative overflow-hidden">
+                          <div className="relative z-10 flex flex-col items-center space-y-4">
+                            <div className="w-20 h-20 rounded-full bg-[#2A2A2A] flex items-center justify-center">
+                              <FaPlay className="text-gray-400 text-3xl" />
+                            </div>
+                            <p className="text-gray-400 text-lg">
+                              {snapshot.isDraggingOver
+                                ? "Drop to play"
+                                : "Select a video to play"}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </div>
+
+              <div className="flex gap-4 w-full">
+                {/* Playlist Library */}
+                <div className="flex-shrink-0">
+                  <PlaylistLibrary
+                    type="youtube"
+                    theme={{
+                      primary: "#FF0000",
+                      secondary: "#ff4d4d",
+                      accent: "#ff8080",
+                    }}
+                  />
+                </div>
+                {/* Playlist Section */}
+                <div className="flex-1 h-[700px] overflow-hidden">
+                  <YoutubePlaylistView />
+                </div>
+              </div>
             </div>
 
-            {/* Playlist Section */}
-            <div className="h-[700px]">
-              <YoutubePlaylistView />
+            {/* Search Results Section */}
+            <div className="mt-8">
+              <YtSearchResultsList
+                results={searchResults}
+                onLoadMore={handleLoadMore}
+                hasMore={!!nextPageToken}
+              />
             </div>
-          </div>
-
-          {/* Search Results Section */}
-          <div className="mt-8">
-            <YtSearchResultsList
-              results={searchResults}
-              onLoadMore={handleLoadMore}
-              hasMore={!!nextPageToken}
-            />
           </div>
         </main>
+
+        <YouTubeFooter />
       </div>
     </DragDropContext>
   );

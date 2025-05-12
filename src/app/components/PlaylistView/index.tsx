@@ -1,4 +1,5 @@
-import { Droppable, Draggable } from "@hello-pangea/dnd";
+import { Droppable } from "@hello-pangea/dnd";
+import dynamic from "next/dynamic";
 import {
   FaTrash,
   FaPlay,
@@ -8,6 +9,12 @@ import {
 } from "react-icons/fa";
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
+
+// Dynamically import Draggable with no SSR
+const Draggable = dynamic(
+  () => import("@hello-pangea/dnd").then((mod) => mod.Draggable),
+  { ssr: false }
+);
 
 interface PlaylistItem {
   id: string;
@@ -59,11 +66,17 @@ const PlaylistView: React.FC<PlaylistViewProps> = ({
   draggablePrefix,
 }) => {
   const [isEditingName, setIsEditingName] = useState(false);
-  const [tempName, setTempName] = useState(playlistName);
+  const [tempName, setTempName] = useState("");
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
   const sliderContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isEditingName) {
+      setTempName(playlistName);
+    }
+  }, [playlistName, isEditingName]);
 
   useEffect(() => {
     document.documentElement.style.setProperty(

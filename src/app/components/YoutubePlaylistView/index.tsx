@@ -21,8 +21,12 @@ const YoutubePlaylistView = () => {
 
   const handleRemove = (index: number) => {
     const updatedPlaylist = [...playlist];
-    updatedPlaylist.splice(index, 1);
-    removeFromPlaylist(updatedPlaylist[index].id.videoId);
+    const videoToRemove = updatedPlaylist[index];
+    if (videoToRemove) {
+      updatedPlaylist.splice(index, 1);
+      setPlaylist(updatedPlaylist);
+      removeFromPlaylist(videoToRemove.id.videoId);
+    }
   };
 
   const handleClearAll = () => {

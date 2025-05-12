@@ -16,11 +16,13 @@ const STORAGE_KEYS = {
   YOUTUBE: {
     PLAYLIST: "youtube_playlist",
     PLAYLIST_NAME: "youtube_playlist_name",
+    SAVED_PLAYLISTS: "youtube_saved_playlists",
   },
   SPOTIFY: {
     PLAYLIST: "spotify_playlist",
     PLAYLIST_NAME: "spotify_playlist_name",
     TOKEN: "spotify_token",
+    SAVED_PLAYLISTS: "spotify_saved_playlists",
   },
 } as const;
 
@@ -53,6 +55,14 @@ const safeLocalStorage = {
   },
 };
 
+// Update SavedPlaylist interface to be generic
+interface SavedPlaylist<T> {
+  id: string;
+  name: string;
+  songs: T[];
+  createdAt: string;
+}
+
 interface UnifiedContextType {
   // YouTube state
   youtube: {
@@ -70,6 +80,10 @@ interface UnifiedContextType {
     setCurrentSearchTerm: React.Dispatch<React.SetStateAction<string>>;
     addToPlaylist: (video: YoutubeVideo) => void;
     removeFromPlaylist: (videoId: string) => void;
+    savedPlaylists: SavedPlaylist<YoutubeVideo>[];
+    setSavedPlaylists: React.Dispatch<
+      React.SetStateAction<SavedPlaylist<YoutubeVideo>[]>
+    >;
   };
 
   // Spotify state
@@ -86,6 +100,10 @@ interface UnifiedContextType {
     logout: () => Promise<void>;
     addToPlaylist: (song: Song) => void;
     removeFromPlaylist: (songId: string) => void;
+    savedPlaylists: SavedPlaylist<Song>[];
+    setSavedPlaylists: React.Dispatch<
+      React.SetStateAction<SavedPlaylist<Song>[]>
+    >;
   };
 
   // Drag and Drop
@@ -103,17 +121,59 @@ export const UnifiedProvider: React.FC<{ children: React.ReactNode }> = ({
     const saved = safeLocalStorage.get(STORAGE_KEYS.YOUTUBE.PLAYLIST);
     return saved ? JSON.parse(saved) : [];
   });
-  const [youtubePlaylistName, setYoutubePlaylistName] = useState<string>(() => {
-    return (
-      safeLocalStorage.get(STORAGE_KEYS.YOUTUBE.PLAYLIST_NAME) ||
-      "My YouTube Playlist"
-    );
-  });
+  const [youtubePlaylistName, setYoutubePlaylistName] = useState<string>(
+    "My YouTube Playlist"
+  );
+
+  // Initialize YouTube playlist name from localStorage on client side
+  useEffect(() => {
+    const savedName = safeLocalStorage.get(STORAGE_KEYS.YOUTUBE.PLAYLIST_NAME);
+    if (savedName) {
+      setYoutubePlaylistName(savedName);
+    }
+  }, []);
+
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [nextPageToken, setNextPageToken] = useState<string | undefined>(
     undefined
   );
   const [currentSearchTerm, setCurrentSearchTerm] = useState<string>("");
+
+  // Add saved playlists state for YouTube
+  const [youtubeSavedPlaylists, setYoutubeSavedPlaylists] = useState<
+    SavedPlaylist<YoutubeVideo>[]
+  >(() => {
+    const saved = safeLocalStorage.get(STORAGE_KEYS.YOUTUBE.SAVED_PLAYLISTS);
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Add saved playlists state for Spotify
+  const [spotifySavedPlaylists, setSpotifySavedPlaylists] = useState<
+    SavedPlaylist<Song>[]
+  >(() => {
+    const saved = safeLocalStorage.get(STORAGE_KEYS.SPOTIFY.SAVED_PLAYLISTS);
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Save YouTube playlists whenever they change
+  useEffect(() => {
+    if (youtubeSavedPlaylists.length > 0) {
+      safeLocalStorage.set(
+        STORAGE_KEYS.YOUTUBE.SAVED_PLAYLISTS,
+        JSON.stringify(youtubeSavedPlaylists)
+      );
+    }
+  }, [youtubeSavedPlaylists]);
+
+  // Save Spotify playlists whenever they change
+  useEffect(() => {
+    if (spotifySavedPlaylists.length > 0) {
+      safeLocalStorage.set(
+        STORAGE_KEYS.SPOTIFY.SAVED_PLAYLISTS,
+        JSON.stringify(spotifySavedPlaylists)
+      );
+    }
+  }, [spotifySavedPlaylists]);
 
   // Spotify state
   const [spotifySearchResults, setSpotifySearchResults] = useState<Song[]>([]);
@@ -122,12 +182,17 @@ export const UnifiedProvider: React.FC<{ children: React.ReactNode }> = ({
     return saved ? JSON.parse(saved) : [];
   });
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
-  const [spotifyPlaylistName, setSpotifyPlaylistName] = useState<string>(() => {
-    return (
-      safeLocalStorage.get(STORAGE_KEYS.SPOTIFY.PLAYLIST_NAME) ||
-      "My Spotify Playlist"
-    );
-  });
+  const [spotifyPlaylistName, setSpotifyPlaylistName] = useState<string>(
+    "My Spotify Playlist"
+  );
+
+  // Initialize playlist name from localStorage on client side
+  useEffect(() => {
+    const savedName = safeLocalStorage.get(STORAGE_KEYS.SPOTIFY.PLAYLIST_NAME);
+    if (savedName) {
+      setSpotifyPlaylistName(savedName);
+    }
+  }, []);
 
   // Restore playlist on mount
   useEffect(() => {
@@ -308,7 +373,10 @@ export const UnifiedProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Handle dropping to Spotify player
       if (result.destination.droppableId === "spotify-player") {
-        const songId = result.draggableId;
+        // Handle both list and slider item IDs
+        const songId = result.draggableId
+          .replace("spotify-list-", "")
+          .replace("spotify-slider-", "");
         const song = spotifyPlaylist.find((s) => s.id === songId);
         if (song) {
           setCurrentSong(song);
@@ -367,6 +435,8 @@ export const UnifiedProvider: React.FC<{ children: React.ReactNode }> = ({
           setCurrentSearchTerm,
           addToPlaylist: addToYoutubePlaylist,
           removeFromPlaylist: removeFromYoutubePlaylist,
+          savedPlaylists: youtubeSavedPlaylists,
+          setSavedPlaylists: setYoutubeSavedPlaylists,
         },
         spotify: {
           searchResults: spotifySearchResults,
@@ -381,6 +451,8 @@ export const UnifiedProvider: React.FC<{ children: React.ReactNode }> = ({
           logout: handleSpotifyLogout,
           addToPlaylist: addToSpotifyPlaylist,
           removeFromPlaylist: removeFromSpotifyPlaylist,
+          savedPlaylists: spotifySavedPlaylists,
+          setSavedPlaylists: setSpotifySavedPlaylists,
         },
         onDragEnd,
       }}

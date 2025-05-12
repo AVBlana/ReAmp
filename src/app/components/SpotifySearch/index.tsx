@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSpotify } from "@/context/UnifiedContext";
 import { ServiceType } from "@/types/playerTypes";
 import SpotifySongItem from "../SpotifySongItem";
+import SearchResultsContainer from "../SearchResultsContainer";
 
 interface SpotifyTrack {
   id: string;
@@ -134,20 +135,22 @@ export default function SpotifySearch() {
       </form>
 
       {/* Search Results Dropdown */}
-      {isDropdownOpen && searchResults.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-[#0A0A0A] border border-[#1DB954]/20 rounded-lg shadow-xl z-50 max-h-[400px] overflow-y-auto spotify-scrollbar">
-          <div className="p-2 space-y-2">
-            {searchResults.map((song) => (
-              <SpotifySongItem
-                key={song.id}
-                song={song}
-                variant="compact"
-                onPlay={setCurrentSong}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+      <SearchResultsContainer
+        isOpen={isDropdownOpen && searchResults.length > 0}
+        theme={{
+          primary: "#1DB954",
+          secondary: "#1DB954",
+        }}
+      >
+        {searchResults.map((song) => (
+          <SpotifySongItem
+            key={song.id}
+            song={song}
+            variant="compact"
+            onPlay={setCurrentSong}
+          />
+        ))}
+      </SearchResultsContainer>
     </div>
   );
 }
