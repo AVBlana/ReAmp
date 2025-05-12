@@ -122,7 +122,7 @@ function SpotifySearchContent() {
             {/* Player and Playlist Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Music Player */}
-              <div className="relative aspect-square bg-black rounded-lg overflow-hidden">
+              <div className="relative h-[700px] bg-black rounded-lg overflow-visible">
                 <Droppable droppableId="spotify-player">
                   {(provided) => (
                     <div

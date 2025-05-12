@@ -836,11 +836,11 @@ export default function SpotifyPlayer() {
 
   if (!currentSong) {
     return (
-      <div className="bg-black/80 rounded-lg shadow-md p-6 flex flex-col items-center w-full h-full">
+      <div className="bg-black/80 rounded-lg shadow-md p-4 sm:p-6 flex flex-col items-center w-full h-full relative">
         {/* Vinyl Section with Pickup Arm */}
-        <div className="relative w-full max-w-[340px] aspect-square flex items-center justify-center mb-10 -mt-20">
+        <div className="absolute top-[120px] left-1/2 -translate-x-1/2 -translate-y-[40%] w-full max-w-[90%] aspect-square flex items-center justify-center">
           <div
-            className={`relative w-4/5 h-4/5 min-w-[180px] min-h-[180px] max-w-[320px] max-h-[320px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_8px_var(--background),0_0_32px_#0008_inset] flex items-center justify-center border-4 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
+            className={`relative w-4/5 h-4/5 min-w-[240px] min-h-[240px] max-w-[380px] max-h-[380px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_8px_var(--background),0_0_32px_#0008_inset] flex items-center justify-center border-4 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
               isPlaying ? "animate-spin" : ""
             } ${isScratching ? "animate-needle-shake" : ""}`}
             onMouseDown={handleSeekBarMouseDown}
@@ -911,7 +911,7 @@ export default function SpotifyPlayer() {
           </svg>
         </div>
         {/* Nobs as Control Buttons (disabled) */}
-        <div className="flex justify-center items-end gap-10 my-2">
+        <div className="flex justify-center items-end gap-4 sm:gap-10 mt-[calc(45%+120px)] sm:mt-[calc(50%+120px)] mb-4 w-full max-w-[400px] px-4">
           <button className="w-[54px] h-[54px] bg-gradient-to-br from-green-600 via-green-500 to-green-700 border-3 border-[var(--foreground)] rounded-full shadow-[0_2px_8px_#0003,0_0_0_2px_#fff8_inset] flex items-center justify-center cursor-pointer transition-shadow duration-200 hover:shadow-[0_1px_2px_#0006_inset] disabled">
             <FaPlay size={22} color="var(--foreground)" />
           </button>
@@ -968,11 +968,11 @@ export default function SpotifyPlayer() {
   }
 
   return (
-    <div className="bg-black/80 rounded-lg shadow-md p-6 flex flex-col items-center w-full h-full">
+    <div className="bg-black/80 rounded-lg shadow-md p-4 sm:p-6 flex flex-col items-center w-full h-full relative">
       {/* Vinyl Section with Pickup Arm */}
-      <div className="relative w-full max-w-[340px] aspect-square flex items-center justify-center mb-10 -mt-20">
+      <div className="absolute top-[120px] left-1/2 -translate-x-1/2 -translate-y-[40%] w-full max-w-[90%] aspect-square flex items-center justify-center z-10">
         <div
-          className={`relative w-4/5 h-4/5 min-w-[180px] min-h-[180px] max-w-[320px] max-h-[320px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_8px_var(--background),0_0_32px_#0008_inset] flex items-center justify-center border-4 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
+          className={`relative w-4/5 h-4/5 min-w-[240px] min-h-[240px] max-w-[380px] max-h-[380px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_8px_var(--background),0_0_32px_#0008_inset] flex items-center justify-center border-4 border-[var(--foreground)] transform-origin-center transition-all duration-200 ease-out hover:scale-105 ${
             isPlaying ? "animate-spin" : ""
           } ${isScratching ? "animate-needle-shake" : ""}`}
           onMouseDown={handleSeekBarMouseDown}
@@ -980,24 +980,30 @@ export default function SpotifyPlayer() {
             {
               cursor: "pointer",
               "--needle-rotation": "0deg",
+              transform: isPlaying ? "scale(1.05)" : "scale(1)",
             } as React.CSSProperties
           }
         >
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/5 h-3/5 rounded-full bg-[var(--background)] shadow-[0_0_0_2px_var(--foreground),0_0_12px_#fff8_inset] overflow-hidden z-10 flex items-center justify-center">
-            <Image
-              src={currentSong?.artwork?.big?.url || ""}
-              alt={currentSong?.title || "Album Art"}
-              width={currentSong?.artwork?.big?.width || 640}
-              height={currentSong?.artwork?.big?.height || 640}
-              className="w-full h-full object-cover"
-            />
+            {currentSong?.artwork?.big?.url ? (
+              <Image
+                src={currentSong.artwork.big.url}
+                alt={currentSong?.title || "Album Art"}
+                width={currentSong.artwork.big.width || 640}
+                height={currentSong.artwork.big.height || 640}
+                className="w-full h-full object-cover"
+                priority
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-green-600 via-green-500 to-green-700 rounded-full shadow-[0_0_12px_#0008_inset]" />
+            )}
           </div>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[var(--background)] border-2 border-[var(--foreground)] z-20" />
         </div>
 
         {/* SVG Pickup Arm/Needle */}
         <svg
-          className={`absolute top-[15%] right-[-10%] w-2/3 h-2/3 pointer-events-none z-10 transition-transform duration-500 ease-in-out ${
+          className={`absolute top-[15%] right-[-10%] w-2/3 h-2/3 pointer-events-none z-20 transition-transform duration-500 ease-in-out ${
             isPlaying ? "rotate-[20deg]" : "rotate-[0deg]"
           } ${isScratching ? "animate-needle-shake" : ""}`}
           style={
@@ -1010,6 +1016,7 @@ export default function SpotifyPlayer() {
               width: "66.666667%",
               height: "66.666667%",
               "--needle-rotation": isPlaying ? "20deg" : "0deg",
+              filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))",
             } as React.CSSProperties
           }
           viewBox="0 0 120 120"
@@ -1050,10 +1057,10 @@ export default function SpotifyPlayer() {
       </div>
 
       {/* Control Buttons */}
-      <div className="flex justify-center items-end gap-4 sm:gap-10 my-2 w-full max-w-[400px]">
+      <div className="flex justify-center items-end gap-4 sm:gap-10 mt-[calc(45%+120px)] sm:mt-[calc(50%+120px)] mb-4 w-full max-w-[400px] px-4">
         <button
           onClick={togglePlay}
-          className="w-[54px] h-[54px] bg-gradient-to-br from-green-600 via-green-500 to-green-700 border-3 border-[var(--foreground)] rounded-full shadow-[0_2px_8px_#0003,0_0_0_2px_#fff8_inset] flex items-center justify-center cursor-pointer transition-shadow duration-200 hover:shadow-[0_1px_2px_#0006_inset]"
+          className="w-[54px] h-[54px] bg-gradient-to-br from-green-600 via-green-500 to-green-700 border-3 border-[var(--foreground)] rounded-full shadow-[0_2px_8px_#0003,0_0_0_2px_#fff8_inset] flex items-center justify-center cursor-pointer transition-all duration-200 hover:shadow-[0_1px_2px_#0006_inset] hover:scale-105 active:scale-95"
         >
           {isPlaying ? (
             <FaPause size={22} color="var(--foreground)" />
@@ -1063,19 +1070,19 @@ export default function SpotifyPlayer() {
         </button>
         <button
           onClick={handleStop}
-          className="w-[54px] h-[54px] bg-gradient-to-br from-green-600 via-green-500 to-green-700 border-3 border-[var(--foreground)] rounded-full shadow-[0_2px_8px_#0003,0_0_0_2px_#fff8_inset] flex items-center justify-center cursor-pointer transition-shadow duration-200 hover:shadow-[0_1px_2px_#0006_inset]"
+          className="w-[54px] h-[54px] bg-gradient-to-br from-green-600 via-green-500 to-green-700 border-3 border-[var(--foreground)] rounded-full shadow-[0_2px_8px_#0003,0_0_0_2px_#fff8_inset] flex items-center justify-center cursor-pointer transition-all duration-200 hover:shadow-[0_1px_2px_#0006_inset] hover:scale-105 active:scale-95"
         >
           <FaStop size={22} color="var(--foreground)" />
         </button>
         <button
           onClick={handleFastForward}
-          className="w-[54px] h-[54px] bg-gradient-to-br from-green-600 via-green-500 to-green-700 border-3 border-[var(--foreground)] rounded-full shadow-[0_2px_8px_#0003,0_0_0_2px_#fff8_inset] flex items-center justify-center cursor-pointer transition-shadow duration-200 hover:shadow-[0_1px_2px_#0006_inset]"
+          className="w-[54px] h-[54px] bg-gradient-to-br from-green-600 via-green-500 to-green-700 border-3 border-[var(--foreground)] rounded-full shadow-[0_2px_8px_#0003,0_0_0_2px_#fff8_inset] flex items-center justify-center cursor-pointer transition-all duration-200 hover:shadow-[0_1px_2px_#0006_inset] hover:scale-105 active:scale-95"
         >
           <FaFastForward size={22} color="var(--foreground)" />
         </button>
         <button
           onClick={toggleMute}
-          className="w-[54px] h-[54px] bg-gradient-to-br from-green-600 via-green-500 to-green-700 border-3 border-[var(--foreground)] rounded-full shadow-[0_2px_8px_#0003,0_0_0_2px_#fff8_inset] flex items-center justify-center cursor-pointer transition-shadow duration-200 hover:shadow-[0_1px_2px_#0006_inset]"
+          className="w-[54px] h-[54px] bg-gradient-to-br from-green-600 via-green-500 to-green-700 border-3 border-[var(--foreground)] rounded-full shadow-[0_2px_8px_#0003,0_0_0_2px_#fff8_inset] flex items-center justify-center cursor-pointer transition-all duration-200 hover:shadow-[0_1px_2px_#0006_inset] hover:scale-105 active:scale-95"
         >
           {isMuted ? (
             <FaVolumeMute size={20} color="var(--foreground)" />
@@ -1086,7 +1093,7 @@ export default function SpotifyPlayer() {
       </div>
 
       {/* Volume Slider */}
-      <div className="flex items-center gap-4 sm:gap-6 mt-6 sm:mt-9 mb-3 w-full max-w-[400px]">
+      <div className="flex items-center gap-4 sm:gap-6 mt-4 sm:mt-6 mb-3 w-full max-w-[400px] px-4">
         <span className="text-[var(--foreground)] font-mono text-base min-w-[36px] text-right">
           VOL
         </span>
@@ -1108,7 +1115,7 @@ export default function SpotifyPlayer() {
       </div>
 
       {/* Seek Slider */}
-      <div className="flex items-center gap-4 sm:gap-6 mb-3 w-full max-w-[400px]">
+      <div className="flex items-center gap-4 sm:gap-6 mb-3 w-full max-w-[400px] px-4">
         <span className="text-[var(--foreground)] font-mono text-base min-w-[36px] text-right">
           {formatTime(
             isSeeking && seekPreview !== null ? seekPreview : progress
@@ -1140,11 +1147,11 @@ export default function SpotifyPlayer() {
       </div>
 
       {/* Song Info */}
-      <div className="mt-4 sm:mt-5 text-center w-full max-w-[400px]">
-        <span className="text-[var(--foreground)] font-mono text-lg font-bold block">
+      <div className="mt-2 sm:mt-3 text-center w-full max-w-[400px] px-4">
+        <span className="text-[var(--foreground)] font-mono text-lg font-bold block truncate">
           {currentSong.title}
         </span>
-        <span className="text-[var(--foreground)] font-mono text-sm block">
+        <span className="text-[var(--foreground)] font-mono text-sm block truncate">
           {currentSong.artist.name}
         </span>
       </div>
