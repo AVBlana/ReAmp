@@ -13,7 +13,27 @@ import { useEffect, useState } from "react";
 import { configureWebGL } from "../utils/webglConfig";
 import { SpotifyFooter } from "../components/Footer";
 import PlaylistLibrary from "../components/PlaylistLibrary";
-import { searchSpotify } from "../components/Services/SpotifyService";
+import { ServiceType, Song } from "@/types/playerTypes";
+
+interface SpotifyTrack {
+  id: string;
+  name: string;
+  artists: Array<{ id: string; name: string }>;
+  album: {
+    images: Array<{ url: string; width: number; height: number }>;
+  };
+}
+
+interface SpotifySearchResponse {
+  tracks: {
+    items: SpotifyTrack[];
+    next: string | null;
+    offset: number;
+    total: number;
+    hasMore: boolean;
+    nextOffset: string | null;
+  };
+}
 
 function SpotifySearchContent() {
   const {
@@ -26,6 +46,8 @@ function SpotifySearchContent() {
   } = useSpotify();
 
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
+  const [currentSearchTerm, setCurrentSearchTerm] = useState<string>("");
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   useEffect(() => {
     configureWebGL();
@@ -53,15 +75,152 @@ function SpotifySearchContent() {
     };
   }, []);
 
+  const handleSearch = async (query: string) => {
+    console.log("Main page handleSearch called with query:", query);
+    setCurrentSearchTerm(query);
+    try {
+      const response = await fetch(
+        `/api/spotify/search?q=${encodeURIComponent(query)}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch search results");
+      const data = (await response.json()) as SpotifySearchResponse;
+
+      console.log("Main page search response:", {
+        hasNext: !!data.tracks.next,
+        offset: data.tracks.offset,
+        total: data.tracks.total,
+        items: data.tracks.items.length,
+        nextOffset: data.tracks.offset + data.tracks.items.length,
+      });
+
+      if (!data.tracks?.items) {
+        console.error("Invalid search response:", data);
+        setSearchResults([]);
+        setNextPageToken(null);
+        return;
+      }
+
+      const mappedResults: Song[] = data.tracks.items.map((track) => {
+        const images = track.album.images || [];
+        const smallImage = images.find((img) => img.width <= 64) ||
+          images[images.length - 1] || { url: "", width: 64, height: 64 };
+        const mediumImage = images.find((img) => img.width <= 300) ||
+          images[images.length - 1] || { url: "", width: 300, height: 300 };
+        const bigImage = images[0] ||
+          images[images.length - 1] || { url: "", width: 640, height: 640 };
+
+        return {
+          id: track.id,
+          type: ServiceType.Spotify,
+          title: track.name,
+          artist: {
+            id: track.artists[0]?.id || "",
+            name: track.artists[0]?.name || "Unknown Artist",
+          },
+          artwork: {
+            small: {
+              url: smallImage.url || "",
+              width: smallImage.width || 64,
+              height: smallImage.height || 64,
+            },
+            medium: {
+              url: mediumImage.url || "",
+              width: mediumImage.width || 300,
+              height: mediumImage.height || 300,
+            },
+            big: {
+              url: bigImage.url || "",
+              width: bigImage.width || 640,
+              height: bigImage.height || 640,
+            },
+          },
+        };
+      });
+
+      setSearchResults(mappedResults);
+      const hasMore = !!data.tracks.next;
+      const nextOffset = data.tracks.offset + data.tracks.items.length;
+      console.log("Main page setting nextPageToken:", {
+        hasMore,
+        nextUrl: data.tracks.next,
+        offset: data.tracks.offset,
+        itemsLength: data.tracks.items.length,
+        calculatedNextOffset: nextOffset,
+        query,
+      });
+      setNextPageToken(hasMore ? String(nextOffset) : null);
+    } catch (error) {
+      console.error("Error searching Spotify:", error);
+      setSearchResults([]);
+      setNextPageToken(null);
+    }
+  };
+
   const handleLoadMore = async () => {
-    if (!nextPageToken) return;
-    // Implement load more functionality
-    const { items, nextPageToken: newNextPageToken } = await searchSpotify(
-      "",
-      nextPageToken
-    );
-    setSearchResults([...searchResults, ...items]);
-    setNextPageToken(newNextPageToken);
+    if (!nextPageToken || !currentSearchTerm || isLoadingMore) return;
+
+    setIsLoadingMore(true);
+    try {
+      const response = await fetch(
+        `/api/spotify/search?q=${encodeURIComponent(
+          currentSearchTerm
+        )}&offset=${nextPageToken}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch more results");
+      const data = (await response.json()) as SpotifySearchResponse;
+
+      if (!data.tracks?.items) {
+        console.error("Invalid search response:", data);
+        return;
+      }
+
+      const mappedResults: Song[] = data.tracks.items.map((track) => {
+        const images = track.album.images || [];
+        const smallImage = images.find((img) => img.width <= 64) ||
+          images[images.length - 1] || { url: "", width: 64, height: 64 };
+        const mediumImage = images.find((img) => img.width <= 300) ||
+          images[images.length - 1] || { url: "", width: 300, height: 300 };
+        const bigImage = images[0] ||
+          images[images.length - 1] || { url: "", width: 640, height: 640 };
+
+        return {
+          id: track.id,
+          type: ServiceType.Spotify,
+          title: track.name,
+          artist: {
+            id: track.artists[0]?.id || "",
+            name: track.artists[0]?.name || "Unknown Artist",
+          },
+          artwork: {
+            small: {
+              url: smallImage.url || "",
+              width: smallImage.width || 64,
+              height: smallImage.height || 64,
+            },
+            medium: {
+              url: mediumImage.url || "",
+              width: mediumImage.width || 300,
+              height: mediumImage.height || 300,
+            },
+            big: {
+              url: bigImage.url || "",
+              width: bigImage.width || 640,
+              height: bigImage.height || 640,
+            },
+          },
+        };
+      });
+
+      setSearchResults((prev) => [...prev, ...mappedResults]);
+      const hasMore = !!data.tracks.next;
+      setNextPageToken(
+        hasMore ? String(data.tracks.offset + data.tracks.items.length) : null
+      );
+    } catch (error) {
+      console.error("Error loading more Spotify results:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
 
   const onDragEnd = (result: DropResult) => {
@@ -104,6 +263,16 @@ function SpotifySearchContent() {
     }
   };
 
+  // Add debug logging before render
+  console.log("Main page rendering SpotifySearchResultsList with:", {
+    hasMore: !!nextPageToken,
+    nextPageToken,
+    searchResultsLength: searchResults.length,
+    currentSearchTerm,
+    isLoadingMore,
+    query: currentSearchTerm,
+  });
+
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="min-h-screen bg-[#0A0A0A] text-gray-100 flex flex-col">
@@ -113,7 +282,7 @@ function SpotifySearchContent() {
         <Header
           icon={<FaSpotify className="text-[#1DB954]" size={24} />}
           title="Spotify Player"
-          searchComponent={<SpotifySearch />}
+          searchComponent={<SpotifySearch onSearch={handleSearch} />}
         />
 
         {/* Main Content */}
@@ -156,11 +325,14 @@ function SpotifySearchContent() {
 
             {/* Search Results Section */}
             <div className="mt-8">
-              <SpotifySearchResultsList
-                searchResults={searchResults}
-                onLoadMore={handleLoadMore}
-                hasMore={!!nextPageToken}
-              />
+              {searchResults.length > 0 && (
+                <SpotifySearchResultsList
+                  searchResults={searchResults}
+                  onLoadMore={handleLoadMore}
+                  hasMore={!!nextPageToken}
+                  isLoadingMore={isLoadingMore}
+                />
+              )}
             </div>
           </div>
         </main>

@@ -30,12 +30,13 @@ async function refreshAccessToken(refreshToken: string) {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("q");
+  const offset = searchParams.get("offset");
   let accessToken = cookies().get("spotify_access_token")?.value;
   const refreshToken = cookies().get("spotify_refresh_token")?.value;
 
   if (!query) {
     return NextResponse.json(
-      { error: "No search query provided" },
+      { error: "Query parameter is required" },
       { status: 400 }
     );
   }
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
     let response = await fetch(
       `https://api.spotify.com/v1/search?q=${encodeURIComponent(
         query
-      )}&type=track&limit=20`,
+      )}&type=track&limit=10${offset ? `&offset=${offset}` : ""}`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -75,7 +76,7 @@ export async function GET(request: Request) {
       response = await fetch(
         `https://api.spotify.com/v1/search?q=${encodeURIComponent(
           query
-        )}&type=track&limit=20`,
+        )}&type=track&limit=10${offset ? `&offset=${offset}` : ""}`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -89,9 +90,32 @@ export async function GET(request: Request) {
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+
+    // Add hasMore flag to the response
+    const hasMore =
+      data.tracks.total > data.tracks.offset + data.tracks.items.length;
+    const responseData = {
+      ...data,
+      tracks: {
+        ...data.tracks,
+        hasMore,
+        nextOffset: hasMore
+          ? data.tracks.offset + data.tracks.items.length
+          : null,
+      },
+    };
+
+    // Log the first track to see its structure
+    if (data.tracks?.items?.[0]) {
+      console.log(
+        "First track data:",
+        JSON.stringify(data.tracks.items[0], null, 2)
+      );
+    }
+
+    return NextResponse.json(responseData);
   } catch (error) {
-    console.error("Error searching Spotify:", error);
+    console.error("Spotify search error:", error);
     return NextResponse.json(
       { error: "Failed to search Spotify" },
       { status: 500 }

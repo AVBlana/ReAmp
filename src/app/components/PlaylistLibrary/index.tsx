@@ -142,8 +142,20 @@ const PlaylistLibrary: React.FC<PlaylistLibraryProps> = ({
       try {
         if (type === "spotify") {
           const parsed = JSON.parse(savedPlaylistsStr) as SavedPlaylist<Song>[];
+          // Deduplicate playlists by both id and content
           const uniquePlaylists = Array.from(
-            new Map(parsed.map((p) => [p.id, p])).values()
+            new Map(
+              parsed.map((p) => [
+                p.id,
+                {
+                  ...p,
+                  // Ensure songs array is unique by song id
+                  songs: Array.from(
+                    new Map(p.songs.map((song) => [song.id, song])).values()
+                  ),
+                },
+              ])
+            ).values()
           );
           (
             setSavedPlaylists as React.Dispatch<
@@ -154,9 +166,24 @@ const PlaylistLibrary: React.FC<PlaylistLibraryProps> = ({
           const parsed = JSON.parse(
             savedPlaylistsStr
           ) as SavedPlaylist<YoutubeVideo>[];
+          // Deduplicate playlists by both id and content
           const uniquePlaylists = Array.from(
-            new Map(parsed.map((p) => [p.id, p])).values()
+            new Map(
+              parsed.map((p) => [
+                p.id,
+                {
+                  ...p,
+                  // Ensure songs array is unique by video id
+                  songs: Array.from(
+                    new Map(
+                      p.songs.map((video) => [video.id.videoId, video])
+                    ).values()
+                  ),
+                },
+              ])
+            ).values()
           );
+          // Set playlists directly without merging with prev state
           (
             setSavedPlaylists as React.Dispatch<
               React.SetStateAction<SavedPlaylist<YoutubeVideo>[]>
@@ -242,10 +269,8 @@ const PlaylistLibrary: React.FC<PlaylistLibraryProps> = ({
 
       // Create new empty playlist
       setPlaylist([]);
-      // Only reset the playlist name if it's the default "New Playlist"
-      if (playlistName === "New Playlist") {
-        setPlaylistName("New Playlist");
-      }
+      // Always set the playlist name to "New Playlist" when creating a new playlist
+      setPlaylistName("New Playlist");
       setActivePlaylistId(null);
     } finally {
       // Reset the creating flag after a short delay

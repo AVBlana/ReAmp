@@ -8,6 +8,9 @@ interface SearchResultsContainerProps {
     secondary: string;
   };
   className?: string;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
+  isLoadingMore?: boolean;
 }
 
 export default function SearchResultsContainer({
@@ -15,6 +18,9 @@ export default function SearchResultsContainer({
   children,
   theme,
   className = "",
+  hasMore = false,
+  onLoadMore,
+  isLoadingMore = false,
 }: SearchResultsContainerProps) {
   if (!isOpen) return null;
 
@@ -27,7 +33,22 @@ export default function SearchResultsContainer({
         <div className="sticky top-0 h-8 bg-gradient-to-b from-[#1A1A1A] to-transparent pointer-events-none z-10" />
 
         {/* Results */}
-        <div className="py-2">{children}</div>
+        <div className="py-2">
+          {children}
+
+          {/* Load More Button */}
+          {hasMore && (
+            <div className="px-4 py-2 flex justify-center">
+              <button
+                onClick={onLoadMore}
+                disabled={isLoadingMore || !onLoadMore}
+                className={`px-4 py-2 rounded-md bg-[${theme.primary}]/10 hover:bg-[${theme.primary}]/20 text-[${theme.primary}] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {isLoadingMore ? "Loading..." : "Load More"}
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Bottom shadow */}
         <div className="sticky bottom-0 h-8 bg-gradient-to-t from-[#1A1A1A] to-transparent pointer-events-none z-10" />
