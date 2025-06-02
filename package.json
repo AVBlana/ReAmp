@@ -12,6 +12,7 @@
     "@hello-pangea/dnd": "^17.0.0",
     "@types/lodash": "^4.17.7",
     "axios": "^1.7.7",
+    "caniuse-lite": "^1.0.30001720",
     "googleapis": "^148.0.0",
     "lodash": "^4.17.21",
     "next": "14.2.12",
