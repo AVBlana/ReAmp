@@ -53,7 +53,7 @@ interface PlaylistLibraryProps {
     secondary: string;
     accent: string;
   };
-  type?: "spotify" | "youtube";
+  type?: "spotify" | "youtube" | "unified";
 }
 
 // Update context types to match the actual context structure
@@ -131,8 +131,13 @@ const PlaylistLibrary: React.FC<PlaylistLibraryProps> = ({
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
 
-  // Load saved playlists on mount
+  // Load saved playlists on mount only if not in unified mode
   useEffect(() => {
+    if (type === "unified") {
+      // In unified mode, we don't load saved playlists
+      return;
+    }
+
     const savedPlaylistsStr = safeLocalStorage.get(
       type === "spotify"
         ? STORAGE_KEYS.SPOTIFY.SAVED_PLAYLISTS
@@ -197,8 +202,13 @@ const PlaylistLibrary: React.FC<PlaylistLibraryProps> = ({
     }
   }, [type, setSavedPlaylists]);
 
-  // Save playlists whenever they change
+  // Save playlists whenever they change, but only if not in unified mode
   useEffect(() => {
+    if (type === "unified") {
+      // In unified mode, we don't save playlists
+      return;
+    }
+
     if (savedPlaylists.length > 0) {
       safeLocalStorage.set(
         type === "spotify"
@@ -215,6 +225,16 @@ const PlaylistLibrary: React.FC<PlaylistLibraryProps> = ({
     setIsCreatingNew(true);
 
     try {
+      if (type === "unified") {
+        // In unified mode, just clear both playlists
+        spotifyContext.setPlaylist([]);
+        youtubeContext.setPlaylist([]);
+        spotifyContext.setPlaylistName("New Playlist");
+        youtubeContext.setPlaylistName("New Playlist");
+        setActivePlaylistId(null);
+        return;
+      }
+
       // Only save if there are songs in the current playlist and it's not already saved
       if (playlist.length > 0 && !activePlaylistId) {
         const newPlaylist =
@@ -268,7 +288,15 @@ const PlaylistLibrary: React.FC<PlaylistLibraryProps> = ({
       }
 
       // Create new empty playlist
-      setPlaylist([]);
+      if (type === "spotify") {
+        // Clear only Spotify playlist
+        (setPlaylist as React.Dispatch<React.SetStateAction<Song[]>>)([]);
+      } else {
+        // Clear only YouTube playlist
+        (setPlaylist as React.Dispatch<React.SetStateAction<YoutubeVideo[]>>)(
+          []
+        );
+      }
       // Always set the playlist name to "New Playlist" when creating a new playlist
       setPlaylistName("New Playlist");
       setActivePlaylistId(null);
@@ -285,6 +313,8 @@ const PlaylistLibrary: React.FC<PlaylistLibraryProps> = ({
     setPlaylistName,
     type,
     setSavedPlaylists,
+    spotifyContext,
+    youtubeContext,
   ]);
 
   const handlePlaylistClick = useCallback(
@@ -393,8 +423,8 @@ const PlaylistLibrary: React.FC<PlaylistLibraryProps> = ({
   };
 
   return (
-    <div className="w-16 bg-gradient-to-b from-black/60 to-black/40 rounded-lg p-2 flex flex-col items-center space-y-2 backdrop-blur-md border border-white/5 shadow-xl relative z-50">
-      <div className="w-12 h-12 flex items-center justify-center text-gray-400 bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg backdrop-blur-sm border border-white/5">
+    <div className="h-16 lg:h-full bg-gradient-to-r from-black/60 to-black/40 rounded-lg p-2 flex flex-row lg:flex-col items-center lg:items-start space-x-2 lg:space-x-0 lg:space-y-2 backdrop-blur-md border border-white/5 shadow-xl relative z-50">
+      <div className="flex-none w-12 h-12 flex items-center justify-center text-gray-400 bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg backdrop-blur-sm border border-white/5">
         <FaMusic
           size={20}
           className="drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
@@ -402,7 +432,7 @@ const PlaylistLibrary: React.FC<PlaylistLibraryProps> = ({
       </div>
       <button
         onClick={handleCreatePlaylist}
-        className="w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-secondary)] hover:from-[var(--theme-secondary)] hover:to-[var(--theme-primary)] text-white transition-all duration-500 hover:scale-105 shadow-lg hover:shadow-[var(--theme-primary)]/30 backdrop-blur-sm border border-white/10"
+        className="flex-none w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-secondary)] hover:from-[var(--theme-secondary)] hover:to-[var(--theme-primary)] text-white transition-all duration-500 hover:scale-105 shadow-lg hover:shadow-[var(--theme-primary)]/30 backdrop-blur-sm border border-white/10"
         title="Create New Playlist"
       >
         <FaPlus
@@ -411,113 +441,111 @@ const PlaylistLibrary: React.FC<PlaylistLibraryProps> = ({
         />
       </button>
 
-      {/* Show saved playlists */}
-      {savedPlaylists.map((savedPlaylist) => {
-        const isYoutubePlaylist = type === "youtube";
-        return (
-          <div
-            key={savedPlaylist.id}
-            className="relative flex flex-col items-center"
-          >
-            <div className="group relative">
-              {/* Delete button - now on the left */}
-              <div className="absolute -left-8 top-1/2 -translate-y-1/2 bg-black/80 opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-lg flex items-center justify-center">
-                <button
-                  onClick={(e) => handleDeletePlaylist(savedPlaylist.id, e)}
-                  className="w-8 h-8 flex items-center justify-center text-white hover:text-white/80 transition-colors duration-200"
-                  title="Delete playlist"
-                >
-                  <FaTrash
-                    size={12}
-                    className="drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
-                  />
-                </button>
-              </div>
+      {/* Playlists container */}
+      <div className="flex-none flex flex-row lg:flex-col items-center lg:items-start space-x-2 lg:space-x-0 lg:space-y-2">
+        {type !== "unified" &&
+          savedPlaylists.map((savedPlaylist) => {
+            const isYoutubePlaylist = type === "youtube";
+            return (
+              <div key={savedPlaylist.id} className="flex-none">
+                <div className="group relative">
+                  {/* Delete button */}
+                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-lg flex items-center justify-center">
+                    <button
+                      onClick={(e) => handleDeletePlaylist(savedPlaylist.id, e)}
+                      className="w-8 h-8 flex items-center justify-center text-white hover:text-white/80 transition-colors duration-200"
+                      title="Delete playlist"
+                    >
+                      <FaTrash
+                        size={12}
+                        className="drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
+                      />
+                    </button>
+                  </div>
 
-              <button
-                onClick={() => handlePlaylistClick(savedPlaylist)}
-                className={`w-12 h-12 rounded-lg flex items-center justify-center transition-all duration-500 ${
-                  activePlaylistId === savedPlaylist.id
-                    ? "bg-gradient-to-br from-white/20 to-white/10 shadow-lg shadow-[var(--theme-primary)]/20 backdrop-blur-sm border border-white/10"
-                    : "hover:bg-gradient-to-br hover:from-white/10 hover:to-white/5 backdrop-blur-sm border border-transparent hover:border-white/5"
-                }`}
-              >
-                <PlaylistThumbnail
-                  songs={savedPlaylist.songs}
-                  playlistName={savedPlaylist.name}
-                />
-              </button>
-              {/* Tooltip - simplified */}
-              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-3 py-1.5 bg-gradient-to-r from-black/90 to-gray-900/90 text-white text-xs rounded-full backdrop-blur-md border border-white/10 shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap z-[9999]">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-1 h-1 rounded-full bg-[var(--theme-primary)] animate-pulse" />
-                  <span>
-                    {savedPlaylist.name} ({savedPlaylist.songs.length}{" "}
-                    {isYoutubePlaylist ? "videos" : "songs"})
-                  </span>
-                </div>
-                {/* Tooltip arrow */}
-                <div className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 w-2 h-2 bg-black/90 rotate-45 border-l border-b border-white/10" />
-              </div>
-            </div>
-          </div>
-        );
-      })}
-
-      {/* Show current playlist if it's not empty and not already saved */}
-      {playlist.length > 0 &&
-        !activePlaylistId &&
-        (() => {
-          const isYoutubePlaylist = type === "youtube";
-          return (
-            <div className="relative flex flex-col items-center">
-              <div className="group relative">
-                {/* Delete button - now on the left */}
-                <div className="absolute -left-8 top-1/2 -translate-y-1/2 bg-black/80 opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-lg flex items-center justify-center">
                   <button
-                    onClick={(e) => handleDeletePlaylist("current", e)}
-                    className="w-8 h-8 flex items-center justify-center text-white hover:text-white/80 transition-colors duration-200"
-                    title="Delete playlist"
+                    onClick={() => handlePlaylistClick(savedPlaylist)}
+                    className={`flex-none w-12 h-12 rounded-lg flex items-center justify-center transition-all duration-500 ${
+                      activePlaylistId === savedPlaylist.id
+                        ? "bg-gradient-to-br from-white/20 to-white/10 shadow-lg shadow-[var(--theme-primary)]/20 backdrop-blur-sm border border-white/10"
+                        : "hover:bg-gradient-to-br hover:from-white/10 hover:to-white/5 backdrop-blur-sm border border-transparent hover:border-white/5"
+                    }`}
                   >
-                    <FaTrash
-                      size={12}
-                      className="drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
+                    <PlaylistThumbnail
+                      songs={savedPlaylist.songs}
+                      playlistName={savedPlaylist.name}
                     />
                   </button>
-                </div>
-
-                <button
-                  onClick={() =>
-                    handlePlaylistClick({
-                      id: "current",
-                      name: playlistName,
-                      songs: playlist,
-                      createdAt: new Date().toISOString(),
-                    })
-                  }
-                  className="w-12 h-12 rounded-lg flex items-center justify-center hover:bg-gradient-to-br hover:from-white/10 hover:to-white/5 transition-all duration-500 backdrop-blur-sm border border-transparent hover:border-white/5"
-                >
-                  <PlaylistThumbnail
-                    songs={playlist}
-                    playlistName={playlistName}
-                  />
-                </button>
-                {/* Tooltip - simplified */}
-                <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-3 py-1.5 bg-gradient-to-r from-black/90 to-gray-900/90 text-white text-xs rounded-full backdrop-blur-md border border-white/10 shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap z-[9999]">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1 h-1 rounded-full bg-[var(--theme-primary)] animate-pulse" />
-                    <span>
-                      {playlistName} ({playlist.length}{" "}
-                      {isYoutubePlaylist ? "videos" : "songs"})
-                    </span>
+                  {/* Tooltip */}
+                  <div className="absolute left-1/2 top-full -translate-x-1/2 mt-2 px-3 py-1.5 bg-gradient-to-r from-black/90 to-gray-900/90 text-white text-xs rounded-full backdrop-blur-md border border-white/10 shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap z-[9999]">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1 h-1 rounded-full bg-[var(--theme-primary)] animate-pulse" />
+                      <span>
+                        {savedPlaylist.name} ({savedPlaylist.songs.length}{" "}
+                        {isYoutubePlaylist ? "videos" : "songs"})
+                      </span>
+                    </div>
+                    <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-black/90 rotate-45 border-t border-l border-white/10" />
                   </div>
-                  {/* Tooltip arrow */}
-                  <div className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 w-2 h-2 bg-black/90 rotate-45 border-l border-b border-white/10" />
                 </div>
               </div>
-            </div>
-          );
-        })()}
+            );
+          })}
+
+        {/* Current playlist */}
+        {playlist.length > 0 &&
+          !activePlaylistId &&
+          (() => {
+            const isYoutubePlaylist = type === "youtube";
+            return (
+              <div className="flex-none">
+                <div className="group relative">
+                  {/* Delete button */}
+                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 opacity-0 group-hover:opacity-100 transition-all duration-200 rounded-lg flex items-center justify-center">
+                    <button
+                      onClick={(e) => handleDeletePlaylist("current", e)}
+                      className="w-8 h-8 flex items-center justify-center text-white hover:text-white/80 transition-colors duration-200"
+                      title="Delete playlist"
+                    >
+                      <FaTrash
+                        size={12}
+                        className="drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
+                      />
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      handlePlaylistClick({
+                        id: "current",
+                        name: playlistName,
+                        songs: playlist,
+                        createdAt: new Date().toISOString(),
+                      })
+                    }
+                    className="flex-none w-12 h-12 rounded-lg flex items-center justify-center hover:bg-gradient-to-br hover:from-white/10 hover:to-white/5 transition-all duration-500 backdrop-blur-sm border border-transparent hover:border-white/5"
+                  >
+                    <PlaylistThumbnail
+                      songs={playlist}
+                      playlistName={playlistName}
+                    />
+                  </button>
+                  {/* Tooltip */}
+                  <div className="absolute left-1/2 top-full -translate-x-1/2 mt-2 px-3 py-1.5 bg-gradient-to-r from-black/90 to-gray-900/90 text-white text-xs rounded-full backdrop-blur-md border border-white/10 shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap z-[9999]">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1 h-1 rounded-full bg-[var(--theme-primary)] animate-pulse" />
+                      <span>
+                        {playlistName} ({playlist.length}{" "}
+                        {isYoutubePlaylist ? "videos" : "songs"})
+                      </span>
+                    </div>
+                    <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-black/90 rotate-45 border-t border-l border-white/10" />
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+      </div>
     </div>
   );
 };

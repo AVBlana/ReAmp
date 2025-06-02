@@ -43,17 +43,36 @@ export async function GET(request: Request) {
       nextPageToken: response.data.nextPageToken,
     });
   } catch (error) {
-    console.error("YouTube API error:", error);
-
     if (axios.isAxiosError(error)) {
       const status = error.response?.status || 500;
-      const message = error.response?.data?.error?.message || error.message;
+      const errorData = error.response?.data?.error || {};
+      const errorMessage = errorData.message || error.message;
+      const errorCode = errorData.code || "UNKNOWN";
+      const errorDetails = errorData.errors || [];
+
+      console.error("YouTube API error details:", {
+        status,
+        code: errorCode,
+        message: errorMessage,
+        details: errorDetails,
+        quotaExceeded: errorCode === 403 && errorMessage.includes("quota"),
+        quotaRemaining: error.response?.headers?.["x-quota-remaining"],
+        quotaLimit: error.response?.headers?.["x-quota-limit"],
+      });
+
       return NextResponse.json(
-        { error: "YouTube API error", details: message },
+        {
+          error: "YouTube API error",
+          code: errorCode,
+          message: errorMessage,
+          details: errorDetails,
+          quotaExceeded: errorCode === 403 && errorMessage.includes("quota"),
+        },
         { status }
       );
     }
 
+    console.error("Unexpected error fetching YouTube data:", error);
     return NextResponse.json(
       { error: "Failed to fetch YouTube data" },
       { status: 500 }

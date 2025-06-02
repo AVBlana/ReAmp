@@ -2,7 +2,6 @@
 
 import { useSpotify } from "@/context/UnifiedContext";
 import PlaylistView from "../PlaylistView";
-import { Song } from "@/types/playerTypes";
 
 const SpotifyPlaylistView = () => {
   const {
@@ -36,9 +35,13 @@ const SpotifyPlaylistView = () => {
   const mappedItems = playlist.map((song) => ({
     id: song.id,
     title: song.title,
-    artist: {
-      name: song.artist.name,
-    },
+    artist: song.artist
+      ? {
+          name: song.artist.name || "Unknown Artist",
+        }
+      : {
+          name: "Unknown Artist",
+        },
     artwork: song.artwork,
   }));
 
