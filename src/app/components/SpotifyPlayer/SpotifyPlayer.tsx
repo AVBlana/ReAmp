@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import {
   FaPlay,
   FaPause,
@@ -85,91 +85,6 @@ export default function SpotifyPlayer() {
   const lastMouseX = useRef(0);
   const isHandlingTrackEndRef = useRef(false);
 
-  // Initialize token from localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setSpotifyToken(localStorage.getItem("spotify_token"));
-    }
-  }, []);
-
-  // Initialize Spotify Web Playback SDK
-  useEffect(() => {
-    if (!spotifyToken) {
-      console.log("No Spotify token available, skipping initialization");
-      return;
-    }
-
-    if (scriptRef.current) {
-      console.log("Spotify SDK script already loaded");
-      return;
-    }
-
-    const initializePlayer = () => {
-      if (initializationInProgress.current || playerRef.current) {
-        console.log("Player already initialized or initialization in progress");
-        return;
-      }
-
-      initializationInProgress.current = true;
-      console.log("Creating new Spotify player instance...");
-
-      try {
-        const playerOptions: PlayerOptions = {
-          name: "ReAMP Player",
-          getOAuthToken: (cb) => {
-            const currentToken = localStorage.getItem("spotify_token");
-            if (!currentToken) {
-              console.error("No Spotify token available");
-              return;
-            }
-            cb(currentToken);
-          },
-        };
-
-        const sdkWindow = window as unknown as SpotifySDKWindow;
-        if (!sdkWindow.Spotify?.Player) {
-          throw new Error("Spotify SDK not loaded");
-        }
-
-        const rawPlayer = new sdkWindow.Spotify.Player(playerOptions);
-        const player = rawPlayer as unknown as Player;
-
-        // Set initial volume after player creation
-        player.connect().then(() => {
-          if (hasSetVolume(player)) {
-            player.setVolume(volume / 100).catch(console.error);
-          }
-        });
-
-        setupPlayerListeners(player);
-        playerRef.current = player;
-      } catch (error) {
-        console.error("Error creating Spotify player:", error);
-        initializationInProgress.current = false;
-      }
-    };
-
-    scriptRef.current = document.createElement("script");
-    scriptRef.current.src = "https://sdk.scdn.co/spotify-player.js";
-    scriptRef.current.async = true;
-    (window as unknown as SpotifySDKWindow).onSpotifyWebPlaybackSDKReady =
-      initializePlayer;
-    document.body.appendChild(scriptRef.current);
-
-    return () => cleanupPlayer();
-  }, [spotifyToken, volume]);
-
-  // Setup player event listeners
-  const setupPlayerListeners = (player: Player) => {
-    player.addListener("initialization_error", handleInitializationError);
-    player.addListener("authentication_error", handleAuthenticationError);
-    player.addListener("account_error", handleAccountError);
-    player.addListener("playback_error", handlePlaybackError);
-    player.addListener("player_state_changed", handlePlayerStateChange);
-    player.addListener("ready", handlePlayerReady);
-    player.addListener("not_ready", handlePlayerNotReady);
-  };
-
   // Event handlers
   const handleInitializationError = async ({
     message,
@@ -249,6 +164,102 @@ export default function SpotifyPlayer() {
       setIsActive(false);
     }
   };
+
+  // Setup player event listeners
+  const setupPlayerListeners = useCallback(
+    (player: Player) => {
+      player.addListener("initialization_error", handleInitializationError);
+      player.addListener("authentication_error", handleAuthenticationError);
+      player.addListener("account_error", handleAccountError);
+      player.addListener("playback_error", handlePlaybackError);
+      player.addListener("player_state_changed", handlePlayerStateChange);
+      player.addListener("ready", handlePlayerReady);
+      player.addListener("not_ready", handlePlayerNotReady);
+    },
+    [
+      handleInitializationError,
+      handleAuthenticationError,
+      handleAccountError,
+      handlePlaybackError,
+      handlePlayerStateChange,
+      handlePlayerReady,
+      handlePlayerNotReady,
+    ]
+  );
+
+  // Initialize token from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setSpotifyToken(localStorage.getItem("spotify_token"));
+    }
+  }, []);
+
+  // Initialize Spotify Web Playback SDK
+  useEffect(() => {
+    if (!spotifyToken) {
+      console.log("No Spotify token available, skipping initialization");
+      return;
+    }
+
+    if (scriptRef.current) {
+      console.log("Spotify SDK script already loaded");
+      return;
+    }
+
+    const initializePlayer = () => {
+      if (initializationInProgress.current || playerRef.current) {
+        console.log("Player already initialized or initialization in progress");
+        return;
+      }
+
+      initializationInProgress.current = true;
+      console.log("Creating new Spotify player instance...");
+
+      try {
+        const playerOptions: PlayerOptions = {
+          name: "ReAMP Player",
+          getOAuthToken: (cb) => {
+            const currentToken = localStorage.getItem("spotify_token");
+            if (!currentToken) {
+              console.error("No Spotify token available");
+              return;
+            }
+            cb(currentToken);
+          },
+        };
+
+        const sdkWindow = window as unknown as SpotifySDKWindow;
+        if (!sdkWindow.Spotify?.Player) {
+          throw new Error("Spotify SDK not loaded");
+        }
+
+        const rawPlayer = new sdkWindow.Spotify.Player(playerOptions);
+        const player = rawPlayer as unknown as Player;
+
+        // Set initial volume after player creation
+        player.connect().then(() => {
+          if (hasSetVolume(player)) {
+            player.setVolume(volume / 100).catch(console.error);
+          }
+        });
+
+        setupPlayerListeners(player);
+        playerRef.current = player;
+      } catch (error) {
+        console.error("Error creating Spotify player:", error);
+        initializationInProgress.current = false;
+      }
+    };
+
+    scriptRef.current = document.createElement("script");
+    scriptRef.current.src = "https://sdk.scdn.co/spotify-player.js";
+    scriptRef.current.async = true;
+    (window as unknown as SpotifySDKWindow).onSpotifyWebPlaybackSDKReady =
+      initializePlayer;
+    document.body.appendChild(scriptRef.current);
+
+    return () => cleanupPlayer();
+  }, [spotifyToken, volume, setupPlayerListeners]);
 
   // Utility functions
   const refreshToken = async () => {

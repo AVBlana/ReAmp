@@ -1,7 +1,7 @@
 "use client";
 
 import { useYoutube } from "@/context/UnifiedContext";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { YoutubeVideo } from "../Services/YtService";
 
 interface YouTubeEvent {
@@ -69,6 +69,27 @@ const Player: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isApiReady, setIsApiReady] = useState(false);
 
+  const handleStateChange = useCallback(
+    (event: YouTubeEvent) => {
+      const state = event.data;
+
+      // Handle video end
+      if (state === window.YT.PlayerState.ENDED) {
+        // Find the current video index in the playlist
+        const currentIndex = playlist.findIndex(
+          (video: YoutubeVideo) => video.id.videoId === selectedVideo
+        );
+
+        // If there's a next video in the playlist, play it
+        if (currentIndex < playlist.length - 1) {
+          const nextVideo = playlist[currentIndex + 1];
+          setSelectedVideo(nextVideo.id.videoId);
+        }
+      }
+    },
+    [playlist, selectedVideo, setSelectedVideo]
+  );
+
   useEffect(() => {
     // Load the YouTube IFrame API
     const tag = document.createElement("script");
@@ -88,7 +109,7 @@ const Player: React.FC = () => {
         );
       }
     };
-  }, []);
+  }, [handleStateChange]);
 
   useEffect(() => {
     if (!isApiReady || !selectedVideo || !containerRef.current) return;
@@ -121,25 +142,7 @@ const Player: React.FC = () => {
         playerRef.current = null;
       }
     };
-  }, [isApiReady, selectedVideo]);
-
-  const handleStateChange = (event: YouTubeEvent) => {
-    const state = event.data;
-
-    // Handle video end
-    if (state === window.YT.PlayerState.ENDED) {
-      // Find the current video index in the playlist
-      const currentIndex = playlist.findIndex(
-        (video: YoutubeVideo) => video.id.videoId === selectedVideo
-      );
-
-      // If there's a next video in the playlist, play it
-      if (currentIndex < playlist.length - 1) {
-        const nextVideo = playlist[currentIndex + 1];
-        setSelectedVideo(nextVideo.id.videoId);
-      }
-    }
-  };
+  }, [isApiReady, selectedVideo, handleStateChange]);
 
   // Add a progress check effect
   useEffect(() => {

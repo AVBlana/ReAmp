@@ -252,69 +252,46 @@ const PlaylistLibrary: React.FC<PlaylistLibraryProps> = ({
                 createdAt: new Date().toISOString(),
               } as SavedPlaylist<YoutubeVideo>);
 
-        // Check if this playlist is already saved (by comparing songs)
-        const isDuplicate = savedPlaylists.some(
-          (saved: SavedPlaylist<Song | YoutubeVideo>) =>
-            saved.songs.length === newPlaylist.songs.length &&
-            saved.songs.every((song: Song | YoutubeVideo, index: number) =>
-              type === "spotify"
-                ? (song as Song).id === (newPlaylist.songs[index] as Song).id
-                : (song as YoutubeVideo).id.videoId ===
-                  (newPlaylist.songs[index] as YoutubeVideo).id.videoId
-            )
-        );
-
-        if (!isDuplicate) {
-          if (type === "spotify") {
-            (
-              setSavedPlaylists as React.Dispatch<
-                React.SetStateAction<SavedPlaylist<Song>[]>
-              >
-            )((prev: SavedPlaylist<Song>[]) => [
-              ...prev,
-              newPlaylist as SavedPlaylist<Song>,
-            ]);
-          } else {
-            (
-              setSavedPlaylists as React.Dispatch<
-                React.SetStateAction<SavedPlaylist<YoutubeVideo>[]>
-              >
-            )((prev: SavedPlaylist<YoutubeVideo>[]) => [
-              ...prev,
-              newPlaylist as SavedPlaylist<YoutubeVideo>,
-            ]);
-          }
+        if (type === "spotify") {
+          (
+            setSavedPlaylists as React.Dispatch<
+              React.SetStateAction<SavedPlaylist<Song>[]>
+            >
+          )((prev: SavedPlaylist<Song>[]) => [
+            ...prev,
+            newPlaylist as SavedPlaylist<Song>,
+          ]);
+        } else {
+          (
+            setSavedPlaylists as React.Dispatch<
+              React.SetStateAction<SavedPlaylist<YoutubeVideo>[]>
+            >
+          )((prev: SavedPlaylist<YoutubeVideo>[]) => [
+            ...prev,
+            newPlaylist as SavedPlaylist<YoutubeVideo>,
+          ]);
         }
+        setActivePlaylistId(newPlaylist.id);
       }
 
-      // Create new empty playlist
-      if (type === "spotify") {
-        // Clear only Spotify playlist
-        (setPlaylist as React.Dispatch<React.SetStateAction<Song[]>>)([]);
-      } else {
-        // Clear only YouTube playlist
-        (setPlaylist as React.Dispatch<React.SetStateAction<YoutubeVideo[]>>)(
-          []
-        );
-      }
-      // Always set the playlist name to "New Playlist" when creating a new playlist
+      // Clear the current playlist
+      setPlaylist([]);
       setPlaylistName("New Playlist");
-      setActivePlaylistId(null);
     } finally {
-      // Reset the creating flag after a short delay
-      setTimeout(() => setIsCreatingNew(false), 500);
+      setIsCreatingNew(false);
     }
   }, [
+    type,
+    isCreatingNew,
     playlist,
     playlistName,
     activePlaylistId,
-    savedPlaylists,
-    setPlaylist,
-    setPlaylistName,
-    type,
-    setSavedPlaylists,
     spotifyContext,
     youtubeContext,
+    setPlaylist,
+    setPlaylistName,
+    setSavedPlaylists,
+    setActivePlaylistId,
   ]);
 
   const handlePlaylistClick = useCallback(

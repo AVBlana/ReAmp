@@ -29,7 +29,7 @@ export default function UnifiedPlaylistView({
 
   const handleNameEdit = () => {
     setIsEditingName(true);
-    setTempName(youtube.playlistName); // Use YouTube playlist name as the unified name
+    setTempName(youtube.playlistName || "New Playlist");
     setTimeout(() => {
       nameInputRef.current?.focus();
     }, 0);
@@ -177,7 +177,7 @@ export default function UnifiedPlaylistView({
               onClick={handleNameEdit}
               className="text-xl font-semibold bg-gradient-to-r from-[#FF6B6B] to-[#FF8E8E] bg-clip-text text-transparent cursor-pointer hover:opacity-80 transition-opacity"
             >
-              {youtube.playlistName}
+              {youtube.playlistName || "New Playlist"}
             </h2>
           )}
         </div>
