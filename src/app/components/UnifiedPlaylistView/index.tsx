@@ -117,41 +117,6 @@ export default function UnifiedPlaylistView({
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: linear-gradient(to bottom, #FF8E8E, #FFB6B6);
     }
-
-    .playlist-container {
-      position: relative;
-    }
-
-    .playlist-container::before,
-    .playlist-container::after {
-      content: '';
-      position: absolute;
-      left: 0;
-      right: 0;
-      height: 40px;
-      pointer-events: none;
-      z-index: 1;
-    }
-
-    .playlist-container::before {
-      top: 0;
-      background: linear-gradient(to bottom, 
-        rgba(0, 0, 0, 0.9) 0%,
-        rgba(0, 0, 0, 0.7) 30%,
-        rgba(0, 0, 0, 0) 100%
-      );
-      height: 60px;
-    }
-
-    .playlist-container::after {
-      bottom: 0;
-      background: linear-gradient(to top, 
-        rgba(0, 0, 0, 0.9) 0%,
-        rgba(0, 0, 0, 0.7) 30%,
-        rgba(0, 0, 0, 0) 100%
-      );
-      height: 60px;
-    }
   `;
 
   return (
