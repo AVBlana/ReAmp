@@ -6,7 +6,6 @@ import { useUnifiedContext } from "@/context/UnifiedContext";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { ServiceType, Song } from "@/types/playerTypes";
 import { YoutubeVideo } from "../Services/YtService";
-import dynamic from "next/dynamic";
 
 // Storage key for unified playlists
 const STORAGE_KEY = "unified_saved_playlists";
@@ -55,6 +54,27 @@ const safeLocalStorage = {
   },
 };
 
+// Modify the forceResetStorage function
+const forceResetStorage = () => {
+  console.log("Force resetting storage...");
+  // Clear localStorage
+  safeLocalStorage.clear(STORAGE_KEY);
+  // Double check and clear again to ensure it's really gone
+  if (safeLocalStorage.get(STORAGE_KEY)) {
+    console.warn("Storage not cleared properly, trying again...");
+    safeLocalStorage.clear(STORAGE_KEY);
+  }
+
+  // Reset the current playlist state in the context
+  if (typeof window !== "undefined") {
+    // Dispatch a custom event to notify components to reset their state
+    window.dispatchEvent(new CustomEvent("resetPlaylistState"));
+  }
+
+  // Force reload the page to ensure clean state
+  window.location.reload();
+};
+
 interface UnifiedPlaylistItem {
   id: string;
   type: ServiceType;
@@ -76,51 +96,6 @@ interface UnifiedPlaylistLibraryProps {
   };
 }
 
-// Type for unknown playlist item
-type UnknownPlaylistItem = {
-  id?: string;
-  type?: ServiceType;
-  data?: unknown;
-  [key: string]: unknown;
-};
-
-// Type for unknown playlist
-type UnknownPlaylist = {
-  id?: string;
-  name?: string;
-  items?: unknown[];
-  createdAt?: string;
-  [key: string]: unknown;
-};
-
-// Validate a playlist item
-const isValidPlaylistItem = (
-  item: UnknownPlaylistItem
-): item is UnifiedPlaylistItem => {
-  return (
-    item &&
-    typeof item === "object" &&
-    typeof item.id === "string" &&
-    (item.type === ServiceType.Spotify || item.type === ServiceType.Youtube) &&
-    typeof item.data === "object"
-  );
-};
-
-// Validate a playlist
-const isValidPlaylist = (
-  playlist: UnknownPlaylist
-): playlist is SavedUnifiedPlaylist => {
-  return (
-    playlist &&
-    typeof playlist === "object" &&
-    typeof playlist.id === "string" &&
-    typeof playlist.name === "string" &&
-    Array.isArray(playlist.items) &&
-    playlist.items.every(isValidPlaylistItem) &&
-    typeof playlist.createdAt === "string"
-  );
-};
-
 // Create a loading component
 const LoadingComponent = () => {
   console.log("Rendering LoadingComponent");
@@ -131,6 +106,49 @@ const LoadingComponent = () => {
       </div>
     </div>
   );
+};
+
+// Helper function to deduplicate playlists
+const deduplicatePlaylists = (
+  playlists: SavedUnifiedPlaylist[]
+): SavedUnifiedPlaylist[] => {
+  const seen = new Set<string>();
+  return playlists.filter((playlist) => {
+    if (seen.has(playlist.id)) {
+      console.warn(
+        `Removing duplicate playlist: ${playlist.id} - ${playlist.name}`
+      );
+      return false;
+    }
+    seen.add(playlist.id);
+    return true;
+  });
+};
+
+// Helper function to validate playlist
+const validatePlaylist = (
+  playlist: unknown
+): playlist is SavedUnifiedPlaylist => {
+  if (!playlist || typeof playlist !== "object") return false;
+
+  const p = playlist as Partial<SavedUnifiedPlaylist>;
+  if (!p.id || typeof p.id !== "string") return false;
+  if (!p.name || typeof p.name !== "string") return false;
+  if (!Array.isArray(p.items)) return false;
+
+  // Validate items
+  const validItems = p.items.filter((item) => {
+    if (!item || typeof item !== "object") return false;
+    const typedItem = item as Partial<UnifiedPlaylistItem>;
+    return (
+      typeof typedItem.id === "string" &&
+      (typedItem.type === ServiceType.Spotify ||
+        typedItem.type === ServiceType.Youtube) &&
+      typeof typedItem.data === "object"
+    );
+  });
+
+  return validItems.length === p.items.length;
 };
 
 // Separate the playlist state management
@@ -170,24 +188,26 @@ const usePlaylistState = () => {
       isInitialized,
       isLoading,
     });
+
     if (!mounted) {
       console.log("Not mounted yet, skipping load");
       return;
     }
 
     setIsLoading(true);
-    const savedPlaylistsStr = safeLocalStorage.get(STORAGE_KEY);
-    console.log("Loaded from storage:", savedPlaylistsStr);
-
-    if (!savedPlaylistsStr || savedPlaylistsStr === "[]") {
-      console.log("No saved playlists found");
-      setPlaylistMap(new Map());
-      setIsInitialized(true);
-      setIsLoading(false);
-      return;
-    }
 
     try {
+      const savedPlaylistsStr = safeLocalStorage.get(STORAGE_KEY);
+      console.log("Loaded from storage:", savedPlaylistsStr);
+
+      if (!savedPlaylistsStr || savedPlaylistsStr === "[]") {
+        console.log("No saved playlists found");
+        setPlaylistMap(new Map());
+        setIsInitialized(true);
+        setIsLoading(false);
+        return;
+      }
+
       const parsed = JSON.parse(savedPlaylistsStr);
       console.log("Parsed playlists:", parsed);
 
@@ -197,76 +217,31 @@ const usePlaylistState = () => {
         return;
       }
 
-      const newMap = new Map<string, SavedUnifiedPlaylist>();
-      let validCount = 0;
-      let invalidCount = 0;
+      // Validate and deduplicate playlists
+      const validPlaylists = parsed
+        .filter(validatePlaylist)
+        .map((playlist) => ({
+          ...playlist,
+          name: playlist.name || "Unnamed Playlist",
+          createdAt: playlist.createdAt || new Date().toISOString(),
+        }));
 
-      parsed.forEach((playlist, index) => {
-        if (
-          playlist &&
-          typeof playlist === "object" &&
-          typeof playlist.id === "string"
-        ) {
-          // Validate playlist structure
-          const validItems = Array.isArray(playlist.items)
-            ? playlist.items.filter((item: unknown) => {
-                if (!item || typeof item !== "object") return false;
-                const typedItem = item as {
-                  id?: string;
-                  type?: ServiceType;
-                  data?: unknown;
-                };
-                return (
-                  typeof typedItem.id === "string" &&
-                  (typedItem.type === ServiceType.Spotify ||
-                    typedItem.type === ServiceType.Youtube) &&
-                  typeof typedItem.data === "object"
-                );
-              })
-            : [];
+      const deduplicatedPlaylists = deduplicatePlaylists(validPlaylists);
 
-          if (validItems.length !== (playlist.items?.length || 0)) {
-            console.warn(
-              `Playlist ${playlist.id} has invalid items, filtering them out`
-            );
-          }
-
-          const validPlaylist: SavedUnifiedPlaylist = {
-            id: playlist.id,
-            name:
-              typeof playlist.name === "string"
-                ? playlist.name
-                : "Unnamed Playlist",
-            items: validItems,
-            createdAt:
-              typeof playlist.createdAt === "string"
-                ? playlist.createdAt
-                : new Date().toISOString(),
-          };
-
-          if (newMap.has(playlist.id)) {
-            console.warn(`Duplicate playlist ID found: ${playlist.id}`);
-            return;
-          }
-
-          newMap.set(playlist.id, validPlaylist);
-          validCount++;
-        } else {
-          console.warn(`Invalid playlist at index ${index}:`, playlist);
-          invalidCount++;
-        }
-      });
-
-      console.log(
-        `Loaded ${validCount} valid playlists, skipped ${invalidCount} invalid playlists`
-      );
-      console.log("Final playlist map:", Array.from(newMap.entries()));
-
-      if (validCount === 0) {
-        console.log("No valid playlists found, resetting storage");
+      if (deduplicatedPlaylists.length === 0) {
+        console.log("No valid playlists found after deduplication");
         resetPlaylists();
         return;
       }
+
+      // Create new map with deduplicated playlists
+      const newMap = new Map<string, SavedUnifiedPlaylist>();
+      deduplicatedPlaylists.forEach((playlist) => {
+        newMap.set(playlist.id, playlist);
+      });
+
+      console.log(`Loaded ${newMap.size} unique playlists after deduplication`);
+      console.log("Final playlist map:", Array.from(newMap.entries()));
 
       setPlaylistMap(newMap);
       setLastSavedState(savedPlaylistsStr);
@@ -289,13 +264,15 @@ const usePlaylistState = () => {
 
       try {
         const playlistsArray = Array.from(map.values());
-        const serializedState = JSON.stringify(playlistsArray);
-        console.log("Saving playlists:", playlistsArray);
+        // Deduplicate before saving
+        const deduplicatedPlaylists = deduplicatePlaylists(playlistsArray);
+        const serializedState = JSON.stringify(deduplicatedPlaylists);
+        console.log("Saving playlists:", deduplicatedPlaylists);
 
         if (serializedState !== lastSavedState) {
           console.log(
-            `Saving ${playlistsArray.length} playlists to storage:`,
-            playlistsArray.map((p) => p.id)
+            `Saving ${deduplicatedPlaylists.length} unique playlists to storage:`,
+            deduplicatedPlaylists.map((p) => p.id)
           );
           safeLocalStorage.set(STORAGE_KEY, serializedState);
           setLastSavedState(serializedState);
@@ -400,23 +377,20 @@ const usePlaylistState = () => {
 };
 
 // Main component
-const UnifiedPlaylistLibraryContent: React.FC<UnifiedPlaylistLibraryProps> = ({
-  theme,
-}) => {
+const UnifiedPlaylistLibraryContent: React.FC<
+  UnifiedPlaylistLibraryProps
+> = () => {
   console.log("Rendering UnifiedPlaylistLibraryContent");
   const { youtube, spotify } = useUnifiedContext();
   const {
     savedPlaylists,
     activePlaylistId,
     isCreatingNew,
-    isLoading,
     mounted,
     setActivePlaylistId,
     setIsCreatingNew,
-    updatePlaylist,
     addPlaylist,
     deletePlaylist,
-    resetPlaylists,
   } = usePlaylistState();
 
   // Add state for tracking changes
@@ -465,6 +439,20 @@ const UnifiedPlaylistLibraryContent: React.FC<UnifiedPlaylistLibraryProps> = ({
     spotify.playlistName,
     savedPlaylists,
   ]);
+
+  // Add effect to handle reset event
+  useEffect(() => {
+    const handleReset = () => {
+      console.log("Resetting playlist state in component");
+      spotify.setPlaylist([]);
+      youtube.setPlaylist([]);
+      spotify.setPlaylistName("New Playlist");
+      youtube.setPlaylistName("New Playlist");
+    };
+
+    window.addEventListener("resetPlaylistState", handleReset);
+    return () => window.removeEventListener("resetPlaylistState", handleReset);
+  }, [spotify, youtube]);
 
   // Handle playlist click
   const handlePlaylistClick = useCallback(
@@ -600,17 +588,24 @@ const UnifiedPlaylistLibraryContent: React.FC<UnifiedPlaylistLibraryProps> = ({
     }
   }, [spotify, youtube, activePlaylistId, isCreatingNew, addPlaylist]);
 
-  // Handle reset
+  // Modify the handleReset callback
   const handleReset = useCallback(() => {
     console.log("Resetting playlists");
     if (
       window.confirm(
-        "Are you sure you want to reset all playlists? This cannot be undone."
+        "Are you sure you want to reset all playlists? This will clear ALL playlists (including the current playlist) and reload the page. This cannot be undone."
       )
     ) {
-      resetPlaylists();
+      // Clear current playlist state first
+      spotify.setPlaylist([]);
+      youtube.setPlaylist([]);
+      spotify.setPlaylistName("New Playlist");
+      youtube.setPlaylistName("New Playlist");
+
+      // Then clear storage and reload
+      forceResetStorage();
     }
-  }, [resetPlaylists]);
+  }, [spotify, youtube]);
 
   // Handle delete playlist
   const handleDeletePlaylist = useCallback(
@@ -723,6 +718,25 @@ const UnifiedPlaylistLibraryContent: React.FC<UnifiedPlaylistLibraryProps> = ({
         })}
       </div>
     );
+  };
+
+  // Define currentPlaylist for the current playlist button
+  const currentPlaylist: SavedUnifiedPlaylist = {
+    id: "current",
+    name: spotify.playlistName || "New Playlist",
+    items: [
+      ...spotify.playlist.map((song) => ({
+        id: song.id,
+        type: ServiceType.Spotify,
+        data: song,
+      })),
+      ...youtube.playlist.map((video) => ({
+        id: video.id.videoId,
+        type: ServiceType.Youtube,
+        data: video,
+      })),
+    ],
+    createdAt: new Date().toISOString(),
   };
 
   // Early return for loading state
