@@ -230,7 +230,6 @@ const PlaylistLibrary: React.FC<PlaylistLibraryProps> = ({
         spotifyContext.setPlaylist([]);
         youtubeContext.setPlaylist([]);
         spotifyContext.setPlaylistName("New Playlist");
-        youtubeContext.setPlaylistName("New Playlist");
         setActivePlaylistId(null);
         return;
       }

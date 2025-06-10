@@ -1,251 +1,300 @@
 "use client";
 
-import { FaYoutube, FaSpotify, FaTrash, FaPlay } from "react-icons/fa";
-import { Droppable, Draggable } from "@hello-pangea/dnd";
+import React, { useMemo, memo, useState, useCallback, useEffect } from "react";
+import {
+  Droppable,
+  Draggable,
+  DroppableProvided,
+  DroppableStateSnapshot,
+  DraggableProvided,
+  DraggableStateSnapshot,
+} from "@hello-pangea/dnd";
 import { useUnifiedContext } from "@/context/UnifiedContext";
+import { FaYoutube, FaSpotify } from "react-icons/fa";
 import { ServiceType } from "@/types/playerTypes";
-import { useState, useRef } from "react";
+import { YoutubeVideo } from "@/app/components/Services/YtService";
+import { Song } from "@/types/playerTypes";
+import { PlaylistItem } from "./PlaylistItem";
 
-interface UnifiedPlaylistViewProps {
-  className?: string;
+interface UnifiedPlaylistItem {
+  id: string;
+  type: ServiceType;
+  data: YoutubeVideo | Song;
 }
 
-interface PlaylistItem {
-  id: string;
-  title: string;
-  subtitle: string;
-  thumbnail: string;
-  service: ServiceType;
+interface DraggableItemProps {
+  item: UnifiedPlaylistItem;
   index: number;
 }
 
-export default function UnifiedPlaylistView({
-  className = "",
-}: UnifiedPlaylistViewProps) {
-  const { youtube, spotify } = useUnifiedContext();
+// Memoized item content component
+const PlaylistItemContent = memo(
+  ({
+    item,
+    style,
+    isDragging,
+  }: {
+    item: UnifiedPlaylistItem;
+    style: React.CSSProperties;
+    isDragging: boolean;
+  }) => (
+    <div
+      className={`flex items-center space-x-4 p-3 ${
+        isDragging ? "bg-[#FF6B6B]/10" : "hover:bg-[#FF6B6B]/5"
+      } transition-colors`}
+      style={style}
+    >
+      <PlaylistItem item={item.data} service={item.type} />
+      <div className="flex-shrink-0">
+        {item.type === ServiceType.Youtube ? (
+          <FaYoutube className="text-[#FF0000]" size={16} />
+        ) : (
+          <FaSpotify className="text-[#1DB954]" size={16} />
+        )}
+      </div>
+    </div>
+  ),
+  (prev, next) => {
+    return (
+      prev.item.id === next.item.id &&
+      prev.item.type === next.item.type &&
+      prev.style === next.style &&
+      prev.isDragging === next.isDragging
+    );
+  }
+);
+
+PlaylistItemContent.displayName = "PlaylistItemContent";
+
+// Memoized item component with stable props
+const DraggableItem = memo(
+  ({ item, index }: DraggableItemProps) => {
+    return (
+      <Draggable draggableId={`${item.type}-${item.id}`} index={index}>
+        {(
+          provided: DraggableProvided,
+          { isDragging }: DraggableStateSnapshot
+        ) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+            style={{
+              ...provided.draggableProps.style,
+            }}
+          >
+            <PlaylistItemContent
+              item={item}
+              style={{}}
+              isDragging={isDragging}
+            />
+          </div>
+        )}
+      </Draggable>
+    );
+  },
+  (prev, next) => {
+    // Custom comparison to prevent unnecessary re-renders
+    return (
+      prev.item.id === next.item.id &&
+      prev.item.type === next.item.type &&
+      prev.index === next.index
+    );
+  }
+);
+
+DraggableItem.displayName = "DraggableItem";
+
+// Memoized playlist items component
+const PlaylistItems = memo(({ items }: { items: UnifiedPlaylistItem[] }) => {
+  return (
+    <div className="space-y-2">
+      {items.map((item, index) => (
+        <DraggableItem
+          key={`${item.type}-${item.id}`}
+          item={item}
+          index={index}
+        />
+      ))}
+    </div>
+  );
+});
+
+PlaylistItems.displayName = "PlaylistItems";
+
+// Memoized droppable content
+const DroppableContent = memo(
+  ({
+    provided,
+    snapshot,
+    items,
+  }: {
+    provided: DroppableProvided;
+    snapshot: DroppableStateSnapshot;
+    items: UnifiedPlaylistItem[];
+  }) => {
+    return (
+      <div
+        ref={provided.innerRef}
+        {...provided.droppableProps}
+        className={`space-y-2 transition-colors duration-200 ${
+          snapshot.isDraggingOver ? "bg-gray-100/10" : ""
+        }`}
+      >
+        <PlaylistItems items={items} />
+        {provided.placeholder}
+      </div>
+    );
+  },
+  (prev, next) => {
+    // Custom comparison to prevent unnecessary re-renders
+    return (
+      prev.items === next.items &&
+      prev.snapshot.isDraggingOver === next.snapshot.isDraggingOver
+    );
+  }
+);
+
+DroppableContent.displayName = "DroppableContent";
+
+// Main component with stable references
+const UnifiedPlaylistView = () => {
+  const { unified } = useUnifiedContext();
   const [isEditingName, setIsEditingName] = useState(false);
-  const [tempName, setTempName] = useState("");
-  const nameInputRef = useRef<HTMLInputElement>(null);
+  const [tempName, setTempName] = useState(unified.playlistName);
 
-  const handleNameEdit = () => {
-    setIsEditingName(true);
-    setTempName(youtube.playlistName || "New Playlist");
-    setTimeout(() => {
-      nameInputRef.current?.focus();
-    }, 0);
-  };
-
-  const handleNameSave = () => {
-    if (tempName.trim()) {
-      // Update both services' playlist names
-      youtube.setPlaylistName(tempName.trim());
-      spotify.setPlaylistName(tempName.trim());
+  // Update tempName when playlist name changes
+  useEffect(() => {
+    console.log(
+      "Playlist name changed in UnifiedPlaylistView:",
+      unified.playlistName,
+      "isEditingName:",
+      isEditingName
+    );
+    if (!isEditingName) {
+      setTempName(unified.playlistName);
     }
-    setIsEditingName(false);
-  };
+  }, [unified.playlistName, isEditingName]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleNameSave();
-    } else if (e.key === "Escape") {
-      setIsEditingName(false);
-      setTempName(youtube.playlistName);
-    }
-  };
-
-  const handlePlay = (id: string, service: ServiceType) => {
-    if (service === ServiceType.Youtube) {
-      // Find the video in the playlist
-      const video = youtube.playlist.find((v) => v.id.videoId === id);
-      if (video) {
-        youtube.setSelectedVideo(id);
-      }
-    } else {
-      // Find the song in the playlist
-      const song = spotify.playlist.find((s) => s.id === id);
-      if (song) {
-        spotify.setCurrentSong(song);
-      }
-    }
-  };
-
-  const handleRemove = (id: string, service: ServiceType) => {
-    if (service === ServiceType.Youtube) {
-      youtube.removeFromPlaylist(id);
-    } else {
-      spotify.removeFromPlaylist(id);
-    }
-  };
-
-  // Combine both playlists into a single array
-  const playlistItems: PlaylistItem[] = [
-    ...youtube.playlist.map((item, index) => ({
-      id: item.id.videoId,
-      title: item.snippet.title,
-      subtitle: item.snippet.channelTitle,
-      thumbnail: item.snippet.thumbnails.default.url,
-      service: ServiceType.Youtube,
-      index,
-    })),
-    ...spotify.playlist.map((item, index) => ({
+  // Memoize playlist items to prevent unnecessary re-renders
+  const playlistItems = useMemo(() => {
+    return unified.playlist.map((item) => ({
       id: item.id,
-      title: item.title,
-      subtitle: item.artist?.name || "Unknown Artist",
-      thumbnail:
-        item.artwork?.small?.url ||
-        item.artwork?.medium?.url ||
-        item.artwork?.big?.url ||
-        "",
-      service: ServiceType.Spotify,
-      index: youtube.playlist.length + index,
-    })),
-  ];
+      type: item.type,
+      data: item.data,
+    }));
+  }, [unified.playlist]);
 
-  // Add custom scrollbar styles
-  const scrollbarStyles = `
-    .custom-scrollbar::-webkit-scrollbar {
-      width: 8px;
+  // Memoize handlers to prevent unnecessary re-renders
+  const handleClearAll = useCallback(() => {
+    if (window.confirm("Are you sure you want to clear all playlists?")) {
+      unified.setPlaylist([]);
     }
-    .custom-scrollbar::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: linear-gradient(to bottom, #FF6B6B, #FF8E8E);
-      border-radius: 4px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: linear-gradient(to bottom, #FF8E8E, #FFB6B6);
-    }
-  `;
+  }, [unified.setPlaylist]);
+
+  const handlePlaylistNameChange = useCallback(
+    (newName: string) => {
+      console.log("handlePlaylistNameChange called with:", newName);
+      unified.setPlaylistName(newName);
+      console.log("setPlaylistName called for unified playlist");
+    },
+    [unified.setPlaylistName]
+  );
 
   return (
-    <div className={`flex flex-col h-full ${className}`}>
-      {/* Add custom scrollbar styles */}
-      <style>{scrollbarStyles}</style>
-
-      {/* Playlist Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-2">
-          {isEditingName ? (
-            <input
-              ref={nameInputRef}
-              type="text"
-              value={tempName}
-              onChange={(e) => setTempName(e.target.value)}
-              onBlur={handleNameSave}
-              onKeyDown={handleKeyDown}
-              className="bg-transparent border-b border-white/20 text-white focus:outline-none focus:border-white/40 text-xl font-semibold"
-            />
-          ) : (
-            <h2
-              onClick={handleNameEdit}
-              className="text-xl font-semibold bg-gradient-to-r from-[#FF6B6B] to-[#FF8E8E] bg-clip-text text-transparent cursor-pointer hover:opacity-80 transition-opacity"
-            >
-              {youtube.playlistName || "New Playlist"}
-            </h2>
-          )}
+    <div className="flex flex-col h-full bg-black/50 rounded-lg overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-white/10">
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            {isEditingName ? (
+              <input
+                type="text"
+                value={tempName}
+                onChange={(e) => setTempName(e.target.value)}
+                onBlur={() => {
+                  console.log("Input onBlur, tempName:", tempName);
+                  setIsEditingName(false);
+                  handlePlaylistNameChange(tempName);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    console.log("Input onKeyDown Enter, tempName:", tempName);
+                    setIsEditingName(false);
+                    handlePlaylistNameChange(tempName);
+                  }
+                }}
+                className="bg-transparent border-b border-white/20 focus:border-white/40 outline-none px-1"
+                autoFocus
+              />
+            ) : (
+              <h2
+                className="text-lg font-semibold cursor-pointer hover:text-white/80 transition-colors"
+                onClick={() => {
+                  console.log(
+                    "Starting to edit playlist name, current name:",
+                    unified.playlistName
+                  );
+                  setTempName(unified.playlistName);
+                  setIsEditingName(true);
+                }}
+              >
+                {unified.playlistName}
+              </h2>
+            )}
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <div className="flex items-center space-x-1 text-[#FF0000]">
-            <FaYoutube size={16} />
-            <span className="text-sm">{youtube.playlist.length}</span>
+
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            {(() => {
+              const youtubeCount = unified.playlist.filter(
+                (item) => item.type === ServiceType.Youtube
+              ).length;
+              const spotifyCount = unified.playlist.filter(
+                (item) => item.type === ServiceType.Spotify
+              ).length;
+              return (
+                <>
+                  {youtubeCount > 0 && (
+                    <div className="flex items-center text-red-500">
+                      <FaYoutube className="mr-1" />
+                      <span className="text-sm">{youtubeCount}</span>
+                    </div>
+                  )}
+                  {spotifyCount > 0 && (
+                    <div className="flex items-center text-green-500">
+                      <FaSpotify className="mr-1" />
+                      <span className="text-sm">{spotifyCount}</span>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
-          <div className="flex items-center space-x-1 text-[#1DB954]">
-            <FaSpotify size={16} />
-            <span className="text-sm">{spotify.playlist.length}</span>
-          </div>
+          <button
+            onClick={handleClearAll}
+            className="text-red-500 hover:text-red-400 transition-colors duration-200"
+          >
+            Clear All
+          </button>
         </div>
       </div>
 
-      {/* Playlist */}
-      <Droppable droppableId="unified-playlist">
-        {(provided, snapshot) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.droppableProps}
-            className={`flex-grow overflow-y-auto custom-scrollbar playlist-container rounded-lg border ${
-              snapshot.isDraggingOver
-                ? "border-[#FF6B6B]/40 bg-[#FF6B6B]/5"
-                : "border-white/10"
-            } transition-colors`}
-          >
-            {playlistItems.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-gray-400">
-                <p>No tracks in playlist</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-white/5">
-                {playlistItems.map((item) => (
-                  <Draggable
-                    key={`${item.service}-${item.id}`}
-                    draggableId={`${item.service}-${item.id}`}
-                    index={item.index}
-                  >
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        {...provided.dragHandleProps}
-                        className={`flex items-center space-x-4 p-3 ${
-                          snapshot.isDragging
-                            ? "bg-[#FF6B6B]/10"
-                            : "hover:bg-[#FF6B6B]/5"
-                        } transition-colors`}
-                      >
-                        {/* Thumbnail */}
-                        <div className="w-12 h-12 flex-shrink-0 rounded overflow-hidden">
-                          <img
-                            src={item.thumbnail}
-                            alt=""
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-grow min-w-0">
-                          <h3 className="text-sm font-medium text-white truncate">
-                            {item.title}
-                          </h3>
-                          <p className="text-xs text-gray-400 truncate">
-                            {item.subtitle}
-                          </p>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => handlePlay(item.id, item.service)}
-                            className="p-2 text-[#1DB954] hover:bg-[#1DB954]/20 rounded-full transition-colors"
-                          >
-                            <FaPlay size={14} />
-                          </button>
-                          <button
-                            onClick={() => handleRemove(item.id, item.service)}
-                            className="p-2 text-gray-400 hover:text-[#FF6B6B] hover:bg-[#FF6B6B]/20 rounded-full transition-colors"
-                          >
-                            <FaTrash size={14} />
-                          </button>
-                        </div>
-
-                        {/* Service Icon */}
-                        <div className="flex-shrink-0">
-                          {item.service === ServiceType.Youtube ? (
-                            <FaYoutube className="text-[#FF0000]" size={16} />
-                          ) : (
-                            <FaSpotify className="text-[#1DB954]" size={16} />
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
-              </div>
-            )}
-          </div>
-        )}
-      </Droppable>
+      {/* Playlist Content */}
+      <div className="flex-1 overflow-y-auto p-4">
+        <Droppable droppableId="unified-playlist">
+          {(provided, snapshot) => (
+            <DroppableContent
+              provided={provided}
+              snapshot={snapshot}
+              items={playlistItems}
+            />
+          )}
+        </Droppable>
+      </div>
     </div>
   );
-}
+};
+
+export default UnifiedPlaylistView;

@@ -60,6 +60,16 @@ type SpotifySDKWindow = Window & {
   onSpotifyWebPlaybackSDKReady?: () => void;
 };
 
+// Add a global player instance reference
+let globalPlayerInstance: Player | null = null;
+let globalPlayerInitializing = false;
+
+// Add a global script loading state
+let scriptLoadPromise: Promise<void> | null = null;
+
+// Add proper types for event handlers
+// type SpotifyPlayerEventHandlers = { ... }
+
 export default function SpotifyPlayer() {
   const { currentSong, setCurrentSong, playlist } = useSpotify();
   const [isPlaying, setIsPlaying] = useState(false);
@@ -85,184 +95,20 @@ export default function SpotifyPlayer() {
   const lastMouseX = useRef(0);
   const isHandlingTrackEndRef = useRef(false);
 
-  // Event handlers
-  const handleInitializationError = async ({
-    message,
-  }: {
-    message: string;
-  }) => {
-    console.error("Failed to initialize:", message);
-    setIsActive(false);
-    initializationInProgress.current = false;
+  // Add a ref to track if we've already attempted to load the script
+  const hasAttemptedScriptLoad = useRef(false);
 
-    if (message.includes("404") || message.includes("MediaKeySystemAccess")) {
-      await refreshToken();
-    }
-  };
-
-  const handleAuthenticationError = async ({
-    message,
-  }: {
-    message: string;
-  }) => {
-    console.error("Failed to authenticate:", message);
-
-    // Try to refresh token first
-    try {
-      await refreshToken();
-    } catch (refreshError) {
-      console.error("Token refresh failed:", refreshError);
-      // If refresh fails, clear everything and redirect to login
-      localStorage.removeItem("spotify_token");
-      setIsActive(false);
-      initializationInProgress.current = false;
-      window.location.href = "/api/spotify/login";
-    }
-  };
-
-  const handleAccountError = ({ message }: { message: string }) => {
-    console.error("Failed to validate Spotify account:", message);
-    setIsActive(false);
-    initializationInProgress.current = false;
-  };
-
-  const handlePlaybackError = ({ message }: { message: string }) => {
-    console.error("Playback error:", message);
-    setIsActive(false);
-  };
-
-  const handlePlayerStateChange = (state: PlaybackState | null) => {
-    if (state) {
-      setIsPlaying(!state.paused);
-      setProgress(state.position);
-      setDuration(state.duration);
-    }
-  };
-
-  const handlePlayerReady = async ({ device_id }: { device_id: string }) => {
-    console.log("Player is ready with Device ID:", device_id);
-    if (activeDeviceId === device_id) {
-      initializationInProgress.current = false;
-      return;
-    }
-
-    deviceTransferInProgress.current = true;
-    try {
-      await transferPlayback(device_id);
-    } catch (error) {
-      console.error("Error in device transfer:", error);
-      setIsActive(false);
-      deviceTransferInProgress.current = false;
-      initializationInProgress.current = false;
-    }
-  };
-
-  const handlePlayerNotReady = ({ device_id }: { device_id: string }) => {
-    console.log("Device ID has gone offline:", device_id);
-    if (activeDeviceId === device_id) {
-      setActiveDeviceId(null);
-      setIsActive(false);
-    }
-  };
-
-  // Setup player event listeners
-  const setupPlayerListeners = useCallback(
-    (player: Player) => {
-      player.addListener("initialization_error", handleInitializationError);
-      player.addListener("authentication_error", handleAuthenticationError);
-      player.addListener("account_error", handleAccountError);
-      player.addListener("playback_error", handlePlaybackError);
-      player.addListener("player_state_changed", handlePlayerStateChange);
-      player.addListener("ready", handlePlayerReady);
-      player.addListener("not_ready", handlePlayerNotReady);
-    },
-    [
-      handleInitializationError,
-      handleAuthenticationError,
-      handleAccountError,
-      handlePlaybackError,
-      handlePlayerStateChange,
-      handlePlayerReady,
-      handlePlayerNotReady,
-    ]
-  );
-
-  // Initialize token from localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setSpotifyToken(localStorage.getItem("spotify_token"));
-    }
-  }, []);
-
-  // Initialize Spotify Web Playback SDK
-  useEffect(() => {
-    if (!spotifyToken) {
-      console.log("No Spotify token available, skipping initialization");
-      return;
-    }
-
-    if (scriptRef.current) {
-      console.log("Spotify SDK script already loaded");
-      return;
-    }
-
-    const initializePlayer = () => {
-      if (initializationInProgress.current || playerRef.current) {
-        console.log("Player already initialized or initialization in progress");
-        return;
-      }
-
-      initializationInProgress.current = true;
-      console.log("Creating new Spotify player instance...");
-
-      try {
-        const playerOptions: PlayerOptions = {
-          name: "ReAMP Player",
-          getOAuthToken: (cb) => {
-            const currentToken = localStorage.getItem("spotify_token");
-            if (!currentToken) {
-              console.error("No Spotify token available");
-              return;
-            }
-            cb(currentToken);
-          },
-        };
-
-        const sdkWindow = window as unknown as SpotifySDKWindow;
-        if (!sdkWindow.Spotify?.Player) {
-          throw new Error("Spotify SDK not loaded");
-        }
-
-        const rawPlayer = new sdkWindow.Spotify.Player(playerOptions);
-        const player = rawPlayer as unknown as Player;
-
-        // Set initial volume after player creation
-        player.connect().then(() => {
-          if (hasSetVolume(player)) {
-            player.setVolume(volume / 100).catch(console.error);
-          }
-        });
-
-        setupPlayerListeners(player);
-        playerRef.current = player;
-      } catch (error) {
-        console.error("Error creating Spotify player:", error);
-        initializationInProgress.current = false;
-      }
-    };
-
-    scriptRef.current = document.createElement("script");
-    scriptRef.current.src = "https://sdk.scdn.co/spotify-player.js";
-    scriptRef.current.async = true;
-    (window as unknown as SpotifySDKWindow).onSpotifyWebPlaybackSDKReady =
-      initializePlayer;
-    document.body.appendChild(scriptRef.current);
-
-    return () => cleanupPlayer();
-  }, [spotifyToken, volume, setupPlayerListeners]);
-
-  // Utility functions
+  // Move refreshToken and transferPlayback before setupPlayerListeners
   const refreshToken = async () => {
+    const lastRefresh = localStorage.getItem("spotify_token_last_refresh");
+    const now = Date.now();
+
+    // Prevent refreshing more than once every 30 seconds
+    if (lastRefresh && now - parseInt(lastRefresh) < 30000) {
+      console.log("Token refresh rate limited");
+      return;
+    }
+
     try {
       console.log("Refreshing Spotify token...");
       const response = await fetch("/api/spotify/refresh");
@@ -272,12 +118,15 @@ export default function SpotifyPlayer() {
       const data = await response.json();
       if (typeof window !== "undefined") {
         localStorage.setItem("spotify_token", data.access_token);
+        localStorage.setItem("spotify_token_last_refresh", now.toString());
         setSpotifyToken(data.access_token);
 
-        // Reconnect player with new token
+        // Don't reconnect player, just update the token
         if (playerRef.current) {
-          await playerRef.current.disconnect();
-          await playerRef.current.connect();
+          // The player will automatically use the new token on next request
+          console.log(
+            "Token refreshed, player will use new token automatically"
+          );
         }
       }
     } catch (error) {
@@ -326,22 +175,284 @@ export default function SpotifyPlayer() {
     }
   };
 
-  const cleanupPlayer = () => {
-    if (playerRef.current) {
-      playerRef.current.disconnect();
-      playerRef.current = null;
-    }
-    if (scriptRef.current) {
-      document.body.removeChild(scriptRef.current);
-      scriptRef.current = null;
-    }
-    setActiveDeviceId(null);
-    setIsActive(false);
-    deviceTransferInProgress.current = false;
-    initializationInProgress.current = false;
-  };
+  // Modify the setupPlayerListeners function to use proper types
+  const setupPlayerListeners = useCallback(
+    (player: Player) => {
+      // Add listeners individually with proper type casting
+      player.addListener(
+        "initialization_error",
+        (data: { message: string }) => {
+          console.error("Failed to initialize:", data.message);
+          setIsActive(false);
+          initializationInProgress.current = false;
 
-  // Effect to handle current song changes
+          if (
+            data.message.includes("404") ||
+            data.message.includes("MediaKeySystemAccess")
+          ) {
+            void refreshToken();
+          }
+        }
+      );
+
+      player.addListener(
+        "authentication_error",
+        async (data: { message: string }) => {
+          console.error("Failed to authenticate:", data.message);
+          try {
+            await refreshToken();
+          } catch (refreshError) {
+            console.error("Token refresh failed:", refreshError);
+            localStorage.removeItem("spotify_token");
+            setIsActive(false);
+            initializationInProgress.current = false;
+            window.location.href = "/api/spotify/login";
+          }
+        }
+      );
+
+      player.addListener("account_error", (data: { message: string }) => {
+        console.error("Failed to validate Spotify account:", data.message);
+        setIsActive(false);
+        initializationInProgress.current = false;
+      });
+
+      player.addListener("playback_error", (data: { message: string }) => {
+        console.error("Playback error:", data.message);
+        setIsActive(false);
+      });
+
+      player.addListener(
+        "player_state_changed",
+        (state: PlaybackState | null) => {
+          if (state) {
+            setIsPlaying(!state.paused);
+            setProgress(state.position);
+            setDuration(state.duration);
+          }
+        }
+      );
+
+      player.addListener("ready", async (data: { device_id: string }) => {
+        console.log("Player is ready with Device ID:", data.device_id);
+        if (activeDeviceId === data.device_id) {
+          initializationInProgress.current = false;
+          return;
+        }
+
+        deviceTransferInProgress.current = true;
+        try {
+          await transferPlayback(data.device_id);
+        } catch (error) {
+          console.error("Error in device transfer:", error);
+          setIsActive(false);
+          deviceTransferInProgress.current = false;
+          initializationInProgress.current = false;
+        }
+      });
+
+      player.addListener("not_ready", (data: { device_id: string }) => {
+        console.log("Device ID has gone offline:", data.device_id);
+        if (activeDeviceId === data.device_id) {
+          setActiveDeviceId(null);
+          setIsActive(false);
+        }
+      });
+    },
+    [
+      activeDeviceId,
+      refreshToken,
+      transferPlayback,
+      setIsActive,
+      setIsPlaying,
+      setProgress,
+      setDuration,
+      setActiveDeviceId,
+    ]
+  );
+
+  // Initialize token from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setSpotifyToken(localStorage.getItem("spotify_token"));
+    }
+  }, []);
+
+  // Add cleanup function for player listeners
+  const cleanupPlayerListeners = useCallback(
+    (player: Player) => {
+      // Store references to the event handlers
+      const handlers = {
+        initialization_error: (data: unknown) => {
+          const { message } = data as { message: string };
+          console.error("Failed to initialize:", message);
+        },
+        authentication_error: async (data: unknown) => {
+          const { message } = data as { message: string };
+          console.error("Failed to authenticate:", message);
+        },
+        account_error: (data: unknown) => {
+          const { message } = data as { message: string };
+          console.error("Failed to validate Spotify account:", message);
+        },
+        playback_error: (data: unknown) => {
+          const { message } = data as { message: string };
+          console.error("Playback error:", message);
+        },
+        player_state_changed: (data: unknown) => {
+          const state = data as PlaybackState | null;
+          if (state) {
+            setIsPlaying(!state.paused);
+            setProgress(state.position);
+            setDuration(state.duration);
+          }
+        },
+        ready: async (data: unknown) => {
+          const { device_id } = data as { device_id: string };
+          console.log("Player is ready with Device ID:", device_id);
+        },
+        not_ready: (data: unknown) => {
+          const { device_id } = data as { device_id: string };
+          console.log("Device ID has gone offline:", device_id);
+        },
+      };
+
+      // Remove all listeners using the stored handlers
+      (Object.keys(handlers) as Array<keyof typeof handlers>).forEach(
+        (event) => {
+          player.removeListener(event, handlers[event]);
+        }
+      );
+    },
+    [setIsPlaying, setProgress, setDuration]
+  );
+
+  // Modify the initialization effect
+  useEffect(() => {
+    if (!spotifyToken) {
+      console.log("No Spotify token available, skipping initialization");
+      return;
+    }
+
+    // If we've already attempted to load the script, don't try again
+    if (hasAttemptedScriptLoad.current) {
+      return;
+    }
+
+    const loadScript = () => {
+      if (scriptLoadPromise) {
+        return scriptLoadPromise;
+      }
+
+      if (
+        document.querySelector(
+          'script[src="https://sdk.scdn.co/spotify-player.js"]'
+        )
+      ) {
+        scriptLoadPromise = Promise.resolve();
+        return scriptLoadPromise;
+      }
+
+      hasAttemptedScriptLoad.current = true;
+
+      scriptLoadPromise = new Promise((resolve, reject) => {
+        scriptRef.current = document.createElement("script");
+        scriptRef.current.src = "https://sdk.scdn.co/spotify-player.js";
+        scriptRef.current.async = true;
+
+        scriptRef.current.onload = () => {
+          resolve();
+        };
+
+        scriptRef.current.onerror = (error) => {
+          scriptLoadPromise = null;
+          reject(error);
+        };
+
+        (window as unknown as SpotifySDKWindow).onSpotifyWebPlaybackSDKReady =
+          () => {
+            initializePlayer();
+            resolve();
+          };
+
+        document.body.appendChild(scriptRef.current);
+      });
+
+      return scriptLoadPromise;
+    };
+
+    const initializePlayer = async () => {
+      if (globalPlayerInitializing || globalPlayerInstance) {
+        return;
+      }
+
+      globalPlayerInitializing = true;
+      initializationInProgress.current = true;
+
+      try {
+        const playerOptions: PlayerOptions = {
+          name: "ReAMP Player",
+          getOAuthToken: (cb) => {
+            const currentToken = localStorage.getItem("spotify_token");
+            if (!currentToken) {
+              console.error("No Spotify token available");
+              return;
+            }
+            cb(currentToken);
+          },
+        };
+
+        const sdkWindow = window as unknown as SpotifySDKWindow;
+        if (!sdkWindow.Spotify?.Player) {
+          throw new Error("Spotify SDK not loaded");
+        }
+
+        // Use global instance if it exists
+        if (globalPlayerInstance) {
+          playerRef.current = globalPlayerInstance;
+          setupPlayerListeners(globalPlayerInstance);
+          return;
+        }
+
+        const rawPlayer = new sdkWindow.Spotify.Player(playerOptions);
+        const player = rawPlayer as unknown as Player;
+
+        // Set initial volume after player creation
+        await player.connect();
+        if (hasSetVolume(player)) {
+          await player.setVolume(volume / 100);
+        }
+
+        setupPlayerListeners(player);
+        playerRef.current = player;
+        globalPlayerInstance = player;
+      } catch (error) {
+        console.error("Error creating Spotify player:", error);
+        initializationInProgress.current = false;
+        globalPlayerInitializing = false;
+      }
+    };
+
+    // Load the script and initialize the player
+    loadScript().catch((error) => {
+      console.error("Failed to load Spotify SDK:", error);
+      hasAttemptedScriptLoad.current = false;
+      scriptLoadPromise = null;
+    });
+
+    return () => {
+      if (playerRef.current) {
+        cleanupPlayerListeners(playerRef.current);
+        playerRef.current = null;
+      }
+      setActiveDeviceId(null);
+      setIsActive(false);
+      deviceTransferInProgress.current = false;
+      initializationInProgress.current = false;
+    };
+  }, [spotifyToken, volume, setupPlayerListeners, cleanupPlayerListeners]);
+
+  // Modify the play track effect to handle 404 errors better
   useEffect(() => {
     if (
       currentSong?.type === ServiceType.Spotify &&
@@ -360,6 +471,23 @@ export default function SpotifyPlayer() {
             return playTrack(retryCount);
           }
 
+          // First, ensure the device is active
+          await fetch(`https://api.spotify.com/v1/me/player`, {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              device_ids: [activeDeviceId],
+              play: false,
+            }),
+          });
+
+          // Wait a moment for the device to be ready
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
+          // Then try to play the track
           const response = await fetch(
             `https://api.spotify.com/v1/me/player/play?device_id=${activeDeviceId}`,
             {
@@ -377,7 +505,6 @@ export default function SpotifyPlayer() {
 
           if (!response.ok) {
             if (response.status === 401) {
-              // Token expired, try to refresh
               await refreshToken();
               return playTrack(retryCount);
             }
@@ -918,6 +1045,32 @@ export default function SpotifyPlayer() {
       .futuristic-button.disabled:hover svg {
         animation: none;
       }
+
+      @keyframes marquee {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+      }
+      .marquee-container {
+        width: 100%;
+        overflow: hidden;
+        white-space: nowrap;
+        position: relative;
+      }
+      .marquee-content {
+        display: inline-block;
+        white-space: nowrap;
+      }
+      .marquee-content.overflowing {
+        display: inline-flex;
+        animation: marquee 20s linear infinite;
+      }
+      .marquee-content.overflowing::after {
+        content: attr(data-text);
+        padding-left: 2rem;
+      }
+      .marquee-content.overflowing:hover {
+        animation-play-state: paused;
+      }
     `;
     document.head.appendChild(style);
     return () => {
@@ -981,14 +1134,54 @@ export default function SpotifyPlayer() {
     );
   };
 
+  const MarqueeText = ({
+    text,
+    className,
+  }: {
+    text: string;
+    className: string;
+  }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
+    const [isOverflowing, setIsOverflowing] = useState(false);
+
+    useEffect(() => {
+      const checkOverflow = () => {
+        if (containerRef.current && contentRef.current) {
+          const isOverflow =
+            contentRef.current.scrollWidth > containerRef.current.clientWidth;
+          setIsOverflowing(isOverflow);
+        }
+      };
+
+      checkOverflow();
+      window.addEventListener("resize", checkOverflow);
+      return () => window.removeEventListener("resize", checkOverflow);
+    }, [text]);
+
+    return (
+      <div ref={containerRef} className="marquee-container">
+        <div
+          ref={contentRef}
+          className={`marquee-content ${isOverflowing ? "overflowing" : ""}`}
+          data-text={text}
+        >
+          <span className={className}>{text}</span>
+        </div>
+      </div>
+    );
+  };
+
   const renderSongInfo = (song: Song | null) => (
-    <div className="mt-2 sm:mt-3 text-center w-full max-w-[400px] px-4">
-      <span className="text-[var(--foreground)] font-mono text-lg font-bold block truncate">
-        {song?.title || "No song selected"}
-      </span>
-      <span className="text-[var(--foreground)] font-mono text-sm block truncate">
-        {song?.artist?.name || "Unknown artist"}
-      </span>
+    <div className="w-full max-w-[400px] px-4">
+      <MarqueeText
+        text={song?.title || "No song selected"}
+        className="text-[var(--foreground)] font-mono text-lg font-bold"
+      />
+      <MarqueeText
+        text={song?.artist?.name || "Unknown artist"}
+        className="text-[var(--foreground)] font-mono text-sm mt-1"
+      />
     </div>
   );
 
@@ -1019,11 +1212,11 @@ export default function SpotifyPlayer() {
 
   if (!currentSong) {
     return (
-      <div className="bg-black/80 rounded-lg shadow-md p-4 sm:p-6 flex flex-col items-center w-full h-full relative">
+      <div className="bg-black/80 rounded-lg shadow-md p-4 sm:p-6 flex flex-col items-center w-full h-full">
         {/* Vinyl Section with Pickup Arm */}
-        <div className="absolute top-[120px] left-1/2 -translate-x-1/2 -translate-y-[40%] w-full max-w-[90%] aspect-square flex items-center justify-center z-0">
+        <div className="w-full max-w-[90%] aspect-square flex items-center justify-center z-0 mb-8">
           <div
-            className={`relative w-4/5 h-4/5 min-w-[240px] min-h-[240px] max-w-[380px] max-h-[380px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_8px_var(--background),0_0_32px_#0008_inset] flex items-center justify-center border-4 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
+            className={`relative w-4/5 h-4/5 min-w-[200px] min-h-[200px] max-w-[320px] max-h-[320px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_8px_var(--background),0_0_32px_#0008_inset] flex items-center justify-center border-4 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
               isPlaying ? "animate-spin" : ""
             } ${isScratching ? "animate-needle-shake" : ""}`}
             onMouseDown={handleSeekBarMouseDown}
@@ -1096,7 +1289,7 @@ export default function SpotifyPlayer() {
         </div>
 
         {/* Control Buttons */}
-        <div className="flex justify-center items-end gap-4 sm:gap-10 mt-[calc(40%+120px)] sm:mt-[calc(45%+120px)] mb-4 w-full max-w-[400px] px-4">
+        <div className="flex justify-center items-end gap-4 sm:gap-10 mb-4 w-full max-w-[400px] px-4">
           {renderControlButton(undefined, renderIcon(FaPlay, 22), true)}
           {renderControlButton(undefined, renderIcon(FaStop, 22), true)}
           {renderControlButton(undefined, renderIcon(FaFastForward, 22), true)}
@@ -1104,7 +1297,7 @@ export default function SpotifyPlayer() {
         </div>
 
         {/* Volume Slider */}
-        <div className="flex items-center gap-4 sm:gap-6 mt-4 sm:mt-6 mb-3 w-full max-w-[400px] px-4">
+        <div className="flex items-center gap-4 sm:gap-6 mb-3 w-full max-w-[400px] px-4">
           <span className="text-[var(--foreground)] font-mono text-base min-w-[36px] text-right">
             VOL
           </span>
@@ -1156,17 +1349,19 @@ export default function SpotifyPlayer() {
         </div>
 
         {/* Song Info */}
-        {renderSongInfo(currentSong as Song | null)}
+        <div className="mt-auto mb-8 w-full max-w-[400px] px-4">
+          {renderSongInfo(currentSong as Song | null)}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-black/80 rounded-lg shadow-md p-4 sm:p-6 flex flex-col items-center w-full h-full relative">
+    <div className="bg-black/80 rounded-lg shadow-md p-4 sm:p-6 flex flex-col items-center w-full h-full">
       {/* Vinyl Section with Pickup Arm */}
-      <div className="absolute top-[120px] left-1/2 -translate-x-1/2 -translate-y-[40%] w-full max-w-[90%] aspect-square flex items-center justify-center z-0">
+      <div className="w-full max-w-[90%] aspect-square flex items-center justify-center z-0 mb-8">
         <div
-          className={`relative w-4/5 h-4/5 min-w-[240px] min-h-[240px] max-w-[380px] max-h-[380px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_8px_var(--background),0_0_32px_#0008_inset] flex items-center justify-center border-4 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
+          className={`relative w-4/5 h-4/5 min-w-[200px] min-h-[200px] max-w-[320px] max-h-[320px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_8px_var(--background),0_0_32px_#0008_inset] flex items-center justify-center border-4 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
             isPlaying ? "animate-spin" : ""
           } ${isScratching ? "animate-needle-shake" : ""}`}
           onMouseDown={handleSeekBarMouseDown}
@@ -1239,7 +1434,7 @@ export default function SpotifyPlayer() {
       </div>
 
       {/* Control Buttons */}
-      <div className="relative z-20 flex justify-center items-end gap-4 sm:gap-10 mt-[calc(40%+120px)] sm:mt-[calc(45%+120px)] mb-4 w-full max-w-[400px] px-4">
+      <div className="flex justify-center items-end gap-4 sm:gap-10 mb-4 w-full max-w-[400px] px-4">
         {renderControlButton(
           togglePlay,
           isPlaying ? renderIcon(FaPause, 22) : renderIcon(FaPlay, 22)
@@ -1253,7 +1448,7 @@ export default function SpotifyPlayer() {
       </div>
 
       {/* Volume Slider */}
-      <div className="relative z-20 flex items-center gap-4 sm:gap-6 mt-4 sm:mt-6 mb-3 w-full max-w-[400px] px-4">
+      <div className="flex items-center gap-4 sm:gap-6 mb-3 w-full max-w-[400px] px-4">
         <span className="text-[var(--foreground)] font-mono text-base min-w-[36px] text-right">
           VOL
         </span>
@@ -1273,7 +1468,7 @@ export default function SpotifyPlayer() {
       </div>
 
       {/* Seek Slider */}
-      <div className="relative z-20 flex items-center gap-4 sm:gap-6 mb-3 w-full max-w-[400px] px-4">
+      <div className="flex items-center gap-4 sm:gap-6 mb-3 w-full max-w-[400px] px-4">
         <span className="text-[var(--foreground)] font-mono text-base min-w-[36px] text-right">
           {formatTime(
             isSeeking && seekPreview !== null ? seekPreview : progress
@@ -1305,7 +1500,9 @@ export default function SpotifyPlayer() {
       </div>
 
       {/* Song Info */}
-      {renderSongInfo(currentSong as Song | null)}
+      <div className="text-center w-full max-w-[400px] px-4 mt-auto mb-4">
+        {renderSongInfo(currentSong as Song | null)}
+      </div>
     </div>
   );
 }

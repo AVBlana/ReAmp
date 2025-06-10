@@ -8,19 +8,27 @@ const REDIRECT_URI =
   "http://localhost:3000/api/spotify/callback";
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
+// Add a function to get the origin page from cookies
+function getOriginPage() {
+  const origin = cookies().get("spotify_auth_origin")?.value;
+  return origin || "/spotify"; // Default to /spotify if no origin is set
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
 
   if (!code) {
     console.error("No authorization code received");
-    return NextResponse.redirect(`${BASE_URL}/spotify?error=no_code`);
+    const originPage = getOriginPage();
+    return NextResponse.redirect(`${BASE_URL}${originPage}?error=no_code`);
   }
 
   if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET) {
     console.error("Missing Spotify credentials");
+    const originPage = getOriginPage();
     return NextResponse.redirect(
-      `${BASE_URL}/spotify?error=missing_credentials`
+      `${BASE_URL}${originPage}?error=missing_credentials`
     );
   }
 
@@ -44,7 +52,10 @@ export async function GET(request: Request) {
 
     if (!response.ok) {
       console.error("Failed to get tokens:", data);
-      return NextResponse.redirect(`${BASE_URL}/spotify?error=token_error`);
+      const originPage = getOriginPage();
+      return NextResponse.redirect(
+        `${BASE_URL}${originPage}?error=token_error`
+      );
     }
 
     // Store both tokens in cookies
@@ -62,13 +73,17 @@ export async function GET(request: Request) {
       maxAge: 60 * 60, // 1 hour
     });
 
-    // Create a response that will set the token in localStorage
+    // Get the origin page and clear the origin cookie
+    const originPage = getOriginPage();
+    cookies().delete("spotify_auth_origin");
+
+    // Create a response that will set the token in localStorage and redirect to the origin page
     const html = `
       <html>
         <body>
           <script>
             localStorage.setItem('spotify_token', '${data.access_token}');
-            window.location.href = '${BASE_URL}/spotify';
+            window.location.href = '${BASE_URL}${originPage}';
           </script>
         </body>
       </html>
@@ -81,6 +96,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("Error getting tokens:", error);
-    return NextResponse.redirect(`${BASE_URL}/spotify?error=token_error`);
+    const originPage = getOriginPage();
+    return NextResponse.redirect(`${BASE_URL}${originPage}?error=token_error`);
   }
 }

@@ -175,9 +175,17 @@ const Player: React.FC = () => {
   if (!selectedVideo) return null;
 
   return (
-    <div className="relative w-full h-full">
-      <div ref={containerRef} className="w-full h-full" />
-    </div>
+    <div
+      ref={containerRef}
+      className="w-full h-full relative"
+      style={{
+        minHeight: "400px",
+        aspectRatio: "16/9",
+        maxHeight: "calc(100vh - 200px)",
+        backgroundColor: "#000",
+        pointerEvents: "auto",
+      }}
+    />
   );
 };
 

@@ -106,12 +106,12 @@ export default function UnifiedSearch({
   isLoadingMore = false,
   spotifyNextPageToken = null,
 }: UnifiedSearchProps) {
+  const { youtube, spotify, unified } = useUnifiedContext();
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const { youtube, spotify } = useUnifiedContext();
   const searchRef = useRef<HTMLDivElement>(null);
-  const searchTimeoutRef = useRef<NodeJS.Timeout>();
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSearchQueryRef = useRef<string>("");
 
   // Handle clicking outside
@@ -195,15 +195,22 @@ export default function UnifiedSearch({
     (result: SearchResult, service: ServiceType) => {
       if (service === ServiceType.Youtube) {
         const video = result as YoutubeVideo;
-        youtube.addToPlaylist({
-          ...video,
-          id: { kind: "youtube#video", videoId: video.id.videoId },
+        // Add to unified playlist
+        unified.addToPlaylist({
+          id: video.id.videoId,
+          type: ServiceType.Youtube,
+          data: video,
         });
       } else if (service === ServiceType.Spotify && isSpotifySong(result)) {
-        spotify.addToPlaylist(result);
+        // Add to unified playlist
+        unified.addToPlaylist({
+          id: result.id,
+          type: ServiceType.Spotify,
+          data: result,
+        });
       }
     },
-    [youtube, spotify]
+    [unified]
   );
 
   // Combine and sort results from both services with null checks and deduplication
@@ -281,9 +288,13 @@ export default function UnifiedSearch({
           const resultId = getResultId(result);
           const serviceType = getServiceType(result);
           const isYoutube = serviceType === ServiceType.Youtube;
-          const isInPlaylist = isYoutube
-            ? youtube.playlist.some((item) => item.id.videoId === resultId)
-            : spotify.playlist.some((item) => item.id === resultId);
+          const isInPlaylist = unified.playlist.some((item) => {
+            if (serviceType === ServiceType.Youtube) {
+              return item.id === resultId && item.type === ServiceType.Youtube;
+            } else {
+              return item.id === resultId && item.type === ServiceType.Spotify;
+            }
+          });
 
           return (
             <div

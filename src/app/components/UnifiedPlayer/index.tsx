@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FaYoutube, FaSpotify, FaPlay } from "react-icons/fa";
+import { FaYoutube, FaSpotify, FaPlay, FaMusic } from "react-icons/fa";
 import { Droppable } from "@hello-pangea/dnd";
 import { useUnifiedContext } from "@/context/UnifiedContext";
 import { ServiceType } from "@/types/playerTypes";
@@ -28,43 +28,43 @@ export default function UnifiedPlayer({ className = "" }: UnifiedPlayerProps) {
   }, [youtube.selectedVideo, spotify.currentSong]);
 
   return (
-    <div className={`relative h-full w-full ${className}`}>
+    <div className={`w-full h-full relative ${className}`}>
       {/* Player Content */}
-      <div className="absolute inset-0 z-0">
+      <div className="w-full h-full grid grid-rows-[1fr]">
         {activeService === ServiceType.Youtube ? (
-          <Player />
+          <div className="w-full h-full relative flex flex-col">
+            {/* YouTube Player Container */}
+            <div className="flex-1 relative min-h-[300px] w-full">
+              <div className="absolute inset-0">
+                <Player />
+              </div>
+            </div>
+          </div>
         ) : activeService === ServiceType.Spotify ? (
-          <SpotifyPlayer />
+          <div className="w-full h-full">
+            <SpotifyPlayer />
+          </div>
         ) : (
-          <div className="h-full w-full bg-[#0A0A0A] rounded-lg flex flex-col items-center justify-center">
-            <div className="relative z-10 flex flex-col items-center space-y-4">
-              <div className="w-20 h-20 rounded-full bg-[#2A2A2A] flex items-center justify-center">
-                <FaPlay className="text-gray-400 text-3xl" />
-              </div>
-              <p className="text-gray-400 text-lg">Select a track to play</p>
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <FaYoutube className="text-[#FF0000]" size={16} />
-                  <span className="text-sm text-gray-400">YouTube</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <FaSpotify className="text-[#1DB954]" size={16} />
-                  <span className="text-sm text-gray-400">Spotify</span>
-                </div>
-              </div>
+          <div className="w-full h-full flex items-center justify-center bg-black/20 rounded-lg">
+            <div className="text-gray-400 text-center">
+              <FaMusic className="mx-auto mb-2" size={32} />
+              <p>Select a video or song to play</p>
             </div>
           </div>
         )}
       </div>
 
-      {/* Droppable Area - Always on top */}
+      {/* Droppable Area - Only active when dragging */}
       <Droppable droppableId="unified-player">
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className="absolute inset-0 z-50"
-            style={{ pointerEvents: snapshot.isDraggingOver ? "auto" : "none" }}
+            className={`absolute inset-0 z-10 transition-opacity duration-200 ${
+              snapshot.isDraggingOver
+                ? "opacity-100"
+                : "opacity-0 pointer-events-none"
+            }`}
           >
             {/* Drop Overlay */}
             {snapshot.isDraggingOver && (
@@ -76,9 +76,9 @@ export default function UnifiedPlayer({ className = "" }: UnifiedPlayerProps) {
                       : activeService === ServiceType.Spotify
                       ? "bg-[#1DB954]/80"
                       : "bg-[#1DB954]/80"
-                  } rounded-full p-4 transform hover:scale-110 transition-transform duration-300 animate-pulse`}
+                  } rounded-full p-6 transform hover:scale-110 transition-transform duration-300 animate-pulse`}
                 >
-                  <FaPlay className="text-white text-3xl" />
+                  <FaPlay className="text-white text-4xl" />
                 </div>
               </div>
             )}
