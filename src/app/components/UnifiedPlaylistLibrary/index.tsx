@@ -241,10 +241,19 @@ const UnifiedPlaylistLibrary = memo(
       }
     }, [unified]);
 
-    const handleSaveCurrentPlaylist = useCallback(() => {
-      // Use the unified context's saveCurrentPlaylist function
-      unified.saveCurrentPlaylist();
-    }, [unified]);
+    const handleSaveCurrentPlaylist = useCallback(
+      (e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        console.log("Save button clicked!");
+        console.log("Current playlist:", unified.playlist);
+        console.log("Current playlist ID:", unified.currentPlaylistId);
+        console.log("Has unsaved changes:", unified.hasUnsavedChanges);
+        // Use the unified context's saveCurrentPlaylist function
+        unified.saveCurrentPlaylist();
+      },
+      [unified]
+    );
 
     const handleSelectPlaylist = useCallback(
       (playlist: UnifiedPlaylist) => {
@@ -314,7 +323,16 @@ const UnifiedPlaylistLibrary = memo(
         </button>
 
         {/* Save Current Playlist Button */}
-        {unified.playlist.length > 0 && unified.hasUnsavedChanges && (
+        {(() => {
+          console.log("Checking save button conditions:");
+          console.log("Playlist length:", unified.playlist.length);
+          console.log("Has unsaved changes:", unified.hasUnsavedChanges);
+          console.log(
+            "Should show save button:",
+            unified.playlist.length > 0 && unified.hasUnsavedChanges
+          );
+          return unified.playlist.length > 0 && unified.hasUnsavedChanges;
+        })() && (
           <button
             onClick={handleSaveCurrentPlaylist}
             className="flex-none w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-500 text-white transition-all duration-500 hover:scale-105 shadow-lg hover:shadow-green-500/30 backdrop-blur-sm border border-white/10 animate-pulse"

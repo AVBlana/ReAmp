@@ -8,6 +8,7 @@ import React, {
   useMemo,
   memo,
   useEffect,
+  useRef,
 } from "react";
 import { YoutubeVideo } from "@/app/components/Services/YtService";
 import { Song, ServiceType } from "@/types/playerTypes";
@@ -319,6 +320,21 @@ const PlaylistProvider: React.FC<{ children: React.ReactNode }> = memo(
       }
     }, [unifiedPlaylistName]);
 
+    // Save unified playlists to localStorage whenever they change
+    // useEffect(() => {
+    //   if (typeof window !== "undefined" && unifiedSavedPlaylists.length > 0) {
+    //     safeLocalStorage.set(
+    //       STORAGE_KEYS.UNIFIED.SAVED_PLAYLISTS,
+    //       JSON.stringify(unifiedSavedPlaylists)
+    //     );
+    //     console.log(
+    //       "Saved unified playlists to localStorage:",
+    //       unifiedSavedPlaylists.length,
+    //       "playlists"
+    //     );
+    //   }
+    // }, [unifiedSavedPlaylists]);
+
     // YouTube playlist state
     const [youtubePlaylist, setYoutubePlaylist] = useState<YoutubeVideo[]>(
       () => {
@@ -420,6 +436,24 @@ const PlaylistProvider: React.FC<{ children: React.ReactNode }> = memo(
     >(null);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
     const [isJustSaved, setIsJustSaved] = useState<boolean>(false);
+
+    // Refs to track current values for save function
+    const currentPlaylistRef = useRef<UnifiedPlaylistItem[]>([]);
+    const currentPlaylistIdRef = useRef<string | null>(null);
+    const currentPlaylistNameRef = useRef<string>("Create a new playlist");
+
+    // Update refs whenever state changes
+    useEffect(() => {
+      currentPlaylistRef.current = unifiedPlaylist;
+    }, [unifiedPlaylist]);
+
+    useEffect(() => {
+      currentPlaylistIdRef.current = currentUnifiedPlaylistId;
+    }, [currentUnifiedPlaylistId]);
+
+    useEffect(() => {
+      currentPlaylistNameRef.current = unifiedPlaylistName;
+    }, [unifiedPlaylistName]);
 
     // Add search state
     const [youtubeSearchResults, setYoutubeSearchResults] = useState<
@@ -594,7 +628,13 @@ const PlaylistProvider: React.FC<{ children: React.ReactNode }> = memo(
           setPlaylist: setUnifiedPlaylist,
           setPlaylistName: setUnifiedPlaylistNameWithDebug,
           addToPlaylist: (item: UnifiedPlaylistItem) => {
-            setUnifiedPlaylist((prev) => [...prev, item]);
+            console.log("Adding item to playlist:", item);
+            setUnifiedPlaylist((prev) => {
+              const newPlaylist = [...prev, item];
+              console.log("New playlist length:", newPlaylist.length);
+              return newPlaylist;
+            });
+            console.log("Setting hasUnsavedChanges to true");
             setHasUnsavedChanges(true);
           },
           removeFromPlaylist: (itemId: string) => {
@@ -628,36 +668,66 @@ const PlaylistProvider: React.FC<{ children: React.ReactNode }> = memo(
             console.log("Created new empty playlist:", name);
           },
           saveCurrentPlaylist: () => {
-            if (unifiedPlaylist.length > 0 && currentUnifiedPlaylistId) {
+            console.log("saveCurrentPlaylist called");
+            // Use refs to get current values
+            const currentPlaylist = currentPlaylistRef.current;
+            const currentPlaylistId = currentPlaylistIdRef.current;
+            const currentPlaylistName = currentPlaylistNameRef.current;
+
+            console.log("saveCurrentPlaylist called with:");
+            console.log("Current playlist length:", currentPlaylist.length);
+            console.log("Current playlist ID:", currentPlaylistId);
+            console.log("Current playlist name:", currentPlaylistName);
+
+            if (currentPlaylist.length > 0 && currentPlaylistId) {
               // Update the existing playlist instead of creating a new one
-              setUnifiedSavedPlaylists((prev) => {
-                const updated = prev.map((playlist) =>
-                  playlist.id === currentUnifiedPlaylistId
-                    ? { ...playlist, items: [...unifiedPlaylist] }
+              setUnifiedSavedPlaylists((prevPlaylists) => {
+                const updated = prevPlaylists.map((playlist) =>
+                  playlist.id === currentPlaylistId
+                    ? { ...playlist, items: [...currentPlaylist] }
                     : playlist
                 );
                 console.log(
                   "Updated existing playlist:",
-                  currentUnifiedPlaylistId
+                  currentPlaylistId,
+                  "with",
+                  currentPlaylist.length,
+                  "items"
                 );
+                // Save to localStorage immediately
+                if (typeof window !== "undefined") {
+                  safeLocalStorage.set(
+                    STORAGE_KEYS.UNIFIED.SAVED_PLAYLISTS,
+                    JSON.stringify(updated)
+                  );
+                  console.log("Saved updated playlists to localStorage");
+                }
                 return updated;
               });
               setHasUnsavedChanges(false);
               setIsJustSaved(true);
               // Reset the "saved" state after 2 seconds
               setTimeout(() => setIsJustSaved(false), 2000);
-            } else if (unifiedPlaylist.length > 0) {
+            } else if (currentPlaylist.length > 0) {
               // Create a new playlist if no current playlist is selected
               const newPlaylist: UnifiedPlaylist = {
                 id: Date.now().toString(),
-                name: unifiedPlaylistName,
-                items: [...unifiedPlaylist],
+                name: currentPlaylistName,
+                items: [...currentPlaylist],
                 createdAt: new Date().toISOString(),
               };
               console.log("Creating new playlist:", newPlaylist);
-              setUnifiedSavedPlaylists((prev) => {
-                const updated = [...prev, newPlaylist];
+              setUnifiedSavedPlaylists((prevPlaylists) => {
+                const updated = [...prevPlaylists, newPlaylist];
                 console.log("Updated saved playlists:", updated);
+                // Save to localStorage immediately
+                if (typeof window !== "undefined") {
+                  safeLocalStorage.set(
+                    STORAGE_KEYS.UNIFIED.SAVED_PLAYLISTS,
+                    JSON.stringify(updated)
+                  );
+                  console.log("Saved new playlists to localStorage");
+                }
                 return updated;
               });
               setCurrentUnifiedPlaylistId(newPlaylist.id);
@@ -677,10 +747,11 @@ const PlaylistProvider: React.FC<{ children: React.ReactNode }> = memo(
             }
           },
           loadPlaylist: (id: string) => {
+            console.log("Loading playlist with ID:", id);
             const playlist = unifiedSavedPlaylists.find((p) => p.id === id);
             if (playlist) {
               console.log(
-                "Loading playlist:",
+                "Found playlist:",
                 playlist.name,
                 "with",
                 playlist.items.length,
