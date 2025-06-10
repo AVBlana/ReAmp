@@ -1,8 +1,9 @@
 "use client";
 
-import { useYoutube } from "@/context/UnifiedContext";
+import { useYoutube, useUnifiedContext } from "@/context/UnifiedContext";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { YoutubeVideo } from "../Services/YtService";
+import { ServiceType } from "@/types/playerTypes";
 
 interface YouTubeEvent {
   target: YouTubePlayer;
@@ -64,7 +65,8 @@ declare global {
 }
 
 const Player: React.FC = () => {
-  const { selectedVideo, setSelectedVideo, playlist } = useYoutube();
+  const { selectedVideo, setSelectedVideo } = useYoutube();
+  const { unified } = useUnifiedContext();
   const playerRef = useRef<YouTubePlayer | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isApiReady, setIsApiReady] = useState(false);
@@ -75,19 +77,28 @@ const Player: React.FC = () => {
 
       // Handle video end
       if (state === window.YT.PlayerState.ENDED) {
-        // Find the current video index in the playlist
-        const currentIndex = playlist.findIndex(
-          (video: YoutubeVideo) => video.id.videoId === selectedVideo
+        // Find the current video index in the unified playlist
+        const currentIndex = unified.playlist.findIndex(
+          (item) =>
+            item.type === ServiceType.Youtube && item.id === selectedVideo
         );
 
-        // If there's a next video in the playlist, play it
-        if (currentIndex < playlist.length - 1) {
-          const nextVideo = playlist[currentIndex + 1];
-          setSelectedVideo(nextVideo.id.videoId);
+        // If there's a next item in the playlist, play it
+        if (currentIndex < unified.playlist.length - 1) {
+          const nextItem = unified.playlist[currentIndex + 1];
+
+          if (nextItem.type === ServiceType.Youtube) {
+            // Next item is also a YouTube video
+            const nextVideo = nextItem.data as YoutubeVideo;
+            setSelectedVideo(nextVideo.id.videoId);
+          } else {
+            // Next item is a different service type - trigger unified autoplay
+            window.dispatchEvent(new CustomEvent("autoplay-next"));
+          }
         }
       }
     },
-    [playlist, selectedVideo, setSelectedVideo]
+    [unified.playlist, selectedVideo, setSelectedVideo]
   );
 
   useEffect(() => {
@@ -112,7 +123,64 @@ const Player: React.FC = () => {
   }, [handleStateChange]);
 
   useEffect(() => {
-    if (!isApiReady || !selectedVideo || !containerRef.current) return;
+    console.log("YouTube Player selectedVideo changed:", selectedVideo);
+
+    if (!selectedVideo && playerRef.current) {
+      console.log("Stopping YouTube player - selectedVideo is null");
+      // Stop and destroy the player when switching away from YouTube
+      try {
+        // First pause the video
+        playerRef.current.pauseVideo();
+
+        // Wait a moment before destroying to avoid DOM conflicts
+        setTimeout(() => {
+          try {
+            if (playerRef.current) {
+              playerRef.current.destroy();
+              playerRef.current = null;
+              console.log("YouTube player stopped and destroyed successfully");
+            }
+          } catch (destroyError) {
+            console.error("Error destroying YouTube player:", destroyError);
+            playerRef.current = null;
+          }
+        }, 100);
+      } catch (error) {
+        console.error("Error stopping YouTube player:", error);
+        playerRef.current = null;
+      }
+    } else if (selectedVideo && playerRef.current) {
+      console.log("YouTube player already exists for video:", selectedVideo);
+    }
+  }, [selectedVideo]);
+
+  useEffect(() => {
+    if (!isApiReady || !selectedVideo || !containerRef.current) {
+      console.log("YouTube Player not ready:", {
+        isApiReady,
+        selectedVideo,
+        hasContainer: !!containerRef.current,
+      });
+      return;
+    }
+
+    console.log("Creating new YouTube player for video:", selectedVideo);
+
+    // Clean up any existing player before creating a new one
+    if (playerRef.current) {
+      try {
+        playerRef.current.pauseVideo();
+        playerRef.current.destroy();
+      } catch (error) {
+        console.error("Error cleaning up existing player:", error);
+      }
+      playerRef.current = null;
+    }
+
+    // Clear the container
+    if (containerRef.current) {
+      containerRef.current.innerHTML = "";
+    }
 
     // Create new player instance
     const player = new window.YT.Player(containerRef.current, {
@@ -127,18 +195,30 @@ const Player: React.FC = () => {
       },
       events: {
         onReady: (event: YouTubeEvent) => {
-          event.target.playVideo();
+          console.log("YouTube player ready, starting video");
+          try {
+            event.target.playVideo();
+          } catch (error) {
+            console.error("Error starting video:", error);
+          }
         },
         onStateChange: handleStateChange,
       },
     });
 
     playerRef.current = player;
+    console.log("YouTube player created successfully");
 
     return () => {
       // Cleanup: destroy the player instance
       if (playerRef.current) {
-        playerRef.current.destroy();
+        console.log("Cleaning up YouTube player");
+        try {
+          playerRef.current.pauseVideo();
+          playerRef.current.destroy();
+        } catch (error) {
+          console.error("Error during cleanup:", error);
+        }
         playerRef.current = null;
       }
     };
@@ -179,9 +259,9 @@ const Player: React.FC = () => {
       ref={containerRef}
       className="w-full h-full relative"
       style={{
-        minHeight: "400px",
+        minHeight: "280px",
         aspectRatio: "16/9",
-        maxHeight: "calc(100vh - 200px)",
+        maxHeight: "calc(100vh - 120px)",
         backgroundColor: "#000",
         pointerEvents: "auto",
       }}

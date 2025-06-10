@@ -133,16 +133,16 @@ const PlaylistItem = memo(
     return (
       <div className="flex-none">
         <div className="group relative">
-          {/* Delete button - positioned to the right */}
-          <div className="absolute -right-2 -top-2 bg-red-500 hover:bg-red-600 opacity-100 transition-all duration-200 rounded-full z-10 shadow-lg border border-white/20">
+          {/* Delete button - appears on hover */}
+          <div className="absolute -right-1 -top-1 bg-red-500/90 hover:bg-red-600/90 opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-full z-10 shadow-lg border border-white/20 backdrop-blur-sm">
             <button
               onClick={onDelete}
-              className="w-6 h-6 flex items-center justify-center text-white hover:text-white/80 transition-colors duration-200"
+              className="w-5 h-5 flex items-center justify-center text-white hover:text-white/90 transition-colors duration-200"
               title="Delete playlist"
             >
               <FaTrash
-                size={10}
-                className="drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
+                size={8}
+                className="drop-shadow-[0_0_4px_rgba(255,255,255,0.3)]"
               />
             </button>
           </div>

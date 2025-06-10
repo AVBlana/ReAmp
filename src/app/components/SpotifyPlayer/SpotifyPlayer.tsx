@@ -16,14 +16,25 @@ import type {
   PlaybackState,
   PlayerOptions,
 } from "spotify-web-playback-sdk";
-import { useSpotify } from "@/context/UnifiedContext";
+import { useSpotify, useUnifiedContext } from "@/context/UnifiedContext";
 
 // Define proper types for the song object
 interface Artist {
+  id: string;
   name: string;
 }
 
 interface Artwork {
+  small: {
+    url: string;
+    width: number;
+    height: number;
+  };
+  medium: {
+    url: string;
+    width: number;
+    height: number;
+  };
   big: {
     url: string;
     width: number;
@@ -49,7 +60,7 @@ interface PlayerWithVolume extends Player {
 }
 
 function hasSetVolume(player: unknown): player is PlayerWithVolume {
-  return typeof player === "object" && player !== null && "setVolume" in player;
+  return typeof (player as PlayerWithVolume).setVolume === "function";
 }
 
 // Define Spotify SDK window interface
@@ -71,68 +82,47 @@ let scriptLoadPromise: Promise<void> | null = null;
 // type SpotifyPlayerEventHandlers = { ... }
 
 export default function SpotifyPlayer() {
-  const { currentSong, setCurrentSong, playlist } = useSpotify();
+  const { currentSong, setCurrentSong } = useSpotify();
+  const { unified } = useUnifiedContext();
   const [isPlaying, setIsPlaying] = useState(false);
-  const [volume] = useState(50);
-  const [isActive, setIsActive] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [volume] = useState(50);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isActive, setIsActive] = useState(false);
+  const [activeDeviceId, setActiveDeviceId] = useState<string | null>(null);
+  const [spotifyToken, setSpotifyToken] = useState<string | null>(null);
   const [seekPreview, setSeekPreview] = useState<number | null>(null);
   const [isSeeking, setIsSeeking] = useState(false);
   const [isScratching, setIsScratching] = useState(false);
   const [displayVolume, setDisplayVolume] = useState(volume);
-  const [spotifyToken, setSpotifyToken] = useState<string | null>(null);
-  const [activeDeviceId, setActiveDeviceId] = useState<string | null>(null);
   const [tokenExpiryTime, setTokenExpiryTime] = useState<number | null>(null);
+  const playerRef = useRef<Player | null>(null);
+  const isHandlingTrackEndRef = useRef(false);
 
   // Refs
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
-  const playerRef = useRef<Player | null>(null);
   const scriptRef = useRef<HTMLScriptElement | null>(null);
   const deviceTransferInProgress = useRef(false);
   const initializationInProgress = useRef(false);
   const lastMouseX = useRef(0);
-  const isHandlingTrackEndRef = useRef(false);
 
   // Add a ref to track if we've already attempted to load the script
   const hasAttemptedScriptLoad = useRef(false);
 
-  // Move refreshToken and transferPlayback before setupPlayerListeners
   const refreshToken = async () => {
-    const lastRefresh = localStorage.getItem("spotify_token_last_refresh");
-    const now = Date.now();
-
-    // Prevent refreshing more than once every 30 seconds
-    if (lastRefresh && now - parseInt(lastRefresh) < 30000) {
-      console.log("Token refresh rate limited");
-      return;
-    }
-
     try {
-      console.log("Refreshing Spotify token...");
       const response = await fetch("/api/spotify/refresh");
-      if (!response.ok) {
-        throw new Error("Failed to refresh token");
-      }
+      if (!response.ok) throw new Error("Failed to refresh token");
       const data = await response.json();
       if (typeof window !== "undefined") {
         localStorage.setItem("spotify_token", data.access_token);
-        localStorage.setItem("spotify_token_last_refresh", now.toString());
         setSpotifyToken(data.access_token);
-
-        // Don't reconnect player, just update the token
-        if (playerRef.current) {
-          // The player will automatically use the new token on next request
-          console.log(
-            "Token refreshed, player will use new token automatically"
-          );
-        }
       }
+      return data;
     } catch (error) {
-      console.error("Error refreshing token:", error);
-      // If refresh fails, redirect to login
-      window.location.href = "/api/spotify/login";
+      console.error("Error refreshing Spotify token:", error);
+      throw error;
     }
   };
 
@@ -361,6 +351,7 @@ export default function SpotifyPlayer() {
         scriptRef.current.async = true;
 
         scriptRef.current.onload = () => {
+          initializePlayer();
           resolve();
         };
 
@@ -550,15 +541,19 @@ export default function SpotifyPlayer() {
       isHandlingTrackEndRef.current = true;
 
       try {
-        // Find the current track's index in the playlist
-        const currentIndex = playlist.findIndex(
-          (track) => track.id === currentSong?.id
+        // Find the current track's index in the unified playlist
+        const currentIndex = unified.playlist.findIndex(
+          (item) =>
+            item.type === ServiceType.Spotify && item.id === currentSong?.id
         );
 
-        // If we have a next track, play it
-        if (currentIndex < playlist.length - 1) {
-          const nextTrack = playlist[currentIndex + 1];
-          if (nextTrack && nextTrack.type === ServiceType.Spotify) {
+        // If we have a next track, trigger autoplay
+        if (currentIndex < unified.playlist.length - 1) {
+          const nextItem = unified.playlist[currentIndex + 1];
+
+          if (nextItem.type === ServiceType.Spotify) {
+            // Next item is also a Spotify track - handle it directly
+            const nextTrack = nextItem.data as Song;
             try {
               // First, set the next track
               setCurrentSong(nextTrack);
@@ -609,6 +604,9 @@ export default function SpotifyPlayer() {
                 console.error("Error refreshing token:", refreshError);
               }
             }
+          } else {
+            // Next item is a different service type - trigger unified autoplay
+            window.dispatchEvent(new CustomEvent("autoplay-next"));
           }
         } else {
           // End of playlist
@@ -673,7 +671,7 @@ export default function SpotifyPlayer() {
       clearInterval(progressInterval);
     };
   }, [
-    playlist,
+    unified.playlist,
     setCurrentSong,
     isPlaying,
     currentSong,
@@ -1173,14 +1171,14 @@ export default function SpotifyPlayer() {
   };
 
   const renderSongInfo = (song: Song | null) => (
-    <div className="w-full max-w-[400px] px-4">
+    <div className="w-full max-w-[300px] px-2">
       <MarqueeText
         text={song?.title || "No song selected"}
-        className="text-[var(--foreground)] font-mono text-lg font-bold"
+        className="text-[var(--foreground)] font-mono text-sm sm:text-base font-bold"
       />
       <MarqueeText
         text={song?.artist?.name || "Unknown artist"}
-        className="text-[var(--foreground)] font-mono text-sm mt-1"
+        className="text-[var(--foreground)] font-mono text-xs sm:text-sm mt-1 opacity-70"
       />
     </div>
   );
@@ -1210,13 +1208,267 @@ export default function SpotifyPlayer() {
     };
   }, [tokenExpiryTime]); // Only depend on tokenExpiryTime
 
+  // Replace the original useEffect for currentSong changes
+  useEffect(() => {
+    console.log("SpotifyPlayer useEffect triggered:", {
+      currentSong: currentSong?.id,
+      activeDeviceId,
+      isActive,
+      spotifyToken: !!spotifyToken,
+    });
+
+    // Always run the effect, but handle the case where player is not ready
+    const playTrack = async (retryCount = 0) => {
+      const MAX_RETRIES = 3;
+      if (retryCount >= MAX_RETRIES) {
+        console.error("Max retries reached for playing track");
+        return;
+      }
+
+      try {
+        if (!currentSong) {
+          console.log("Stopping Spotify playback - currentSong is null");
+          // If currentSong is null, stop playback
+          if (activeDeviceId && spotifyToken) {
+            try {
+              const response = await fetch(
+                `https://api.spotify.com/v1/me/player/pause?device_id=${activeDeviceId}`,
+                {
+                  method: "PUT",
+                  headers: {
+                    Authorization: `Bearer ${spotifyToken}`,
+                    "Content-Type": "application/json",
+                  },
+                }
+              );
+
+              if (!response.ok) {
+                throw new Error(`Failed to pause: ${response.status}`);
+              }
+
+              console.log("Spotify playback paused successfully");
+              setIsPlaying(false);
+            } catch (pauseError) {
+              console.error("Error pausing Spotify:", pauseError);
+              setIsPlaying(false);
+            }
+          } else {
+            console.log("Cannot pause Spotify - missing deviceId or token");
+            setIsPlaying(false);
+          }
+          return;
+        }
+
+        // Only try to play if we have the required dependencies
+        if (!activeDeviceId || !isActive || !spotifyToken) {
+          console.log("Cannot play Spotify - missing dependencies:", {
+            activeDeviceId: !!activeDeviceId,
+            isActive,
+            spotifyToken: !!spotifyToken,
+          });
+          return;
+        }
+
+        console.log("Playing Spotify track:", currentSong.id);
+        const response = await fetch(
+          `https://api.spotify.com/v1/me/player/play?device_id=${activeDeviceId}`,
+          {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${spotifyToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              uris: [`spotify:track:${currentSong.id}`],
+              position_ms: 0,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Failed to play track: ${response.status}`);
+        }
+
+        console.log("Spotify track started successfully");
+        setIsPlaying(true);
+      } catch (error) {
+        console.error("Error playing track:", error);
+        if (retryCount < MAX_RETRIES) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000 * (retryCount + 1))
+          );
+          return playTrack(retryCount + 1);
+        }
+      }
+    };
+
+    playTrack();
+  }, [currentSong, activeDeviceId, isActive, spotifyToken]);
+
+  // Move the early return after the useEffect
   if (!currentSong) {
     return (
-      <div className="bg-black/80 rounded-lg shadow-md p-4 sm:p-6 flex flex-col items-center w-full h-full">
-        {/* Vinyl Section with Pickup Arm */}
-        <div className="w-full max-w-[90%] aspect-square flex items-center justify-center z-0 mb-8">
+      <div className="bg-black/80 rounded-lg shadow-md p-1 sm:p-2 lg:p-4 flex flex-col sm:flex-row items-center w-full h-full gap-2 sm:gap-4">
+        {/* Vinyl Section with Pickup Arm - Left side in portrait */}
+        <div className="w-full sm:w-1/2 flex items-center justify-center relative">
+          <div className="relative w-full max-w-[280px] aspect-square flex items-center justify-center">
+            <div
+              className={`relative w-full h-full min-w-[120px] max-w-[280px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_8px_var(--background),0_0_32px_#0008_inset] flex items-center justify-center border-4 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
+                isPlaying ? "animate-spin" : ""
+              } ${isScratching ? "animate-needle-shake" : ""}`}
+              onMouseDown={handleSeekBarMouseDown}
+              style={
+                {
+                  cursor: "pointer",
+                  "--needle-rotation": "0deg",
+                } as React.CSSProperties
+              }
+            >
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/5 h-3/5 rounded-full bg-[var(--background)] shadow-[0_0_0_2px_var(--foreground),0_0_12px_#fff8_inset] overflow-hidden z-10 flex items-center justify-center">
+                {renderAlbumArt(currentSong as Song | null)}
+              </div>
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[var(--background)] border-2 border-[var(--foreground)] z-20" />
+            </div>
+
+            {/* SVG Pickup Arm/Needle - Properly positioned */}
+            <svg
+              className={`absolute top-[8%] right-[8%] w-1/3 h-1/3 pointer-events-none z-20 transition-transform duration-500 ease-in-out ${
+                isPlaying ? "rotate-[25deg]" : "rotate-[5deg]"
+              } ${isScratching ? "animate-needle-shake" : ""}`}
+              style={
+                {
+                  transform: `rotate(${isPlaying ? "25deg" : "5deg"})`,
+                  transformOrigin: "60px 8px",
+                  filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))",
+                } as React.CSSProperties
+              }
+              viewBox="0 0 120 120"
+            >
+              <rect
+                x="55"
+                y="8"
+                width="6"
+                height="50"
+                rx="3"
+                fill="var(--foreground)"
+              />
+              <rect
+                x="58"
+                y="55"
+                width="4"
+                height="25"
+                rx="2"
+                fill="var(--foreground)"
+              />
+              <rect
+                x="59.5"
+                y="80"
+                width="1"
+                height="12"
+                rx="0.5"
+                fill="var(--foreground)"
+              />
+              <circle
+                cx="58"
+                cy="8"
+                r="5"
+                fill="var(--background)"
+                stroke="var(--foreground)"
+                strokeWidth="1.5"
+              />
+            </svg>
+          </div>
+        </div>
+
+        {/* Controls Section - Right side in portrait */}
+        <div className="w-full sm:w-1/2 flex flex-col justify-center items-center gap-2 sm:gap-3">
+          {/* Control Buttons */}
+          <div className="flex justify-center items-center gap-2 sm:gap-3 mb-2">
+            {renderControlButton(
+              togglePlay,
+              isPlaying ? renderIcon(FaPause, 20) : renderIcon(FaPlay, 20)
+            )}
+            {renderControlButton(handleStop, renderIcon(FaStop, 20))}
+            {renderControlButton(
+              handleFastForward,
+              renderIcon(FaFastForward, 20)
+            )}
+            {renderControlButton(
+              toggleMute,
+              isMuted
+                ? renderIcon(FaVolumeMute, 18)
+                : renderIcon(FaVolumeUp, 18)
+            )}
+          </div>
+
+          {/* Volume Slider */}
+          <div className="flex items-center gap-2 w-full max-w-[300px] mb-2">
+            <span className="text-[var(--foreground)] font-mono text-xs min-w-[24px] text-right">
+              VOL
+            </span>
+            <div
+              className="relative flex-1 h-[12px] flex items-center mx-2 min-w-[80px] cursor-pointer volume-bar-container"
+              onMouseDown={handleVolumeBarMouseDown}
+            >
+              <div className="absolute top-1/2 left-0 w-full h-2 -translate-y-1/2 bg-[var(--foreground)] opacity-12 rounded-md pointer-events-none z-0" />
+              <div
+                className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-green-500 rounded-md pointer-events-none z-10 transition-[width] duration-150"
+                style={{ width: `${displayVolume}%` }}
+              />
+            </div>
+            <span className="text-[var(--foreground)] font-mono text-xs min-w-[24px] text-right">
+              {displayVolume}%
+            </span>
+          </div>
+
+          {/* Seek Slider */}
+          <div className="flex items-center gap-2 w-full max-w-[300px] mb-2">
+            <span className="text-[var(--foreground)] font-mono text-xs min-w-[24px] text-right">
+              {formatTime(
+                isSeeking && seekPreview !== null ? seekPreview : progress
+              )}
+            </span>
+            <div
+              className="relative flex-1 h-[12px] flex items-center mx-2 min-w-[80px] cursor-pointer seek-bar-container"
+              onMouseDown={handleSeekBarMouseDown}
+            >
+              <div className="absolute top-1/2 left-0 w-full h-2 -translate-y-1/2 bg-[var(--foreground)] opacity-12 rounded-md pointer-events-none z-0" />
+              <div
+                className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-green-500 rounded-md pointer-events-none z-10 transition-[width] duration-150 linear"
+                style={{
+                  width: `${
+                    duration
+                      ? ((isSeeking && seekPreview !== null
+                          ? seekPreview
+                          : progress) /
+                          duration) *
+                        100
+                      : 0
+                  }%`,
+                }}
+              />
+            </div>
+            <span className="text-[var(--foreground)] font-mono text-xs min-w-[24px] text-right">
+              {formatTime(duration)}
+            </span>
+          </div>
+
+          {/* Song Info */}
+          <div className="text-center w-full max-w-[300px]">
+            {renderSongInfo(currentSong as Song | null)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-black/80 rounded-lg shadow-md p-1 sm:p-2 lg:p-4 flex flex-col sm:flex-row items-center w-full h-full gap-2 sm:gap-4">
+      {/* Vinyl Section with Pickup Arm - Left side in portrait */}
+      <div className="w-full sm:w-1/2 flex items-center justify-center relative">
+        <div className="relative w-full max-w-[280px] aspect-square flex items-center justify-center">
           <div
-            className={`relative w-4/5 h-4/5 min-w-[200px] min-h-[200px] max-w-[320px] max-h-[320px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_8px_var(--background),0_0_32px_#0008_inset] flex items-center justify-center border-4 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
+            className={`relative w-full h-full min-w-[120px] max-w-[280px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_8px_var(--background),0_0_32px_#0008_inset] flex items-center justify-center border-4 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
               isPlaying ? "animate-spin" : ""
             } ${isScratching ? "animate-needle-shake" : ""}`}
             onMouseDown={handleSeekBarMouseDown}
@@ -1233,76 +1485,82 @@ export default function SpotifyPlayer() {
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[var(--background)] border-2 border-[var(--foreground)] z-20" />
           </div>
 
-          {/* SVG Pickup Arm/Needle */}
+          {/* SVG Pickup Arm/Needle - Properly positioned */}
           <svg
-            className={`absolute top-[15%] right-[-5%] w-1/2 h-1/2 pointer-events-none z-20 transition-transform duration-500 ease-in-out ${
-              isPlaying ? "rotate-[20deg]" : "rotate-[0deg]"
+            className={`absolute top-[8%] right-[8%] w-1/3 h-1/3 pointer-events-none z-20 transition-transform duration-500 ease-in-out ${
+              isPlaying ? "rotate-[25deg]" : "rotate-[5deg]"
             } ${isScratching ? "animate-needle-shake" : ""}`}
             style={
               {
-                transform: `rotate(${isPlaying ? "20deg" : "0deg"})`,
-                transformOrigin: "84px 10px",
-                position: "absolute",
-                top: "15%",
-                right: "-5%",
-                width: "50%",
-                height: "50%",
-                "--needle-rotation": isPlaying ? "20deg" : "0deg",
+                transform: `rotate(${isPlaying ? "25deg" : "5deg"})`,
+                transformOrigin: "60px 8px",
                 filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))",
               } as React.CSSProperties
             }
             viewBox="0 0 120 120"
           >
             <rect
-              x="80"
-              y="10"
-              width="8"
-              height="60"
-              rx="4"
-              fill="var(--foreground)"
-            />
-            <rect
-              x="85"
-              y="65"
+              x="55"
+              y="8"
               width="6"
-              height="30"
+              height="50"
               rx="3"
               fill="var(--foreground)"
             />
             <rect
-              x="87"
-              y="95"
-              width="2"
-              height="15"
-              rx="1"
+              x="58"
+              y="55"
+              width="4"
+              height="25"
+              rx="2"
+              fill="var(--foreground)"
+            />
+            <rect
+              x="59.5"
+              y="80"
+              width="1"
+              height="12"
+              rx="0.5"
               fill="var(--foreground)"
             />
             <circle
-              cx="84"
-              cy="10"
-              r="7"
+              cx="58"
+              cy="8"
+              r="5"
               fill="var(--background)"
               stroke="var(--foreground)"
-              strokeWidth="2"
+              strokeWidth="1.5"
             />
           </svg>
         </div>
+      </div>
 
+      {/* Controls Section - Right side in portrait */}
+      <div className="w-full sm:w-1/2 flex flex-col justify-center items-center gap-2 sm:gap-3">
         {/* Control Buttons */}
-        <div className="flex justify-center items-end gap-4 sm:gap-10 mb-4 w-full max-w-[400px] px-4">
-          {renderControlButton(undefined, renderIcon(FaPlay, 22), true)}
-          {renderControlButton(undefined, renderIcon(FaStop, 22), true)}
-          {renderControlButton(undefined, renderIcon(FaFastForward, 22), true)}
-          {renderControlButton(undefined, renderIcon(FaVolumeUp, 20), true)}
+        <div className="flex justify-center items-center gap-2 sm:gap-3 mb-2">
+          {renderControlButton(
+            togglePlay,
+            isPlaying ? renderIcon(FaPause, 20) : renderIcon(FaPlay, 20)
+          )}
+          {renderControlButton(handleStop, renderIcon(FaStop, 20))}
+          {renderControlButton(
+            handleFastForward,
+            renderIcon(FaFastForward, 20)
+          )}
+          {renderControlButton(
+            toggleMute,
+            isMuted ? renderIcon(FaVolumeMute, 18) : renderIcon(FaVolumeUp, 18)
+          )}
         </div>
 
         {/* Volume Slider */}
-        <div className="flex items-center gap-4 sm:gap-6 mb-3 w-full max-w-[400px] px-4">
-          <span className="text-[var(--foreground)] font-mono text-base min-w-[36px] text-right">
+        <div className="flex items-center gap-2 w-full max-w-[300px] mb-2">
+          <span className="text-[var(--foreground)] font-mono text-xs min-w-[24px] text-right">
             VOL
           </span>
           <div
-            className="relative flex-1 h-[18px] flex items-center mx-2 min-w-[120px] cursor-pointer volume-bar-container"
+            className="relative flex-1 h-[12px] flex items-center mx-2 min-w-[80px] cursor-pointer volume-bar-container"
             onMouseDown={handleVolumeBarMouseDown}
           >
             <div className="absolute top-1/2 left-0 w-full h-2 -translate-y-1/2 bg-[var(--foreground)] opacity-12 rounded-md pointer-events-none z-0" />
@@ -1311,20 +1569,20 @@ export default function SpotifyPlayer() {
               style={{ width: `${displayVolume}%` }}
             />
           </div>
-          <span className="text-[var(--foreground)] font-mono text-base min-w-[36px] text-right">
+          <span className="text-[var(--foreground)] font-mono text-xs min-w-[24px] text-right">
             {displayVolume}%
           </span>
         </div>
 
         {/* Seek Slider */}
-        <div className="flex items-center gap-4 sm:gap-6 mb-3 w-full max-w-[400px] px-4">
-          <span className="text-[var(--foreground)] font-mono text-base min-w-[36px] text-right">
+        <div className="flex items-center gap-2 w-full max-w-[300px] mb-2">
+          <span className="text-[var(--foreground)] font-mono text-xs min-w-[24px] text-right">
             {formatTime(
               isSeeking && seekPreview !== null ? seekPreview : progress
             )}
           </span>
           <div
-            className="relative flex-1 h-[18px] flex items-center mx-2 min-w-[120px] cursor-pointer seek-bar-container"
+            className="relative flex-1 h-[12px] flex items-center mx-2 min-w-[80px] cursor-pointer seek-bar-container"
             onMouseDown={handleSeekBarMouseDown}
           >
             <div className="absolute top-1/2 left-0 w-full h-2 -translate-y-1/2 bg-[var(--foreground)] opacity-12 rounded-md pointer-events-none z-0" />
@@ -1343,165 +1601,15 @@ export default function SpotifyPlayer() {
               }}
             />
           </div>
-          <span className="text-[var(--foreground)] font-mono text-base min-w-[36px] text-right">
+          <span className="text-[var(--foreground)] font-mono text-xs min-w-[24px] text-right">
             {formatTime(duration)}
           </span>
         </div>
 
         {/* Song Info */}
-        <div className="mt-auto mb-8 w-full max-w-[400px] px-4">
+        <div className="text-center w-full max-w-[300px]">
           {renderSongInfo(currentSong as Song | null)}
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-black/80 rounded-lg shadow-md p-4 sm:p-6 flex flex-col items-center w-full h-full">
-      {/* Vinyl Section with Pickup Arm */}
-      <div className="w-full max-w-[90%] aspect-square flex items-center justify-center z-0 mb-8">
-        <div
-          className={`relative w-4/5 h-4/5 min-w-[200px] min-h-[200px] max-w-[320px] max-h-[320px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_8px_var(--background),0_0_32px_#0008_inset] flex items-center justify-center border-4 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
-            isPlaying ? "animate-spin" : ""
-          } ${isScratching ? "animate-needle-shake" : ""}`}
-          onMouseDown={handleSeekBarMouseDown}
-          style={
-            {
-              cursor: "pointer",
-              "--needle-rotation": "0deg",
-            } as React.CSSProperties
-          }
-        >
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/5 h-3/5 rounded-full bg-[var(--background)] shadow-[0_0_0_2px_var(--foreground),0_0_12px_#fff8_inset] overflow-hidden z-10 flex items-center justify-center">
-            {renderAlbumArt(currentSong as Song | null)}
-          </div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[var(--background)] border-2 border-[var(--foreground)] z-20" />
-        </div>
-
-        {/* SVG Pickup Arm/Needle */}
-        <svg
-          className={`absolute top-[15%] right-[-5%] w-1/2 h-1/2 pointer-events-none z-20 transition-transform duration-500 ease-in-out ${
-            isPlaying ? "rotate-[20deg]" : "rotate-[0deg]"
-          } ${isScratching ? "animate-needle-shake" : ""}`}
-          style={
-            {
-              transform: `rotate(${isPlaying ? "20deg" : "0deg"})`,
-              transformOrigin: "84px 10px",
-              position: "absolute",
-              top: "15%",
-              right: "-5%",
-              width: "50%",
-              height: "50%",
-              "--needle-rotation": isPlaying ? "20deg" : "0deg",
-              filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))",
-            } as React.CSSProperties
-          }
-          viewBox="0 0 120 120"
-        >
-          <rect
-            x="80"
-            y="10"
-            width="8"
-            height="60"
-            rx="4"
-            fill="var(--foreground)"
-          />
-          <rect
-            x="85"
-            y="65"
-            width="6"
-            height="30"
-            rx="3"
-            fill="var(--foreground)"
-          />
-          <rect
-            x="87"
-            y="95"
-            width="2"
-            height="15"
-            rx="1"
-            fill="var(--foreground)"
-          />
-          <circle
-            cx="84"
-            cy="10"
-            r="7"
-            fill="var(--background)"
-            stroke="var(--foreground)"
-            strokeWidth="2"
-          />
-        </svg>
-      </div>
-
-      {/* Control Buttons */}
-      <div className="flex justify-center items-end gap-4 sm:gap-10 mb-4 w-full max-w-[400px] px-4">
-        {renderControlButton(
-          togglePlay,
-          isPlaying ? renderIcon(FaPause, 22) : renderIcon(FaPlay, 22)
-        )}
-        {renderControlButton(handleStop, renderIcon(FaStop, 22))}
-        {renderControlButton(handleFastForward, renderIcon(FaFastForward, 22))}
-        {renderControlButton(
-          toggleMute,
-          isMuted ? renderIcon(FaVolumeMute, 20) : renderIcon(FaVolumeUp, 20)
-        )}
-      </div>
-
-      {/* Volume Slider */}
-      <div className="flex items-center gap-4 sm:gap-6 mb-3 w-full max-w-[400px] px-4">
-        <span className="text-[var(--foreground)] font-mono text-base min-w-[36px] text-right">
-          VOL
-        </span>
-        <div
-          className="relative flex-1 h-[18px] flex items-center mx-2 min-w-[120px] cursor-pointer volume-bar-container"
-          onMouseDown={handleVolumeBarMouseDown}
-        >
-          <div className="absolute top-1/2 left-0 w-full h-2 -translate-y-1/2 bg-[var(--foreground)] opacity-12 rounded-md pointer-events-none z-0" />
-          <div
-            className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-green-500 rounded-md pointer-events-none z-10 transition-[width] duration-150"
-            style={{ width: `${displayVolume}%` }}
-          />
-        </div>
-        <span className="text-[var(--foreground)] font-mono text-base min-w-[36px] text-right">
-          {displayVolume}%
-        </span>
-      </div>
-
-      {/* Seek Slider */}
-      <div className="flex items-center gap-4 sm:gap-6 mb-3 w-full max-w-[400px] px-4">
-        <span className="text-[var(--foreground)] font-mono text-base min-w-[36px] text-right">
-          {formatTime(
-            isSeeking && seekPreview !== null ? seekPreview : progress
-          )}
-        </span>
-        <div
-          className="relative flex-1 h-[18px] flex items-center mx-2 min-w-[120px] cursor-pointer seek-bar-container"
-          onMouseDown={handleSeekBarMouseDown}
-        >
-          <div className="absolute top-1/2 left-0 w-full h-2 -translate-y-1/2 bg-[var(--foreground)] opacity-12 rounded-md pointer-events-none z-0" />
-          <div
-            className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-green-500 rounded-md pointer-events-none z-10 transition-[width] duration-150 linear"
-            style={{
-              width: `${
-                duration
-                  ? ((isSeeking && seekPreview !== null
-                      ? seekPreview
-                      : progress) /
-                      duration) *
-                    100
-                  : 0
-              }%`,
-            }}
-          />
-        </div>
-        <span className="text-[var(--foreground)] font-mono text-base min-w-[36px] text-right">
-          {formatTime(duration)}
-        </span>
-      </div>
-
-      {/* Song Info */}
-      <div className="text-center w-full max-w-[400px] px-4 mt-auto mb-4">
-        {renderSongInfo(currentSong as Song | null)}
       </div>
     </div>
   );

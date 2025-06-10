@@ -944,6 +944,12 @@ const DragDropWrapper: React.FC<{ children: React.ReactNode }> = memo(
         if (destination.droppableId === "unified-player") {
           const [service, id] = draggableId.split("-");
           console.log("Dropping to player:", { draggableId, service, id });
+          console.log("Current state before drop:", {
+            youtubeSelectedVideo: youtube.selectedVideo,
+            spotifyCurrentSong: spotify.currentSong?.id,
+            spotifyCurrentSongTitle: spotify.currentSong?.title,
+          });
+
           if (!service || !id) {
             console.warn("Invalid draggableId format:", draggableId);
             return;
@@ -958,10 +964,18 @@ const DragDropWrapper: React.FC<{ children: React.ReactNode }> = memo(
             console.log("Found YouTube video:", video);
             if (video && youtube.selectedVideo !== id) {
               console.log("Setting YouTube video:", id);
+              console.log(
+                "About to stop Spotify - currentSong:",
+                spotify.currentSong?.id
+              );
               youtube.setSelectedVideo(id);
               if (spotify.currentSong) {
+                console.log(
+                  "Stopping Spotify playback by setting currentSong to null"
+                );
                 spotify.setCurrentSong(null);
               }
+              console.log("YouTube video set, Spotify should be stopped");
             }
           } else if (service === ServiceType.Spotify) {
             const song =
@@ -972,12 +986,26 @@ const DragDropWrapper: React.FC<{ children: React.ReactNode }> = memo(
             console.log("Found Spotify song:", song);
             if (song && spotify.currentSong?.id !== song.id) {
               console.log("Setting Spotify song:", id);
+              console.log(
+                "About to stop YouTube - selectedVideo:",
+                youtube.selectedVideo
+              );
               spotify.setCurrentSong(song);
               if (youtube.selectedVideo) {
+                console.log(
+                  "Stopping YouTube playback by setting selectedVideo to null"
+                );
                 youtube.setSelectedVideo(null);
               }
+              console.log("Spotify song set, YouTube should be stopped");
             }
           }
+
+          console.log("Current state after drop:", {
+            youtubeSelectedVideo: youtube.selectedVideo,
+            spotifyCurrentSong: spotify.currentSong?.id,
+            spotifyCurrentSongTitle: spotify.currentSong?.title,
+          });
           return;
         }
 
