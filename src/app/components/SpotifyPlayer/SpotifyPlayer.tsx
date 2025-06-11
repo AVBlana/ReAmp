@@ -1066,9 +1066,13 @@ export default function SpotifyPlayer() {
     `;
     document.head.appendChild(style);
     return () => {
-      const existingStyle = document.getElementById("vinyl-animation-styles");
-      if (existingStyle && document.head.contains(existingStyle)) {
-        document.head.removeChild(existingStyle);
+      try {
+        const existingStyle = document.getElementById("vinyl-animation-styles");
+        if (existingStyle && existingStyle.parentNode) {
+          existingStyle.parentNode.removeChild(existingStyle);
+        }
+      } catch (error) {
+        console.warn("Could not remove vinyl animation styles:", error);
       }
     };
   }, []);

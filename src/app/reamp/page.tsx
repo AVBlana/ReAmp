@@ -85,9 +85,25 @@ function ReAMPContent() {
     styleRef.current = style;
 
     return () => {
-      // Only remove if the style element still exists and is a child of document.head
-      if (styleRef.current && document.head.contains(styleRef.current)) {
-        document.head.removeChild(styleRef.current);
+      // Safely remove the style element with proper error handling
+      try {
+        if (styleRef.current && styleRef.current.parentNode) {
+          styleRef.current.parentNode.removeChild(styleRef.current);
+        }
+      } catch {
+        // If removal fails, try to remove by ID as fallback
+        try {
+          const styleToRemove = document.getElementById(
+            "reamp-animation-styles"
+          );
+          if (styleToRemove && styleToRemove.parentNode) {
+            styleToRemove.parentNode.removeChild(styleToRemove);
+          }
+        } catch (fallbackError) {
+          // If all else fails, just log the error and continue
+          console.warn("Could not remove animation styles:", fallbackError);
+        }
+      } finally {
         styleRef.current = null;
       }
     };

@@ -64,9 +64,15 @@ function YouTubeSearchContent() {
     `;
     document.head.appendChild(style);
     return () => {
-      const existingStyle = document.getElementById("youtube-animation-styles");
-      if (existingStyle && document.head.contains(existingStyle)) {
-        document.head.removeChild(existingStyle);
+      try {
+        const existingStyle = document.getElementById(
+          "youtube-animation-styles"
+        );
+        if (existingStyle && existingStyle.parentNode) {
+          existingStyle.parentNode.removeChild(existingStyle);
+        }
+      } catch (error) {
+        console.warn("Could not remove YouTube animation styles:", error);
       }
     };
   }, []);

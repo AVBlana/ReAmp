@@ -106,7 +106,23 @@ const Player: React.FC = () => {
     const tag = document.createElement("script");
     tag.src = "https://www.youtube.com/iframe_api";
     const firstScriptTag = document.getElementsByTagName("script")[0];
-    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+
+    try {
+      if (firstScriptTag && firstScriptTag.parentNode) {
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+      } else {
+        // Fallback: append to head
+        document.head.appendChild(tag);
+      }
+    } catch (error) {
+      console.error("Error loading YouTube API script:", error);
+      // Fallback: append to head
+      try {
+        document.head.appendChild(tag);
+      } catch (fallbackError) {
+        console.error("Error with fallback script loading:", fallbackError);
+      }
+    }
 
     window.onYouTubeIframeAPIReady = () => {
       setIsApiReady(true);
@@ -114,10 +130,14 @@ const Player: React.FC = () => {
 
     return () => {
       if (playerRef.current) {
-        playerRef.current.removeEventListener(
-          "onStateChange",
-          handleStateChange
-        );
+        try {
+          playerRef.current.removeEventListener(
+            "onStateChange",
+            handleStateChange
+          );
+        } catch (error) {
+          console.error("Error removing event listener:", error);
+        }
       }
     };
   }, [handleStateChange]);
@@ -177,9 +197,25 @@ const Player: React.FC = () => {
       playerRef.current = null;
     }
 
-    // Clear the container
+    // Safely clear the container
     if (containerRef.current) {
-      containerRef.current.innerHTML = "";
+      try {
+        // Remove all child nodes safely
+        while (containerRef.current.firstChild) {
+          containerRef.current.removeChild(containerRef.current.firstChild);
+        }
+      } catch (error) {
+        console.error("Error clearing container:", error);
+        // Fallback: try innerHTML
+        try {
+          containerRef.current.innerHTML = "";
+        } catch (fallbackError) {
+          console.error(
+            "Error with fallback container clearing:",
+            fallbackError
+          );
+        }
+      }
     }
 
     // Create new player instance
