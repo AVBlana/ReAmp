@@ -555,13 +555,7 @@ export default function SpotifyPlayer() {
             // Next item is also a Spotify track - handle it directly
             const nextTrack = nextItem.data as Song;
             try {
-              // First, set the next track
-              setCurrentSong(nextTrack);
-
-              // Wait a moment for the state to update
-              await new Promise((resolve) => setTimeout(resolve, 100));
-
-              // Use the API to play the next track
+              // Use the API to play the next track directly without changing state first
               const response = await fetch(
                 `https://api.spotify.com/v1/me/player/play?device_id=${activeDeviceId}`,
                 {
@@ -582,6 +576,12 @@ export default function SpotifyPlayer() {
                   `Failed to play next track: ${response.status}`
                 );
               }
+
+              // Only update the current song after successful playback
+              setCurrentSong(nextTrack);
+
+              // Small delay to ensure smooth transition
+              await new Promise((resolve) => setTimeout(resolve, 50));
 
               // Ensure playback starts
               if (playerRef.current) {
@@ -890,6 +890,8 @@ export default function SpotifyPlayer() {
         clearInterval(interval);
       };
     }
+    // Return empty cleanup function when condition is false
+    return () => {};
   }, [isPlaying, isActive]);
 
   // Add style tag for animations
@@ -937,18 +939,18 @@ export default function SpotifyPlayer() {
       @keyframes holographic-glow {
         0%, 100% {
           box-shadow: 
-            0 0 20px rgba(29,185,84,0.6),
-            0 0 40px rgba(29,185,84,0.4),
-            inset 0 0 20px rgba(29,185,84,0.4),
-            0 0 60px rgba(29,185,84,0.2);
+            0 0 20px rgba(255,107,107,0.6),
+            0 0 40px rgba(255,107,107,0.4),
+            inset 0 0 20px rgba(255,107,107,0.4),
+            0 0 60px rgba(255,107,107,0.2);
           filter: brightness(1) hue-rotate(0deg);
         }
         50% {
           box-shadow: 
-            0 0 30px rgba(29,185,84,0.8),
-            0 0 60px rgba(29,185,84,0.6),
-            inset 0 0 30px rgba(29,185,84,0.6),
-            0 0 90px rgba(29,185,84,0.4);
+            0 0 30px rgba(255,107,107,0.8),
+            0 0 60px rgba(255,107,107,0.6),
+            inset 0 0 30px rgba(255,107,107,0.6),
+            0 0 90px rgba(255,107,107,0.4);
           filter: brightness(1.2) hue-rotate(10deg);
         }
       }
@@ -965,24 +967,16 @@ export default function SpotifyPlayer() {
       @keyframes icon-pulse {
         0%, 100% {
           transform: scale(1);
-          filter: drop-shadow(0 0 8px rgba(29,185,84,0.8));
+          filter: drop-shadow(0 0 8px rgba(255,107,107,0.8));
         }
         50% {
           transform: scale(1.1);
-          filter: drop-shadow(0 0 12px rgba(29,185,84,1));
+          filter: drop-shadow(0 0 12px rgba(255,107,107,1));
         }
       }
 
       .futuristic-button {
-        background: linear-gradient(
-          135deg,
-          rgba(29,185,84,0.9) 0%,
-          rgba(46,213,115,0.95) 25%,
-          rgba(29,185,84,0.9) 50%,
-          rgba(46,213,115,0.95) 75%,
-          rgba(29,185,84,0.9) 100%
-        );
-        background-size: 200% 200%;
+        background: rgba(255,107,107,0.9);
         position: relative;
         border: 2px solid rgba(255,255,255,0.2);
         backdrop-filter: blur(5px);
@@ -1024,8 +1018,8 @@ export default function SpotifyPlayer() {
         transform: scale(0.95) translateY(0);
         animation: none;
         box-shadow: 
-          0 0 15px rgba(29,185,84,0.4),
-          inset 0 0 10px rgba(29,185,84,0.3);
+          0 0 15px rgba(255,107,107,0.4),
+          inset 0 0 10px rgba(255,107,107,0.3);
       }
 
       .futuristic-button.disabled {
@@ -1073,7 +1067,7 @@ export default function SpotifyPlayer() {
     document.head.appendChild(style);
     return () => {
       const existingStyle = document.getElementById("vinyl-animation-styles");
-      if (existingStyle) {
+      if (existingStyle && document.head.contains(existingStyle)) {
         document.head.removeChild(existingStyle);
       }
     };
@@ -1116,7 +1110,7 @@ export default function SpotifyPlayer() {
   const renderAlbumArt = (song: Song | null) => {
     if (!song?.artwork?.big?.url) {
       return (
-        <div className="w-full h-full bg-gradient-to-br from-green-600 via-green-500 to-green-700 rounded-full shadow-[0_0_12px_#0008_inset]" />
+        <div className="w-full h-full bg-gradient-to-br from-red-600 via-red-500 to-green-700 rounded-full shadow-[0_0_12px_#0008_inset]" />
       );
     }
 
@@ -1195,7 +1189,7 @@ export default function SpotifyPlayer() {
 
   // Second effect: Check token expiry periodically
   useEffect(() => {
-    if (!tokenExpiryTime) return;
+    if (!tokenExpiryTime) return () => {};
 
     const checkInterval = setInterval(() => {
       if (Date.now() >= tokenExpiryTime) {
@@ -1308,12 +1302,12 @@ export default function SpotifyPlayer() {
   // Move the early return after the useEffect
   if (!currentSong) {
     return (
-      <div className="bg-black/80 rounded-lg shadow-md p-1 sm:p-2 lg:p-4 flex flex-col sm:flex-row items-center w-full h-full gap-2 sm:gap-4">
-        {/* Vinyl Section with Pickup Arm - Left side in portrait */}
-        <div className="w-full sm:w-1/2 flex items-center justify-center relative">
-          <div className="relative w-full max-w-[280px] aspect-square flex items-center justify-center">
+      <div className="rounded-lg p-1 sm:p-2 lg:p-4 flex flex-col items-center w-full h-full gap-4">
+        {/* Vinyl Section with Pickup Arm - Top section in column layout */}
+        <div className="w-full flex items-center justify-center relative">
+          <div className="relative w-full max-w-[500px] lg:max-w-[600px] aspect-square flex items-center justify-center">
             <div
-              className={`relative w-full h-full min-w-[120px] max-w-[280px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_8px_var(--background),0_0_32px_#0008_inset] flex items-center justify-center border-4 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
+              className={`relative w-full h-full min-w-[200px] max-w-[500px] lg:max-w-[600px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_12px_var(--background)] flex items-center justify-center border-6 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
                 isPlaying ? "animate-spin" : ""
               } ${isScratching ? "animate-needle-shake" : ""}`}
               onMouseDown={handleSeekBarMouseDown}
@@ -1324,137 +1318,178 @@ export default function SpotifyPlayer() {
                 } as React.CSSProperties
               }
             >
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/5 h-3/5 rounded-full bg-[var(--background)] shadow-[0_0_0_2px_var(--foreground),0_0_12px_#fff8_inset] overflow-hidden z-10 flex items-center justify-center">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/5 h-3/5 rounded-full bg-[var(--background)] shadow-[0_0_0_3px_var(--foreground),0_0_18px_#fff8_inset] overflow-hidden z-10 flex items-center justify-center">
                 {renderAlbumArt(currentSong as Song | null)}
               </div>
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[var(--background)] border-2 border-[var(--foreground)] z-20" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[var(--background)] border-3 border-[var(--foreground)] z-20" />
             </div>
 
-            {/* SVG Pickup Arm/Needle - Properly positioned */}
-            <svg
-              className={`absolute top-[8%] right-[8%] w-1/3 h-1/3 pointer-events-none z-20 transition-transform duration-500 ease-in-out ${
-                isPlaying ? "rotate-[25deg]" : "rotate-[5deg]"
+            {/* Enhanced Holographic Laser Scanner Pickup Needle */}
+            <div
+              className={`absolute top-[15%] right-[-15%] w-1/3 h-1/3 lg:w-2/5 lg:h-2/5 pointer-events-none z-20 transition-transform duration-500 ease-in-out ${
+                isPlaying ? "rotate-[35deg]" : "rotate-[15deg]"
               } ${isScratching ? "animate-needle-shake" : ""}`}
               style={
                 {
-                  transform: `rotate(${isPlaying ? "25deg" : "5deg"})`,
-                  transformOrigin: "60px 8px",
-                  filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))",
+                  transform: `rotate(${isPlaying ? "35deg" : "15deg"})`,
+                  transformOrigin: "80px 12px",
                 } as React.CSSProperties
               }
-              viewBox="0 0 120 120"
             >
-              <rect
-                x="55"
-                y="8"
-                width="6"
-                height="50"
-                rx="3"
-                fill="var(--foreground)"
-              />
-              <rect
-                x="58"
-                y="55"
-                width="4"
-                height="25"
-                rx="2"
-                fill="var(--foreground)"
-              />
-              <rect
-                x="59.5"
-                y="80"
-                width="1"
-                height="12"
-                rx="0.5"
-                fill="var(--foreground)"
-              />
-              <circle
-                cx="58"
-                cy="8"
-                r="5"
-                fill="var(--background)"
-                stroke="var(--foreground)"
-                strokeWidth="1.5"
-              />
-            </svg>
+              {/* Main Needle Arm - Futuristic Design */}
+              <div className="relative w-full h-full">
+                {/* Needle Base Circle */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-gradient-to-br from-red-400 to-red-600 border-2 border-red-300 shadow-[0_0_20px_rgba(255,107,107,0.8),inset_0_0_10px_rgba(255,107,107,0.4)] z-30" />
+
+                {/* Main Needle Arm */}
+                <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-1.5 h-16 bg-gradient-to-b from-red-400 via-red-500 to-red-600 rounded-full shadow-[0_0_15px_rgba(255,107,107,0.6)] z-20" />
+
+                {/* Needle Tip */}
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0.5 h-5 bg-gradient-to-b from-red-300 to-red-500 rounded-full shadow-[0_0_10px_rgba(255,107,107,0.8)] z-10" />
+
+                {/* Holographic Laser Beam - Enhanced Visibility */}
+                {isPlaying && (
+                  <div
+                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-24 bg-gradient-to-b from-red-400/80 via-red-300/60 to-transparent rounded-full z-5"
+                    style={{
+                      boxShadow: `
+                        0 0 30px rgba(255,107,107,0.8),
+                        0 0 60px rgba(255,107,107,0.5),
+                        0 0 90px rgba(255,107,107,0.3),
+                        inset 0 0 20px rgba(255,107,107,0.4)
+                      `,
+                      opacity: 0.9,
+                    }}
+                  >
+                    {/* Scanning Data Stream */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-red-400/40 via-red-300/30 to-transparent animate-pulse" />
+
+                    {/* Bouncing Particles */}
+                    <div
+                      className="absolute top-3 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-red-300 rounded-full animate-bounce shadow-[0_0_8px_rgba(255,107,107,0.8)]"
+                      style={{
+                        animationDelay: "0s",
+                        animationDuration: "1.2s",
+                      }}
+                    />
+                    <div
+                      className="absolute top-9 left-1/2 -translate-x-1/2 w-1 h-1 bg-red-400 rounded-full animate-bounce shadow-[0_0_6px_rgba(255,107,107,0.8)]"
+                      style={{
+                        animationDelay: "0.3s",
+                        animationDuration: "1.5s",
+                      }}
+                    />
+                    <div
+                      className="absolute top-15 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-red-400 rounded-full animate-bounce shadow-[0_0_8px_rgba(255,107,107,0.8)]"
+                      style={{
+                        animationDelay: "0.6s",
+                        animationDuration: "1.8s",
+                      }}
+                    />
+                    <div
+                      className="absolute top-21 left-1/2 -translate-x-1/2 w-1 h-1 bg-red-300 rounded-full animate-bounce shadow-[0_0_6px_rgba(255,107,107,0.8)]"
+                      style={{
+                        animationDelay: "0.9s",
+                        animationDuration: "1.3s",
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Holographic Counterweight */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -ml-6 w-3 h-2 bg-gradient-to-r from-red-400 to-red-500 rounded-full shadow-[0_0_10px_rgba(255,107,107,0.6)] z-25" />
+
+                {/* Energy Field Around Needle */}
+                {isPlaying && (
+                  <div
+                    className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-24 rounded-full opacity-20"
+                    style={{
+                      background:
+                        "radial-gradient(ellipse at center, rgba(255,107,107,0.3) 0%, transparent 70%)",
+                      boxShadow: "0 0 40px rgba(255,107,107,0.2)",
+                    }}
+                  />
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Controls Section - Right side in portrait */}
-        <div className="w-full sm:w-1/2 flex flex-col justify-center items-center gap-2 sm:gap-3">
+        {/* Controls Section - Bottom section in column layout */}
+        <div className="w-full flex flex-col justify-center items-center gap-3">
           {/* Control Buttons */}
-          <div className="flex justify-center items-center gap-2 sm:gap-3 mb-2">
+          <div className="flex justify-center items-center gap-3 mb-3">
             {renderControlButton(
               togglePlay,
-              isPlaying ? renderIcon(FaPause, 20) : renderIcon(FaPlay, 20)
+              isPlaying ? renderIcon(FaPause, 24) : renderIcon(FaPlay, 24)
             )}
-            {renderControlButton(handleStop, renderIcon(FaStop, 20))}
+            {renderControlButton(handleStop, renderIcon(FaStop, 24))}
             {renderControlButton(
               handleFastForward,
-              renderIcon(FaFastForward, 20)
+              renderIcon(FaFastForward, 24)
             )}
             {renderControlButton(
               toggleMute,
               isMuted
-                ? renderIcon(FaVolumeMute, 18)
-                : renderIcon(FaVolumeUp, 18)
+                ? renderIcon(FaVolumeMute, 22)
+                : renderIcon(FaVolumeUp, 22)
             )}
           </div>
 
           {/* Volume Slider */}
-          <div className="flex items-center gap-2 w-full max-w-[300px] mb-2">
-            <span className="text-[var(--foreground)] font-mono text-xs min-w-[24px] text-right">
+          <div className="flex items-center gap-2 w-full max-w-[350px] mb-3">
+            <span className="text-[var(--foreground)] font-mono text-sm min-w-[32px] text-right">
               VOL
             </span>
             <div
-              className="relative flex-1 h-[12px] flex items-center mx-2 min-w-[80px] cursor-pointer volume-bar-container"
+              className="relative flex-1 h-[14px] flex items-center mx-2 min-w-[100px] cursor-pointer volume-bar-container"
               onMouseDown={handleVolumeBarMouseDown}
             >
               <div className="absolute top-1/2 left-0 w-full h-2 -translate-y-1/2 bg-[var(--foreground)] opacity-12 rounded-md pointer-events-none z-0" />
               <div
-                className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-green-500 rounded-md pointer-events-none z-10 transition-[width] duration-150"
+                className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-red-500 rounded-md pointer-events-none z-10 transition-[width] duration-150"
                 style={{ width: `${displayVolume}%` }}
               />
             </div>
-            <span className="text-[var(--foreground)] font-mono text-xs min-w-[24px] text-right">
+            <span className="text-[var(--foreground)] font-mono text-sm min-w-[32px] text-right">
               {displayVolume}%
             </span>
           </div>
 
           {/* Seek Slider */}
-          <div className="flex items-center gap-2 w-full max-w-[300px] mb-2">
-            <span className="text-[var(--foreground)] font-mono text-xs min-w-[24px] text-right">
+          <div className="flex items-center gap-2 w-full max-w-[350px] mb-3">
+            <span className="text-[var(--foreground)] font-mono text-sm min-w-[32px] text-right">
               {formatTime(
                 isSeeking && seekPreview !== null ? seekPreview : progress
               )}
             </span>
             <div
-              className="relative flex-1 h-[12px] flex items-center mx-2 min-w-[80px] cursor-pointer seek-bar-container"
+              className="relative flex-1 h-[14px] flex items-center mx-2 min-w-[100px] cursor-pointer seek-bar-container"
               onMouseDown={handleSeekBarMouseDown}
             >
               <div className="absolute top-1/2 left-0 w-full h-2 -translate-y-1/2 bg-[var(--foreground)] opacity-12 rounded-md pointer-events-none z-0" />
               <div
-                className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-green-500 rounded-md pointer-events-none z-10 transition-[width] duration-150 linear"
+                className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-red-500 rounded-md pointer-events-none z-10 transition-[width] duration-150 linear"
                 style={{
-                  width: `${
-                    duration
-                      ? ((isSeeking && seekPreview !== null
+                  width: duration
+                    ? `${
+                        ((isSeeking && seekPreview !== null
                           ? seekPreview
                           : progress) /
                           duration) *
                         100
-                      : 0
-                  }%`,
+                      }%`
+                    : "0%",
                 }}
               />
             </div>
-            <span className="text-[var(--foreground)] font-mono text-xs min-w-[24px] text-right">
+            <span className="text-[var(--foreground)] font-mono text-sm min-w-[32px] text-right">
               {formatTime(duration)}
             </span>
           </div>
 
           {/* Song Info */}
-          <div className="text-center w-full max-w-[300px]">
+          <div className="text-center w-full max-w-[350px]">
             {renderSongInfo(currentSong as Song | null)}
           </div>
         </div>
@@ -1463,12 +1498,12 @@ export default function SpotifyPlayer() {
   }
 
   return (
-    <div className="bg-black/80 rounded-lg shadow-md p-1 sm:p-2 lg:p-4 flex flex-col sm:flex-row items-center w-full h-full gap-2 sm:gap-4">
-      {/* Vinyl Section with Pickup Arm - Left side in portrait */}
-      <div className="w-full sm:w-1/2 flex items-center justify-center relative">
-        <div className="relative w-full max-w-[280px] aspect-square flex items-center justify-center">
+    <div className="rounded-lg p-1 sm:p-2 lg:p-4 flex flex-col items-center w-full h-full gap-4">
+      {/* Vinyl Section with Pickup Arm - Top section in column layout */}
+      <div className="w-full flex items-center justify-center relative">
+        <div className="relative w-full max-w-[500px] lg:max-w-[600px] aspect-square flex items-center justify-center">
           <div
-            className={`relative w-full h-full min-w-[120px] max-w-[280px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_8px_var(--background),0_0_32px_#0008_inset] flex items-center justify-center border-4 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
+            className={`relative w-full h-full min-w-[200px] max-w-[500px] lg:max-w-[600px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_12px_var(--background)] flex items-center justify-center border-6 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
               isPlaying ? "animate-spin" : ""
             } ${isScratching ? "animate-needle-shake" : ""}`}
             onMouseDown={handleSeekBarMouseDown}
@@ -1479,135 +1514,176 @@ export default function SpotifyPlayer() {
               } as React.CSSProperties
             }
           >
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/5 h-3/5 rounded-full bg-[var(--background)] shadow-[0_0_0_2px_var(--foreground),0_0_12px_#fff8_inset] overflow-hidden z-10 flex items-center justify-center">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/5 h-3/5 rounded-full bg-[var(--background)] shadow-[0_0_0_3px_var(--foreground),0_0_18px_#fff8_inset] overflow-hidden z-10 flex items-center justify-center">
               {renderAlbumArt(currentSong as Song | null)}
             </div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[var(--background)] border-2 border-[var(--foreground)] z-20" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[var(--background)] border-3 border-[var(--foreground)] z-20" />
           </div>
 
-          {/* SVG Pickup Arm/Needle - Properly positioned */}
-          <svg
-            className={`absolute top-[8%] right-[8%] w-1/3 h-1/3 pointer-events-none z-20 transition-transform duration-500 ease-in-out ${
-              isPlaying ? "rotate-[25deg]" : "rotate-[5deg]"
+          {/* Enhanced Holographic Laser Scanner Pickup Needle */}
+          <div
+            className={`absolute top-[15%] right-[-15%] w-1/3 h-1/3 lg:w-2/5 lg:h-2/5 pointer-events-none z-20 transition-transform duration-500 ease-in-out ${
+              isPlaying ? "rotate-[35deg]" : "rotate-[15deg]"
             } ${isScratching ? "animate-needle-shake" : ""}`}
             style={
               {
-                transform: `rotate(${isPlaying ? "25deg" : "5deg"})`,
-                transformOrigin: "60px 8px",
-                filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))",
+                transform: `rotate(${isPlaying ? "35deg" : "15deg"})`,
+                transformOrigin: "80px 12px",
               } as React.CSSProperties
             }
-            viewBox="0 0 120 120"
           >
-            <rect
-              x="55"
-              y="8"
-              width="6"
-              height="50"
-              rx="3"
-              fill="var(--foreground)"
-            />
-            <rect
-              x="58"
-              y="55"
-              width="4"
-              height="25"
-              rx="2"
-              fill="var(--foreground)"
-            />
-            <rect
-              x="59.5"
-              y="80"
-              width="1"
-              height="12"
-              rx="0.5"
-              fill="var(--foreground)"
-            />
-            <circle
-              cx="58"
-              cy="8"
-              r="5"
-              fill="var(--background)"
-              stroke="var(--foreground)"
-              strokeWidth="1.5"
-            />
-          </svg>
+            {/* Main Needle Arm - Futuristic Design */}
+            <div className="relative w-full h-full">
+              {/* Needle Base Circle */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-gradient-to-br from-red-400 to-red-600 border-2 border-red-300 shadow-[0_0_20px_rgba(255,107,107,0.8),inset_0_0_10px_rgba(255,107,107,0.4)] z-30" />
+
+              {/* Main Needle Arm */}
+              <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-1.5 h-16 bg-gradient-to-b from-red-400 via-red-500 to-red-600 rounded-full shadow-[0_0_15px_rgba(255,107,107,0.6)] z-20" />
+
+              {/* Needle Tip */}
+              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0.5 h-5 bg-gradient-to-b from-red-300 to-red-500 rounded-full shadow-[0_0_10px_rgba(255,107,107,0.8)] z-10" />
+
+              {/* Holographic Laser Beam - Enhanced Visibility */}
+              {isPlaying && (
+                <div
+                  className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-24 bg-gradient-to-b from-red-400/80 via-red-300/60 to-transparent rounded-full z-5"
+                  style={{
+                    boxShadow: `
+                        0 0 30px rgba(255,107,107,0.8),
+                        0 0 60px rgba(255,107,107,0.5),
+                        0 0 90px rgba(255,107,107,0.3),
+                        inset 0 0 20px rgba(255,107,107,0.4)
+                      `,
+                    opacity: 0.9,
+                  }}
+                >
+                  {/* Scanning Data Stream */}
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-red-400/40 via-red-300/30 to-transparent animate-pulse" />
+
+                  {/* Bouncing Particles */}
+                  <div
+                    className="absolute top-3 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-red-300 rounded-full animate-bounce shadow-[0_0_8px_rgba(255,107,107,0.8)]"
+                    style={{
+                      animationDelay: "0s",
+                      animationDuration: "1.2s",
+                    }}
+                  />
+                  <div
+                    className="absolute top-9 left-1/2 -translate-x-1/2 w-1 h-1 bg-red-400 rounded-full animate-bounce shadow-[0_0_6px_rgba(255,107,107,0.8)]"
+                    style={{
+                      animationDelay: "0.3s",
+                      animationDuration: "1.5s",
+                    }}
+                  />
+                  <div
+                    className="absolute top-15 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-red-400 rounded-full animate-bounce shadow-[0_0_8px_rgba(255,107,107,0.8)]"
+                    style={{
+                      animationDelay: "0.6s",
+                      animationDuration: "1.8s",
+                    }}
+                  />
+                  <div
+                    className="absolute top-21 left-1/2 -translate-x-1/2 w-1 h-1 bg-red-300 rounded-full animate-bounce shadow-[0_0_6px_rgba(255,107,107,0.8)]"
+                    style={{
+                      animationDelay: "0.9s",
+                      animationDuration: "1.3s",
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Holographic Counterweight */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 -ml-6 w-3 h-2 bg-gradient-to-r from-red-400 to-red-500 rounded-full shadow-[0_0_10px_rgba(255,107,107,0.6)] z-25" />
+
+              {/* Energy Field Around Needle */}
+              {isPlaying && (
+                <div
+                  className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-24 rounded-full opacity-20"
+                  style={{
+                    background:
+                      "radial-gradient(ellipse at center, rgba(255,107,107,0.3) 0%, transparent 70%)",
+                    boxShadow: "0 0 40px rgba(255,107,107,0.2)",
+                  }}
+                />
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Controls Section - Right side in portrait */}
-      <div className="w-full sm:w-1/2 flex flex-col justify-center items-center gap-2 sm:gap-3">
+      {/* Controls Section - Bottom section in column layout */}
+      <div className="w-full flex flex-col justify-center items-center gap-3">
         {/* Control Buttons */}
-        <div className="flex justify-center items-center gap-2 sm:gap-3 mb-2">
+        <div className="flex justify-center items-center gap-3 mb-3">
           {renderControlButton(
             togglePlay,
-            isPlaying ? renderIcon(FaPause, 20) : renderIcon(FaPlay, 20)
+            isPlaying ? renderIcon(FaPause, 24) : renderIcon(FaPlay, 24)
           )}
-          {renderControlButton(handleStop, renderIcon(FaStop, 20))}
+          {renderControlButton(handleStop, renderIcon(FaStop, 24))}
           {renderControlButton(
             handleFastForward,
-            renderIcon(FaFastForward, 20)
+            renderIcon(FaFastForward, 24)
           )}
           {renderControlButton(
             toggleMute,
-            isMuted ? renderIcon(FaVolumeMute, 18) : renderIcon(FaVolumeUp, 18)
+            isMuted ? renderIcon(FaVolumeMute, 22) : renderIcon(FaVolumeUp, 22)
           )}
         </div>
 
         {/* Volume Slider */}
-        <div className="flex items-center gap-2 w-full max-w-[300px] mb-2">
-          <span className="text-[var(--foreground)] font-mono text-xs min-w-[24px] text-right">
+        <div className="flex items-center gap-2 w-full max-w-[350px] mb-3">
+          <span className="text-[var(--foreground)] font-mono text-sm min-w-[32px] text-right">
             VOL
           </span>
           <div
-            className="relative flex-1 h-[12px] flex items-center mx-2 min-w-[80px] cursor-pointer volume-bar-container"
+            className="relative flex-1 h-[14px] flex items-center mx-2 min-w-[100px] cursor-pointer volume-bar-container"
             onMouseDown={handleVolumeBarMouseDown}
           >
             <div className="absolute top-1/2 left-0 w-full h-2 -translate-y-1/2 bg-[var(--foreground)] opacity-12 rounded-md pointer-events-none z-0" />
             <div
-              className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-green-500 rounded-md pointer-events-none z-10 transition-[width] duration-150"
+              className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-red-500 rounded-md pointer-events-none z-10 transition-[width] duration-150"
               style={{ width: `${displayVolume}%` }}
             />
           </div>
-          <span className="text-[var(--foreground)] font-mono text-xs min-w-[24px] text-right">
+          <span className="text-[var(--foreground)] font-mono text-sm min-w-[32px] text-right">
             {displayVolume}%
           </span>
         </div>
 
         {/* Seek Slider */}
-        <div className="flex items-center gap-2 w-full max-w-[300px] mb-2">
-          <span className="text-[var(--foreground)] font-mono text-xs min-w-[24px] text-right">
+        <div className="flex items-center gap-2 w-full max-w-[350px] mb-3">
+          <span className="text-[var(--foreground)] font-mono text-sm min-w-[32px] text-right">
             {formatTime(
               isSeeking && seekPreview !== null ? seekPreview : progress
             )}
           </span>
           <div
-            className="relative flex-1 h-[12px] flex items-center mx-2 min-w-[80px] cursor-pointer seek-bar-container"
+            className="relative flex-1 h-[14px] flex items-center mx-2 min-w-[100px] cursor-pointer seek-bar-container"
             onMouseDown={handleSeekBarMouseDown}
           >
             <div className="absolute top-1/2 left-0 w-full h-2 -translate-y-1/2 bg-[var(--foreground)] opacity-12 rounded-md pointer-events-none z-0" />
             <div
-              className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-green-500 rounded-md pointer-events-none z-10 transition-[width] duration-150 linear"
+              className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-red-500 rounded-md pointer-events-none z-10 transition-[width] duration-150 linear"
               style={{
-                width: `${
-                  duration
-                    ? ((isSeeking && seekPreview !== null
+                width: duration
+                  ? `${
+                      ((isSeeking && seekPreview !== null
                         ? seekPreview
                         : progress) /
                         duration) *
                       100
-                    : 0
-                }%`,
+                    }%`
+                  : "0%",
               }}
             />
           </div>
-          <span className="text-[var(--foreground)] font-mono text-xs min-w-[24px] text-right">
+          <span className="text-[var(--foreground)] font-mono text-sm min-w-[32px] text-right">
             {formatTime(duration)}
           </span>
         </div>
 
         {/* Song Info */}
-        <div className="text-center w-full max-w-[300px]">
+        <div className="text-center w-full max-w-[350px]">
           {renderSongInfo(currentSong as Song | null)}
         </div>
       </div>

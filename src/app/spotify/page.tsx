@@ -56,6 +56,7 @@ function SpotifySearchContent() {
   // Add the animation styles
   useEffect(() => {
     const style = document.createElement("style");
+    style.id = "spotify-animation-styles";
     style.textContent = `
       @keyframes glow {
         0%, 100% {
@@ -71,7 +72,10 @@ function SpotifySearchContent() {
     `;
     document.head.appendChild(style);
     return () => {
-      document.head.removeChild(style);
+      const existingStyle = document.getElementById("spotify-animation-styles");
+      if (existingStyle && document.head.contains(existingStyle)) {
+        document.head.removeChild(existingStyle);
+      }
     };
   }, []);
 

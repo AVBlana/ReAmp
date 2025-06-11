@@ -48,6 +48,7 @@ function YouTubeSearchContent() {
   // Add the animation styles
   useEffect(() => {
     const style = document.createElement("style");
+    style.id = "youtube-animation-styles";
     style.textContent = `
       @keyframes glow {
         0%, 100% {
@@ -63,7 +64,10 @@ function YouTubeSearchContent() {
     `;
     document.head.appendChild(style);
     return () => {
-      document.head.removeChild(style);
+      const existingStyle = document.getElementById("youtube-animation-styles");
+      if (existingStyle && document.head.contains(existingStyle)) {
+        document.head.removeChild(existingStyle);
+      }
     };
   }, []);
 

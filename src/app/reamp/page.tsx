@@ -6,7 +6,7 @@ import UnifiedSearch from "../components/UnifiedSearch";
 import UnifiedPlayer from "../components/UnifiedPlayer";
 import UnifiedPlaylistView from "../components/UnifiedPlaylistView";
 import { useUnifiedContext } from "@/context/UnifiedContext";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { configureWebGL } from "../utils/webglConfig";
 import { ServiceType, Song } from "@/types/playerTypes";
 import { getYouTubeVideos } from "../components/Services/YtService";
@@ -38,6 +38,7 @@ function ReAMPContent() {
   const [spotifyNextPageToken, setSpotifyNextPageToken] = useState<
     string | null
   >(null);
+  const styleRef = useRef<HTMLStyleElement | null>(null);
 
   useEffect(() => {
     configureWebGL();
@@ -45,7 +46,15 @@ function ReAMPContent() {
 
   // Add the animation styles
   useEffect(() => {
+    // Check if style already exists to avoid duplicates
+    const existingStyle = document.getElementById("reamp-animation-styles");
+    if (existingStyle) {
+      styleRef.current = existingStyle as HTMLStyleElement;
+      return;
+    }
+
     const style = document.createElement("style");
+    style.id = "reamp-animation-styles";
     style.textContent = `
       @keyframes glow {
         0%, 100% {
@@ -58,10 +67,29 @@ function ReAMPContent() {
       .animate-glow {
         animation: glow 1.5s ease-in-out infinite;
       }
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 8px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #FF6B6B;
+        border-radius: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 107, 107, 0.8);
+      }
     `;
     document.head.appendChild(style);
+    styleRef.current = style;
+
     return () => {
-      document.head.removeChild(style);
+      // Only remove if the style element still exists and is a child of document.head
+      if (styleRef.current && document.head.contains(styleRef.current)) {
+        document.head.removeChild(styleRef.current);
+        styleRef.current = null;
+      }
     };
   }, []);
 
@@ -284,8 +312,8 @@ function ReAMPContent() {
 
           {/* Content Section - Playlist and Player */}
           <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
-            {/* Playlist Section - Always visible in desktop mode */}
-            <div className="w-full lg:w-1/3 bg-black/20 rounded-lg overflow-hidden flex flex-col min-h-[300px] lg:min-h-0">
+            {/* Playlist Section - Smaller in portrait mode, normal in desktop */}
+            <div className="w-full lg:w-1/3 bg-black/20 rounded-lg overflow-hidden flex flex-col min-h-[200px] lg:min-h-0 max-h-[40vh] lg:max-h-none">
               <div className="flex-1 overflow-y-auto custom-scrollbar">
                 <div className="p-4">
                   <UnifiedPlaylistView />
@@ -294,9 +322,9 @@ function ReAMPContent() {
             </div>
 
             {/* Player Section - Full width in portrait mode */}
-            <div className="w-full lg:w-2/3 bg-black rounded-lg overflow-hidden flex flex-col min-h-[500px] lg:min-h-0">
+            <div className="w-full lg:w-2/3 rounded-lg overflow-hidden flex flex-col min-h-[600px] lg:min-h-0">
               {/* Container that adapts based on active service */}
-              <div className="flex-1 relative min-h-[500px] lg:min-h-0">
+              <div className="flex-1 relative min-h-[600px] lg:min-h-0">
                 <UnifiedPlayer />
               </div>
             </div>
@@ -306,25 +334,6 @@ function ReAMPContent() {
     </div>
   );
 }
-
-// Add custom scrollbar styles
-const style = document.createElement("style");
-style.textContent = `
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 8px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #FF6B6B;
-    border-radius: 4px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 107, 107, 0.8);
-  }
-`;
-document.head.appendChild(style);
 
 export default function ReAMPPage() {
   return (

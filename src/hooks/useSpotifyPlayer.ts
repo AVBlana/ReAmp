@@ -221,7 +221,9 @@ const useSpotifyPlayer = () => {
         playerRef.current.disconnect();
         playerRef.current = null;
       }
-      document.body.removeChild(script);
+      if (script && document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
       isInitialized.current = false;
     };
   }, [spotifyToken]);
