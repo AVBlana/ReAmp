@@ -408,7 +408,7 @@ const PlaylistLibrary: React.FC<PlaylistLibraryProps> = ({
       </div>
       <button
         onClick={handleCreatePlaylist}
-        className="flex-none w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-secondary)] hover:from-[var(--theme-secondary)] hover:to-[var(--theme-primary)] text-white transition-all duration-500 hover:scale-105 shadow-lg hover:shadow-[var(--theme-primary)]/30 backdrop-blur-sm border border-white/10"
+        className="flex-none w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-[#FF6B6B] to-[#FF6B6B]/80 hover:from-[#FF6B6B]/80 hover:to-[#FF6B6B] text-white transition-all duration-500 hover:scale-105 shadow-lg hover:shadow-[#FF6B6B]/30 backdrop-blur-sm border border-white/10"
         title="Create New Playlist"
       >
         <FaPlus

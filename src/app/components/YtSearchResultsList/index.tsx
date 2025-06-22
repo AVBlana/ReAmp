@@ -80,7 +80,7 @@ const YtSearchResultsList: React.FC<YtSearchResultsListProps> = ({
                   (item: YoutubeVideo) => item.id.videoId === video.id.videoId
                 )
                   ? "bg-gray-400/20 cursor-not-allowed text-gray-400"
-                  : "bg-[#FF0000] hover:bg-[#FF0000]/80 text-white hover:scale-105 shadow-lg hover:shadow-[#FF0000]/20 group-hover:animate-pulse"
+                  : "bg-[#FF6B6B] hover:bg-[#FF6B6B]/80 text-white hover:scale-105 shadow-lg hover:shadow-[#FF6B6B]/20 group-hover:animate-pulse"
               }`}
               title={
                 playlist.some(
@@ -103,7 +103,7 @@ const YtSearchResultsList: React.FC<YtSearchResultsListProps> = ({
         <div className="mt-6 flex justify-center">
           <button
             onClick={onLoadMore}
-            className="px-6 py-2 bg-[#FF0000] text-white rounded-full hover:bg-[#FF0000]/80 transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-[#FF0000]/20 hover:scale-105 border border-[#FF0000]/20"
+            className="px-6 py-2 bg-[#FF6B6B] text-white rounded-full hover:bg-[#FF6B6B]/80 transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-[#FF6B6B]/20 hover:scale-105 border border-[#FF6B6B]/20"
           >
             <span>Load More</span>
             <svg

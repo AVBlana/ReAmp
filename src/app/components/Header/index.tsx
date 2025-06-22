@@ -25,71 +25,8 @@ export default function Header({
           <div className="flex items-center space-x-3 w-full lg:w-auto justify-between lg:justify-start">
             <div className="flex items-center space-x-3">
               {icon && icon}
-              <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#1DB954] to-[#FF0000] tracking-tighter relative">
+              <h1 className="text-2xl font-bold text-[#FF6B6B] tracking-tighter relative">
                 {title}
-                <style jsx>{`
-                  .seed {
-                    position: absolute;
-                    background: linear-gradient(to right, #1db954, #ff0000);
-                    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-                    opacity: 0.95;
-                    filter: brightness(1.2) contrast(1.2);
-                  }
-                  .seed-1 {
-                    --rotation: -45deg;
-                    width: 3px;
-                    height: 5px;
-                    top: 45%;
-                    left: 15%;
-                    transform: rotate(-45deg);
-                  }
-                  .seed-2 {
-                    --rotation: 30deg;
-                    width: 2.5px;
-                    height: 4px;
-                    top: 45%;
-                    right: 25%;
-                    transform: rotate(30deg);
-                  }
-                  .seed-3 {
-                    --rotation: -20deg;
-                    width: 2px;
-                    height: 3.5px;
-                    top: 45%;
-                    left: 30%;
-                    transform: rotate(-20deg);
-                  }
-                  .seed-4 {
-                    --rotation: 45deg;
-                    width: 2.5px;
-                    height: 4px;
-                    top: 45%;
-                    right: 15%;
-                    transform: rotate(45deg);
-                  }
-                  .seed-5 {
-                    --rotation: -30deg;
-                    width: 2px;
-                    height: 3px;
-                    top: 45%;
-                    right: 30%;
-                    transform: rotate(-30deg);
-                  }
-                  .seed-6 {
-                    --rotation: 15deg;
-                    width: 2.5px;
-                    height: 3.5px;
-                    top: 45%;
-                    left: 25%;
-                    transform: rotate(15deg);
-                  }
-                `}</style>
-                <span className="seed seed-1"></span>
-                <span className="seed seed-2"></span>
-                <span className="seed seed-3"></span>
-                <span className="seed seed-4"></span>
-                <span className="seed seed-5"></span>
-                <span className="seed seed-6"></span>
               </h1>
             </div>
             {/* Show home and logout on mobile */}

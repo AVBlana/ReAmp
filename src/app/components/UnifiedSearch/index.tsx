@@ -325,9 +325,7 @@ export default function UnifiedSearch({
                     className={`p-1.5 rounded-full ${
                       isInPlaylist
                         ? "bg-gray-500 cursor-not-allowed"
-                        : isYoutube
-                        ? "bg-[#FF0000] hover:bg-[#FF0000]/80"
-                        : "bg-[#1DB954] hover:bg-[#1DB954]/80"
+                        : "bg-[#FF6B6B] hover:bg-[#FF6B6B]/80"
                     } transition-colors`}
                     title={
                       isInPlaylist ? "Already in playlist" : "Add to playlist"

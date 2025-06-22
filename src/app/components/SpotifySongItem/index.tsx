@@ -53,7 +53,7 @@ export default function SpotifySongItem({
           className={`p-2 rounded-full transition-all duration-300 ${
             isInPlaylist
               ? "bg-gray-400/20 cursor-not-allowed text-gray-400"
-              : "bg-[#1DB954] hover:bg-[#1DB954]/80 text-white hover:scale-105 shadow-lg hover:shadow-[#1DB954]/20 group-hover:animate-pulse"
+              : "bg-[#FF6B6B] hover:bg-[#FF6B6B]/80 text-white hover:scale-105 shadow-lg hover:shadow-[#FF6B6B]/20 group-hover:animate-pulse"
           }`}
           title={isInPlaylist ? "Already in playlist" : "Add to playlist"}
           disabled={isInPlaylist}
@@ -97,7 +97,7 @@ export default function SpotifySongItem({
           className={`p-2 rounded-full transition-all duration-300 ${
             isInPlaylist
               ? "bg-gray-400/20 cursor-not-allowed text-gray-400"
-              : "bg-[#1DB954] hover:bg-[#1DB954]/80 text-white hover:scale-105 shadow-lg hover:shadow-[#1DB954]/20 group-hover:animate-pulse"
+              : "bg-[#FF6B6B] hover:bg-[#FF6B6B]/80 text-white hover:scale-105 shadow-lg hover:shadow-[#FF6B6B]/20 group-hover:animate-pulse"
           }`}
           title={isInPlaylist ? "Already in playlist" : "Add to playlist"}
           disabled={isInPlaylist}

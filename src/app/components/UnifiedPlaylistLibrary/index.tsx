@@ -152,7 +152,7 @@ const PlaylistItem = memo(
             onClick={onSelect}
             className={`flex-none w-12 h-12 rounded-lg flex items-center justify-center transition-all duration-500 ${
               isActive
-                ? "bg-gradient-to-br from-white/20 to-white/10 shadow-lg shadow-[var(--theme-primary)]/20 backdrop-blur-sm border border-white/10"
+                ? "bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm border-2 border-[#FF6B6B] shadow-[0_0_8px_rgba(255,107,107,0.6)]"
                 : "hover:bg-gradient-to-br hover:from-white/10 hover:to-white/5 backdrop-blur-sm border border-transparent hover:border-white/5"
             }`}
           >
@@ -313,7 +313,7 @@ const UnifiedPlaylistLibrary = memo(
         {/* Create New Playlist Button */}
         <button
           onClick={handleCreatePlaylist}
-          className="flex-none w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-[var(--theme-primary)] to-[var(--theme-secondary)] hover:from-[var(--theme-secondary)] hover:to-[var(--theme-primary)] text-white transition-all duration-500 hover:scale-105 shadow-lg hover:shadow-[var(--theme-primary)]/30 backdrop-blur-sm border border-white/10"
+          className="flex-none w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-[#FF6B6B] to-[#FF6B6B]/80 hover:from-[#FF6B6B]/80 hover:to-[#FF6B6B] text-white transition-all duration-500 hover:scale-105 shadow-lg hover:shadow-[#FF6B6B]/30 backdrop-blur-sm border border-white/10"
           title="Create New Playlist"
         >
           <FaPlus

@@ -33,33 +33,42 @@ const PlaylistItemContent = memo(
     item,
     style,
     isDragging,
+    isCurrentlyPlaying,
   }: {
     item: UnifiedPlaylistItem;
     style: React.CSSProperties;
     isDragging: boolean;
-  }) => (
-    <div
-      className={`flex items-center space-x-4 p-3 ${
-        isDragging ? "bg-[#FF6B6B]/10" : "hover:bg-[#FF6B6B]/5"
-      } transition-colors`}
-      style={style}
-    >
-      <PlaylistItem item={item.data} service={item.type} />
-      <div className="flex-shrink-0">
-        {item.type === ServiceType.Youtube ? (
-          <FaYoutube className="text-[#FF0000]" size={16} />
-        ) : (
-          <FaSpotify className="text-[#1DB954]" size={16} />
-        )}
+    isCurrentlyPlaying: boolean;
+  }) => {
+    return (
+      <div
+        className={`flex items-center space-x-4 p-3 ${
+          isDragging ? "bg-[#FF6B6B]/10" : "hover:bg-[#FF6B6B]/5"
+        } transition-colors ${
+          isCurrentlyPlaying
+            ? "border-2 border-[#FF6B6B] shadow-[0_0_8px_rgba(255,107,107,0.6)]"
+            : ""
+        }`}
+        style={style}
+      >
+        <PlaylistItem item={item.data} service={item.type} />
+        <div className="flex-shrink-0">
+          {item.type === ServiceType.Youtube ? (
+            <FaYoutube className="text-[#FF0000]" size={16} />
+          ) : (
+            <FaSpotify className="text-[#1DB954]" size={16} />
+          )}
+        </div>
       </div>
-    </div>
-  ),
+    );
+  },
   (prev, next) => {
     return (
       prev.item.id === next.item.id &&
       prev.item.type === next.item.type &&
       prev.style === next.style &&
-      prev.isDragging === next.isDragging
+      prev.isDragging === next.isDragging &&
+      prev.isCurrentlyPlaying === next.isCurrentlyPlaying
     );
   }
 );
@@ -67,41 +76,48 @@ const PlaylistItemContent = memo(
 PlaylistItemContent.displayName = "PlaylistItemContent";
 
 // Memoized item component with stable props
-const DraggableItem = memo(
-  ({ item, index }: DraggableItemProps) => {
-    return (
-      <Draggable draggableId={`${item.type}-${item.id}`} index={index}>
-        {(
-          provided: DraggableProvided,
-          { isDragging }: DraggableStateSnapshot
-        ) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.draggableProps}
-            {...provided.dragHandleProps}
-            style={{
-              ...provided.draggableProps.style,
-            }}
-          >
-            <PlaylistItemContent
-              item={item}
-              style={{}}
-              isDragging={isDragging}
-            />
-          </div>
-        )}
-      </Draggable>
-    );
-  },
-  (prev, next) => {
-    // Custom comparison to prevent unnecessary re-renders
-    return (
-      prev.item.id === next.item.id &&
-      prev.item.type === next.item.type &&
-      prev.index === next.index
-    );
-  }
-);
+const DraggableItem = memo(({ item, index }: DraggableItemProps) => {
+  const { youtube, spotify } = useUnifiedContext();
+
+  // Check if this item is currently playing
+  const isCurrentlyPlaying = useMemo(() => {
+    if (item.type === ServiceType.Youtube) {
+      return youtube.selectedVideo === item.id;
+    } else {
+      return spotify.currentSong?.id === item.id;
+    }
+  }, [item, youtube.selectedVideo, spotify.currentSong]);
+
+  // Debug log
+  console.log(
+    `Item ${item.id} (${item.type}): isCurrentlyPlaying = ${isCurrentlyPlaying}`
+  );
+
+  return (
+    <Draggable draggableId={`${item.type}-${item.id}`} index={index}>
+      {(
+        provided: DraggableProvided,
+        { isDragging }: DraggableStateSnapshot
+      ) => (
+        <div
+          ref={provided.innerRef}
+          {...provided.draggableProps}
+          {...provided.dragHandleProps}
+          style={{
+            ...provided.draggableProps.style,
+          }}
+        >
+          <PlaylistItemContent
+            item={item}
+            style={{}}
+            isDragging={isDragging}
+            isCurrentlyPlaying={isCurrentlyPlaying}
+          />
+        </div>
+      )}
+    </Draggable>
+  );
+});
 
 DraggableItem.displayName = "DraggableItem";
 
@@ -229,7 +245,7 @@ const UnifiedPlaylistView = () => {
               />
             ) : (
               <h2
-                className="text-lg font-semibold cursor-pointer hover:text-white/80 transition-colors"
+                className="text-lg font-semibold cursor-pointer hover:text-white/80 transition-colors text-[#FF6B6B]"
                 onClick={() => {
                   console.log(
                     "Starting to edit playlist name, current name:",
