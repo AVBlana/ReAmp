@@ -72,11 +72,11 @@ const PlaylistThumbnail = memo(
   ({ items }: { items: UnifiedPlaylistItem[] }) => {
     if (items.length === 0) {
       return (
-        <div className="grid grid-cols-2 gap-1 w-12 h-12 bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg backdrop-blur-sm border border-white/5 shadow-lg">
+        <div className="grid grid-cols-2 gap-1 w-12 h-12 bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg backdrop-blur-sm border border-white/5 shadow-lg transform-none">
           {[...Array(4)].map((_, i) => (
             <div
               key={i}
-              className="bg-gradient-to-br from-gray-700/50 to-gray-800/50 rounded-md backdrop-blur-sm"
+              className="bg-gradient-to-br from-gray-700/50 to-gray-800/50 rounded-md backdrop-blur-sm transform-none"
             />
           ))}
         </div>
@@ -85,7 +85,7 @@ const PlaylistThumbnail = memo(
 
     const thumbnails = items.slice(0, 4);
     return (
-      <div className="grid grid-cols-2 gap-1 w-12 h-12 rounded-lg overflow-hidden shadow-lg backdrop-blur-sm border border-white/5 bg-gradient-to-br from-black/20 to-black/10">
+      <div className="grid grid-cols-2 gap-1 w-12 h-12 rounded-lg overflow-hidden shadow-lg backdrop-blur-sm border border-white/5 bg-gradient-to-br from-black/20 to-black/10 transform-none">
         {thumbnails.map((item, i) => {
           const thumbnailUrl =
             item.type === ServiceType.Spotify
@@ -98,15 +98,15 @@ const PlaylistThumbnail = memo(
               : (item.data as YoutubeVideo).snippet.title;
 
           return (
-            <div key={i} className="relative w-full h-full">
+            <div key={i} className="relative w-full h-full transform-none">
               <Image
                 src={thumbnailUrl}
                 alt={title}
                 fill
-                className="object-cover transition-all duration-500 group-hover:scale-110 group-hover:brightness-110"
+                className="object-cover transform-none"
                 sizes="48px"
               />
-              <div className="absolute inset-0 bg-gradient-to-br from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500" />
+              <div className="absolute inset-0 bg-gradient-to-br from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-out transform-none" />
             </div>
           );
         })}
@@ -150,10 +150,10 @@ const PlaylistItem = memo(
           {/* Playlist button */}
           <button
             onClick={onSelect}
-            className={`flex-none w-12 h-12 rounded-lg flex items-center justify-center transition-all duration-500 ${
+            className={`flex-none w-12 h-12 rounded-lg flex items-center justify-center transform-none hover:transform-none ${
               isActive
                 ? "bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm border-2 border-[#FF6B6B] shadow-[0_0_8px_rgba(255,107,107,0.6)]"
-                : "hover:bg-gradient-to-br hover:from-white/10 hover:to-white/5 backdrop-blur-sm border border-transparent hover:border-white/5"
+                : "hover:bg-gradient-to-br hover:from-white/10 hover:to-white/5 backdrop-blur-sm border border-transparent hover:border-2 hover:border-[#FF6B6B]/60 hover:shadow-[0_0_8px_rgba(255,107,107,0.3)]"
             }`}
           >
             <PlaylistThumbnail items={playlist.items} />
@@ -313,7 +313,7 @@ const UnifiedPlaylistLibrary = memo(
         {/* Create New Playlist Button */}
         <button
           onClick={handleCreatePlaylist}
-          className="flex-none w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-[#FF6B6B] to-[#FF6B6B]/80 hover:from-[#FF6B6B]/80 hover:to-[#FF6B6B] text-white transition-all duration-500 hover:scale-105 shadow-lg hover:shadow-[#FF6B6B]/30 backdrop-blur-sm border border-white/10"
+          className="flex-none w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-[#FF6B6B] to-[#FF6B6B]/80 hover:from-[#FF6B6B]/80 hover:to-[#FF6B6B] text-white transition-all duration-300 shadow-lg hover:shadow-[#FF6B6B]/30 backdrop-blur-sm border border-white/10"
           title="Create New Playlist"
         >
           <FaPlus
@@ -335,7 +335,7 @@ const UnifiedPlaylistLibrary = memo(
         })() && (
           <button
             onClick={handleSaveCurrentPlaylist}
-            className="flex-none w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-500 text-white transition-all duration-500 hover:scale-105 shadow-lg hover:shadow-green-500/30 backdrop-blur-sm border border-white/10 animate-pulse"
+            className="flex-none w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-500 text-white transition-all duration-300 shadow-lg hover:shadow-green-500/30 backdrop-blur-sm border border-white/10 animate-pulse"
             title="Save Current Playlist (Unsaved Changes)"
           >
             <FaCheck
@@ -362,7 +362,7 @@ const UnifiedPlaylistLibrary = memo(
         {/* Clear All Button */}
         <button
           onClick={handleClearAll}
-          className="w-12 h-12 flex-shrink-0 rounded-lg flex items-center justify-center bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-500 text-white transition-all duration-500 hover:scale-105 shadow-lg hover:shadow-red-500/30 backdrop-blur-sm border border-white/10"
+          className="w-12 h-12 flex-shrink-0 rounded-lg flex items-center justify-center bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-500 text-white transition-all duration-300 shadow-lg hover:shadow-red-500/30 backdrop-blur-sm border border-white/10"
           title="Clear All Playlists"
         >
           <FaTrash

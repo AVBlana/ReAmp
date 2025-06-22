@@ -15,169 +15,18 @@ export default function Home() {
       <div className="relative z-10 flex flex-col items-center space-y-16">
         {/* Title */}
         <div className="relative">
-          <h1 className="text-8xl md:text-9xl font-bold text-transparent bg-clip-text bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#1DB954] via-[#FF0000] to-[#1DB954] tracking-tighter relative">
+          <h1 className="text-8xl md:text-9xl font-bold text-transparent tracking-tighter relative">
             ReAMP
             <style jsx>{`
               h1 {
-                text-shadow: 0 0 20px rgba(29, 185, 84, 0.6),
-                  0 0 40px rgba(255, 0, 0, 0.5), 0 0 60px rgba(29, 185, 84, 0.4);
-                animation: colorPulse 4s ease-in-out infinite;
-                background-size: 200% 200%;
-                background-position: 0% 0%;
-              }
-              @keyframes colorPulse {
-                0% {
-                  background-position: 0% 0%;
-                  text-shadow: 0 0 20px rgba(29, 185, 84, 0.6),
-                    0 0 40px rgba(255, 0, 0, 0.5),
-                    0 0 60px rgba(29, 185, 84, 0.4);
-                }
-                25% {
-                  background-position: 100% 0%;
-                  text-shadow: 0 0 30px rgba(255, 0, 0, 0.6),
-                    0 0 50px rgba(29, 185, 84, 0.5),
-                    0 0 70px rgba(255, 0, 0, 0.4);
-                }
-                50% {
-                  background-position: 100% 100%;
-                  text-shadow: 0 0 20px rgba(29, 185, 84, 0.6),
-                    0 0 40px rgba(255, 0, 0, 0.5),
-                    0 0 60px rgba(29, 185, 84, 0.4);
-                }
-                75% {
-                  background-position: 0% 100%;
-                  text-shadow: 0 0 30px rgba(255, 0, 0, 0.6),
-                    0 0 50px rgba(29, 185, 84, 0.5),
-                    0 0 70px rgba(255, 0, 0, 0.4);
-                }
-                100% {
-                  background-position: 0% 0%;
-                  text-shadow: 0 0 20px rgba(29, 185, 84, 0.6),
-                    0 0 40px rgba(255, 0, 0, 0.5),
-                    0 0 60px rgba(29, 185, 84, 0.4);
-                }
-              }
-              .seed {
-                position: absolute;
-                background: conic-gradient(
-                  from 45deg,
-                  #1db954,
-                  #ff0000,
-                  #1db954
-                );
-                border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-                opacity: 0.95;
-                box-shadow: 0 0 15px rgba(29, 185, 84, 0.7),
-                  0 0 30px rgba(255, 0, 0, 0.5);
-                animation: seedFloat 3s ease-in-out infinite;
-                filter: brightness(1.2) contrast(1.2);
-              }
-              @keyframes seedFloat {
-                0%,
-                100% {
-                  transform: translate(0, 0) rotate(var(--rotation)) scale(1);
-                  box-shadow: 0 0 15px rgba(29, 185, 84, 0.7),
-                    0 0 30px rgba(255, 0, 0, 0.5);
-                }
-                25% {
-                  transform: translate(2px, -2px)
-                    rotate(calc(var(--rotation) + 5deg)) scale(1.1);
-                  box-shadow: 0 0 20px rgba(255, 0, 0, 0.7),
-                    0 0 35px rgba(29, 185, 84, 0.5);
-                }
-                50% {
-                  transform: translate(0, 0) rotate(var(--rotation)) scale(1);
-                  box-shadow: 0 0 15px rgba(29, 185, 84, 0.7),
-                    0 0 30px rgba(255, 0, 0, 0.5);
-                }
-                75% {
-                  transform: translate(-2px, 2px)
-                    rotate(calc(var(--rotation) - 5deg)) scale(0.9);
-                  box-shadow: 0 0 20px rgba(255, 0, 0, 0.7),
-                    0 0 35px rgba(29, 185, 84, 0.5);
-                }
-              }
-              .seed-1 {
-                --rotation: -45deg;
-                width: 6px;
-                height: 9px;
-                top: 45%;
-                left: 15%;
-                animation-delay: 0s;
-              }
-              .seed-2 {
-                --rotation: 30deg;
-                width: 5px;
-                height: 8px;
-                top: 45%;
-                right: 25%;
-                animation-delay: 0.5s;
-              }
-              .seed-3 {
-                --rotation: -20deg;
-                width: 4px;
-                height: 7px;
-                top: 45%;
-                left: 30%;
-                animation-delay: 1s;
-              }
-              .seed-4 {
-                --rotation: 45deg;
-                width: 5px;
-                height: 8px;
-                top: 45%;
-                right: 15%;
-                animation-delay: 1.5s;
-              }
-              .seed-5 {
-                --rotation: -30deg;
-                width: 4px;
-                height: 6px;
-                top: 45%;
-                right: 30%;
-                animation-delay: 2s;
-              }
-              .seed-6 {
-                --rotation: 15deg;
-                width: 5px;
-                height: 7px;
-                top: 45%;
-                left: 25%;
-                animation-delay: 2.5s;
-              }
-              @media (min-width: 768px) {
-                .seed-1 {
-                  width: 8px;
-                  height: 12px;
-                }
-                .seed-2 {
-                  width: 7px;
-                  height: 10px;
-                }
-                .seed-3 {
-                  width: 6px;
-                  height: 9px;
-                }
-                .seed-4 {
-                  width: 7px;
-                  height: 10px;
-                }
-                .seed-5 {
-                  width: 5px;
-                  height: 8px;
-                }
-                .seed-6 {
-                  width: 6px;
-                  height: 9px;
-                }
+                -webkit-text-stroke: 1px #ff6b6b;
+                text-stroke: 1px #ff6b6b;
+                filter: drop-shadow(0 0 8px rgba(255, 107, 107, 0.8))
+                  drop-shadow(0 0 16px rgba(255, 107, 107, 0.6))
+                  drop-shadow(0 0 24px rgba(255, 107, 107, 0.4))
+                  drop-shadow(0 0 32px rgba(255, 107, 107, 0.2));
               }
             `}</style>
-            <span className="seed seed-1"></span>
-            <span className="seed seed-2"></span>
-            <span className="seed seed-3"></span>
-            <span className="seed seed-4"></span>
-            <span className="seed seed-5"></span>
-            <span className="seed seed-6"></span>
           </h1>
         </div>
 

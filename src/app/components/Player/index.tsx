@@ -4,6 +4,7 @@ import { useYoutube, useUnifiedContext } from "@/context/UnifiedContext";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { YoutubeVideo } from "../Services/YtService";
 import { ServiceType } from "@/types/playerTypes";
+import { setGlobalYouTubePlayer } from "../Header";
 
 interface YouTubeEvent {
   target: YouTubePlayer;
@@ -243,6 +244,8 @@ const Player: React.FC = () => {
     });
 
     playerRef.current = player;
+    // Set the global reference for the header to access
+    setGlobalYouTubePlayer(player);
     console.log("YouTube player created successfully");
 
     return () => {
@@ -256,6 +259,8 @@ const Player: React.FC = () => {
           console.error("Error during cleanup:", error);
         }
         playerRef.current = null;
+        // Clear the global reference
+        setGlobalYouTubePlayer(null);
       }
     };
   }, [isApiReady, selectedVideo, handleStateChange]);
