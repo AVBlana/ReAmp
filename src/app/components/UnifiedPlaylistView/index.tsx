@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useMemo, memo, useState, useCallback, useEffect } from "react";
+import React, {
+  useMemo,
+  memo,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 import {
   Droppable,
   Draggable,
@@ -106,6 +113,7 @@ const DraggableItem = memo(({ item, index }: DraggableItemProps) => {
           style={{
             ...provided.draggableProps.style,
           }}
+          data-currently-playing={isCurrentlyPlaying}
         >
           <PlaylistItemContent
             item={item}
@@ -175,9 +183,10 @@ DroppableContent.displayName = "DroppableContent";
 
 // Main component with stable references
 const UnifiedPlaylistView = () => {
-  const { unified } = useUnifiedContext();
+  const { unified, youtube, spotify } = useUnifiedContext();
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(unified.playlistName);
+  const playlistContainerRef = useRef<HTMLDivElement>(null);
 
   // Update tempName when playlist name changes
   useEffect(() => {
@@ -191,6 +200,30 @@ const UnifiedPlaylistView = () => {
       setTempName(unified.playlistName);
     }
   }, [unified.playlistName, isEditingName]);
+
+  // Auto-scroll to currently playing song
+  useEffect(() => {
+    const scrollToCurrentlyPlaying = () => {
+      if (!playlistContainerRef.current) return;
+
+      const currentlyPlayingElement =
+        playlistContainerRef.current.querySelector(
+          '[data-currently-playing="true"]'
+        ) as HTMLElement;
+
+      if (currentlyPlayingElement) {
+        currentlyPlayingElement.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+          inline: "nearest",
+        });
+      }
+    };
+
+    // Small delay to ensure the DOM has updated
+    const timeoutId = setTimeout(scrollToCurrentlyPlaying, 100);
+    return () => clearTimeout(timeoutId);
+  }, [unified.playlist, youtube.selectedVideo, spotify.currentSong]);
 
   // Memoize playlist items to prevent unnecessary re-renders
   const playlistItems = useMemo(() => {
@@ -298,7 +331,7 @@ const UnifiedPlaylistView = () => {
       </div>
 
       {/* Playlist Content */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div ref={playlistContainerRef} className="flex-1 overflow-y-auto p-4">
         <Droppable droppableId="unified-playlist">
           {(provided, snapshot) => (
             <DroppableContent

@@ -7,9 +7,22 @@ const REDIRECT_URI =
   "http://localhost:3000/api/spotify/callback";
 
 export async function GET(request: Request) {
-  // Get the origin page from the referer header or default to /spotify
+  // Get the origin page from the referer header, query params, or default to /spotify
   const referer = request.headers.get("referer");
-  const originPage = referer ? new URL(referer).pathname : "/spotify";
+  const { searchParams } = new URL(request.url);
+  const originFromQuery = searchParams.get("origin");
+
+  let originPage = "/spotify"; // Default to /spotify
+
+  if (originFromQuery) {
+    originPage = originFromQuery;
+  } else if (referer) {
+    const refererUrl = new URL(referer);
+    // Only use referer if it's from our domain and not the root page
+    if (refererUrl.pathname !== "/" && refererUrl.pathname !== "") {
+      originPage = refererUrl.pathname;
+    }
+  }
 
   // Store the origin page in a cookie
   cookies().set("spotify_auth_origin", originPage, {

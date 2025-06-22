@@ -196,7 +196,7 @@ export default function SpotifyPlayer() {
             localStorage.removeItem("spotify_token");
             setIsActive(false);
             initializationInProgress.current = false;
-            window.location.href = "/api/spotify/login";
+            window.location.href = "/api/spotify/login?origin=/spotify";
           }
         }
       );

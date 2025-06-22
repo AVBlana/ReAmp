@@ -14,6 +14,7 @@ import { configureWebGL } from "../utils/webglConfig";
 import { SpotifyFooter } from "../components/Footer";
 import PlaylistLibrary from "../components/PlaylistLibrary";
 import { ServiceType, Song } from "@/types/playerTypes";
+import { useRouter } from "next/navigation";
 
 interface SpotifyTrack {
   id: string;
@@ -48,10 +49,72 @@ function SpotifySearchContent() {
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const [currentSearchTerm, setCurrentSearchTerm] = useState<string>("");
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     configureWebGL();
   }, []);
+
+  // Check authentication status
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // Check if we have a token in localStorage
+        const token = localStorage.getItem("spotify_token");
+
+        if (!token) {
+          // No token found, redirect to login
+          setIsAuthenticated(false);
+          router.push("/api/spotify/login?origin=/spotify");
+          return;
+        }
+
+        // Verify the token is still valid by making a test API call
+        const response = await fetch("https://api.spotify.com/v1/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.status === 401) {
+          // Token is invalid, try to refresh
+          try {
+            const refreshResponse = await fetch("/api/spotify/refresh");
+            if (!refreshResponse.ok) {
+              // Refresh failed, redirect to login
+              localStorage.removeItem("spotify_token");
+              setIsAuthenticated(false);
+              router.push("/api/spotify/login?origin=/spotify");
+              return;
+            }
+            // Refresh successful, token should be updated in localStorage
+            setIsAuthenticated(true);
+          } catch (refreshError) {
+            console.error("Error refreshing token:", refreshError);
+            localStorage.removeItem("spotify_token");
+            setIsAuthenticated(false);
+            router.push("/api/spotify/login?origin=/spotify");
+            return;
+          }
+        } else if (response.ok) {
+          // Token is valid
+          setIsAuthenticated(true);
+        } else {
+          // Other error, redirect to login
+          setIsAuthenticated(false);
+          router.push("/api/spotify/login?origin=/spotify");
+        }
+      } catch (error) {
+        console.error("Error checking authentication:", error);
+        setIsAuthenticated(false);
+        router.push("/api/spotify/login?origin=/spotify");
+      }
+    };
+
+    checkAuth();
+  }, [router]);
 
   // Add the animation styles
   useEffect(() => {
@@ -84,6 +147,23 @@ function SpotifySearchContent() {
       }
     };
   }, []);
+
+  // Show loading state while checking authentication
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A] text-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1DB954] mx-auto mb-4"></div>
+          <p className="text-lg">Connecting to Spotify...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render the main content if not authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
 
   const handleSearch = async (query: string) => {
     console.log("Main page handleSearch called with query:", query);

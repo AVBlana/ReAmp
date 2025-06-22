@@ -62,7 +62,7 @@ export default function Home() {
 
           {/* Spotify Button */}
           <a
-            href="/api/spotify/login"
+            href="/api/spotify/login?origin=/spotify"
             className="group relative"
             onMouseEnter={() => setHovered("spotify")}
             onMouseLeave={() => setHovered(null)}
