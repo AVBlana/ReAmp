@@ -6,7 +6,8 @@ const SPOTIFY_CLIENT_SECRET = process.env.REACT_APP_SPOTIFY_API_KEY;
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
 export async function GET() {
-  const refreshToken = cookies().get("spotify_refresh_token")?.value;
+  const cookieStore = await cookies();
+  const refreshToken = cookieStore.get("spotify_refresh_token")?.value;
 
   if (!refreshToken) {
     // No refresh token, redirect to login
@@ -32,11 +33,11 @@ export async function GET() {
 
     if (!response.ok) {
       // Refresh failed, clear cookies and redirect to login
-      cookies().delete("spotify_refresh_token");
-      cookies().delete("spotify_access_token");
+      cookieStore.delete("spotify_refresh_token");
+      cookieStore.delete("spotify_access_token");
 
       // Store current page as origin for redirect after login
-      cookies().set("spotify_auth_origin", "/spotify", {
+      cookieStore.set("spotify_auth_origin", "/spotify", {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
@@ -47,39 +48,27 @@ export async function GET() {
     }
 
     // Store the new access token in a cookie
-    cookies().set("spotify_access_token", data.access_token, {
+    cookieStore.set("spotify_access_token", data.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: 60 * 60, // 1 hour
     });
 
-    // Create a response that will set the token in localStorage
-    const html = `
-      <html>
-        <body>
-          <script>
-            localStorage.setItem('spotify_token', '${data.access_token}');
-            window.location.reload();
-          </script>
-        </body>
-      </html>
-    `;
-
-    return new NextResponse(html, {
-      headers: {
-        "Content-Type": "text/html",
-      },
+    // Return JSON response with the new access token
+    return NextResponse.json({
+      access_token: data.access_token,
+      expires_in: data.expires_in,
     });
   } catch (error) {
     console.error("Error refreshing token:", error);
 
     // Clear cookies and redirect to login on error
-    cookies().delete("spotify_refresh_token");
-    cookies().delete("spotify_access_token");
+    cookieStore.delete("spotify_refresh_token");
+    cookieStore.delete("spotify_access_token");
 
     // Store current page as origin for redirect after login
-    cookies().set("spotify_auth_origin", "/spotify", {
+    cookieStore.set("spotify_auth_origin", "/spotify", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

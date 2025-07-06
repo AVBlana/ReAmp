@@ -8,12 +8,11 @@ import Player from "../components/Player";
 import { useYoutube, UnifiedProvider } from "@/context/UnifiedContext";
 import { FaYoutube, FaPlay } from "react-icons/fa";
 import { DropResult } from "@hello-pangea/dnd";
-import { configureWebGL } from "../utils/webglConfig";
-import { useEffect } from "react";
 import Header from "../components/Header";
 import dynamic from "next/dynamic";
 import { YouTubeFooter } from "../components/Footer";
 import PlaylistLibrary from "../components/PlaylistLibrary";
+import { motion } from "framer-motion";
 
 // Dynamically import DragDropContext with no SSR
 const DragDropContext = dynamic(
@@ -40,42 +39,6 @@ function YouTubeSearchContent() {
     setCurrentSearchTerm,
     setPlaylist,
   } = useYoutube();
-
-  useEffect(() => {
-    configureWebGL();
-  }, []);
-
-  // Add the animation styles
-  useEffect(() => {
-    const style = document.createElement("style");
-    style.id = "youtube-animation-styles";
-    style.textContent = `
-      @keyframes glow {
-        0%, 100% {
-          box-shadow: 0 0 10px rgba(255,0,0,0.6), 0 0 20px rgba(255,0,0,0.4);
-        }
-        50% {
-          box-shadow: 0 0 30px rgba(255,0,0,0.8), 0 0 50px rgba(255,0,0,0.6);
-        }
-      }
-      .animate-glow {
-        animation: glow 1.5s ease-in-out infinite;
-      }
-    `;
-    document.head.appendChild(style);
-    return () => {
-      try {
-        const existingStyle = document.getElementById(
-          "youtube-animation-styles"
-        );
-        if (existingStyle && existingStyle.parentNode) {
-          existingStyle.parentNode.removeChild(existingStyle);
-        }
-      } catch (error) {
-        console.warn("Could not remove YouTube animation styles:", error);
-      }
-    };
-  }, []);
 
   const handleSearch = async (searchTerm: string) => {
     setCurrentSearchTerm(searchTerm);
@@ -168,9 +131,24 @@ function YouTubeSearchContent() {
                           </div>
                           {snapshot.isDraggingOver && (
                             <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10 backdrop-blur-sm">
-                              <div className="bg-[#FF0000]/80 rounded-full p-4 transform hover:scale-110 transition-transform duration-300 animate-pulse">
+                              <motion.div
+                                className="bg-[#FF0000]/80 rounded-full p-4"
+                                whileHover={{ scale: 1.1 }}
+                                animate={{
+                                  boxShadow: [
+                                    "0 0 10px rgba(255,0,0,0.6), 0 0 20px rgba(255,0,0,0.4)",
+                                    "0 0 30px rgba(255,0,0,0.8), 0 0 50px rgba(255,0,0,0.6)",
+                                    "0 0 10px rgba(255,0,0,0.6), 0 0 20px rgba(255,0,0,0.4)",
+                                  ],
+                                }}
+                                transition={{
+                                  duration: 1.5,
+                                  repeat: Infinity,
+                                  ease: "easeInOut",
+                                }}
+                              >
                                 <FaPlay className="text-white text-3xl" />
-                              </div>
+                              </motion.div>
                             </div>
                           )}
                         </div>

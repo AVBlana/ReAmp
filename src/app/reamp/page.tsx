@@ -3,14 +3,17 @@
 import { UnifiedProvider } from "@/context/UnifiedContext";
 import Header from "../components/Header";
 import UnifiedSearch from "../components/UnifiedSearch";
-import UnifiedPlayer from "../components/UnifiedPlayer";
+import DJSetPlayer from "../components/DJSetPlayer";
 import UnifiedPlaylistView from "../components/UnifiedPlaylistView";
 import { useUnifiedContext } from "@/context/UnifiedContext";
-import { useEffect, useState, useCallback, useRef } from "react";
-import { configureWebGL } from "../utils/webglConfig";
+import { useState, useCallback } from "react";
 import { ServiceType, Song } from "@/types/playerTypes";
 import { getYouTubeVideos } from "../components/Services/YtService";
 import UnifiedPlaylistLibrary from "@/app/components/UnifiedPlaylistLibrary";
+import SpotifyAuthCheck from "../components/SpotifyAuthCheck";
+import DebugPlayer from "../components/DebugPlayer";
+
+import { motion } from "framer-motion";
 
 interface SpotifyImage {
   url: string;
@@ -38,76 +41,6 @@ function ReAMPContent() {
   const [spotifyNextPageToken, setSpotifyNextPageToken] = useState<
     string | null
   >(null);
-  const styleRef = useRef<HTMLStyleElement | null>(null);
-
-  useEffect(() => {
-    configureWebGL();
-  }, []);
-
-  // Add the animation styles
-  useEffect(() => {
-    // Check if style already exists to avoid duplicates
-    const existingStyle = document.getElementById("reamp-animation-styles");
-    if (existingStyle) {
-      styleRef.current = existingStyle as HTMLStyleElement;
-      return;
-    }
-
-    const style = document.createElement("style");
-    style.id = "reamp-animation-styles";
-    style.textContent = `
-      @keyframes glow {
-        0%, 100% {
-          box-shadow: 0 0 10px rgba(255,107,107,0.6), 0 0 20px rgba(78,205,196,0.4);
-        }
-        50% {
-          box-shadow: 0 0 30px rgba(255,107,107,0.8), 0 0 50px rgba(78,205,196,0.6);
-        }
-      }
-      .animate-glow {
-        animation: glow 1.5s ease-in-out infinite;
-      }
-      .custom-scrollbar::-webkit-scrollbar {
-        width: 8px;
-      }
-      .custom-scrollbar::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #FF6B6B;
-        border-radius: 4px;
-      }
-      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: rgba(255, 107, 107, 0.8);
-      }
-    `;
-    document.head.appendChild(style);
-    styleRef.current = style;
-
-    return () => {
-      // Safely remove the style element with proper error handling
-      try {
-        if (styleRef.current && styleRef.current.parentNode) {
-          styleRef.current.parentNode.removeChild(styleRef.current);
-        }
-      } catch {
-        // If removal fails, try to remove by ID as fallback
-        try {
-          const styleToRemove = document.getElementById(
-            "reamp-animation-styles"
-          );
-          if (styleToRemove && styleToRemove.parentNode) {
-            styleToRemove.parentNode.removeChild(styleToRemove);
-          }
-        } catch (fallbackError) {
-          // If all else fails, just log the error and continue
-          console.warn("Could not remove animation styles:", fallbackError);
-        }
-      } finally {
-        styleRef.current = null;
-      }
-    };
-  }, []);
 
   const handleSearch = useCallback(
     async (query: string, service: ServiceType) => {
@@ -296,6 +229,9 @@ function ReAMPContent() {
       {/* Background Grid */}
       <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black_70%)]" />
 
+      <SpotifyAuthCheck />
+      <DebugPlayer />
+
       <Header
         title="ReAMP"
         searchComponent={
@@ -315,7 +251,19 @@ function ReAMPContent() {
         <div className="flex flex-col lg:flex-row gap-6 h-full">
           {/* Library Section - Vertical in desktop, Horizontal in tablet/mobile */}
           <div className="flex flex-row lg:flex-col">
-            <div className="bg-black/20 rounded-lg p-4 h-full flex flex-col">
+            <motion.div
+              className="bg-black/20 rounded-lg p-4 h-full flex flex-col"
+              whileHover={{
+                boxShadow:
+                  "0 0 30px rgba(255,107,107,0.8), 0 0 50px rgba(78,205,196,0.6)",
+              }}
+              transition={{
+                duration: 1.5,
+                ease: "easeInOut",
+                repeat: Infinity,
+                repeatType: "reverse",
+              }}
+            >
               <UnifiedPlaylistLibrary
                 theme={{
                   primary: "#FF6B6B",
@@ -323,7 +271,7 @@ function ReAMPContent() {
                   accent: "#FFE66D",
                 }}
               />
-            </div>
+            </motion.div>
           </div>
 
           {/* Content Section - Playlist and Player */}
@@ -337,11 +285,11 @@ function ReAMPContent() {
               </div>
             </div>
 
-            {/* Player Section - Full width in portrait mode */}
-            <div className="w-full lg:w-2/3 rounded-lg overflow-hidden flex flex-col min-h-[600px] lg:min-h-0">
+            {/* DJ Set Player Section - Full width in portrait mode */}
+            <div className="w-full lg:w-2/3 rounded-lg overflow-hidden flex flex-col min-h-[800px] lg:min-h-0">
               {/* Container that adapts based on active service */}
-              <div className="flex-1 relative min-h-[600px] lg:min-h-0">
-                <UnifiedPlayer />
+              <div className="flex-1 relative min-h-[800px] lg:min-h-0">
+                <DJSetPlayer />
               </div>
             </div>
           </div>

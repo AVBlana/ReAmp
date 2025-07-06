@@ -2,7 +2,6 @@
 
 import { useYoutube } from "@/context/UnifiedContext";
 import PlaylistView from "../PlaylistView";
-import { YoutubeVideo } from "../Services/YtService";
 
 const YoutubePlaylistView = () => {
   const {

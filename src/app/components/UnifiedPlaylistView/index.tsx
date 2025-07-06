@@ -187,6 +187,12 @@ const UnifiedPlaylistView = () => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(unified.playlistName);
   const playlistContainerRef = useRef<HTMLDivElement>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  // Handle hydration
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Update tempName when playlist name changes
   useEffect(() => {
@@ -288,7 +294,7 @@ const UnifiedPlaylistView = () => {
                   setIsEditingName(true);
                 }}
               >
-                {unified.playlistName}
+                {isClient ? unified.playlistName : "Create a new playlist"}
               </h2>
             )}
           </div>

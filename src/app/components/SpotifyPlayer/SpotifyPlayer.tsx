@@ -17,6 +17,7 @@ import type {
   PlayerOptions,
 } from "spotify-web-playback-sdk";
 import { useSpotify, useUnifiedContext } from "@/context/UnifiedContext";
+import { motion, useAnimation, AnimatePresence } from "framer-motion";
 
 // Define proper types for the song object
 interface Artist {
@@ -100,6 +101,16 @@ export default function SpotifyPlayer() {
   const playerRef = useRef<Player | null>(null);
   const isHandlingTrackEndRef = useRef(false);
 
+  // 🎯 PROFESSIONAL VINYL ANIMATION SYSTEM
+  const vinylControls = useAnimation();
+  const needleControls = useAnimation();
+  const particleControls = useAnimation();
+
+  // Professional refs
+  const vinylRef = useRef<HTMLDivElement>(null);
+  const needleRef = useRef<HTMLDivElement>(null);
+  const artworkRef = useRef<HTMLDivElement>(null);
+
   // Refs
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
   const scriptRef = useRef<HTMLScriptElement | null>(null);
@@ -113,7 +124,11 @@ export default function SpotifyPlayer() {
   const refreshToken = async () => {
     try {
       const response = await fetch("/api/spotify/refresh");
-      if (!response.ok) throw new Error("Failed to refresh token");
+      if (!response.ok) {
+        // If refresh fails, redirect to login
+        window.location.href = "/api/spotify/login?origin=/spotify";
+        throw new Error("Failed to refresh token");
+      }
       const data = await response.json();
       if (typeof window !== "undefined") {
         localStorage.setItem("spotify_token", data.access_token);
@@ -747,6 +762,10 @@ export default function SpotifyPlayer() {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         setIsPlaying(false);
+
+        // Reset vinyl position to 0 degrees when stopped
+        vinylControls.stop();
+        vinylControls.set({ rotate: 0 });
       })
       .catch((error: Error) => {
         console.error("Error stopping track:", error);
@@ -894,188 +913,79 @@ export default function SpotifyPlayer() {
     return () => {};
   }, [isPlaying, isActive]);
 
-  // Add style tag for animations
+  // 🎯 OPTIMIZED FRAMER MOTION VINYL ANIMATION
   useEffect(() => {
-    const style = document.createElement("style");
-    style.id = "vinyl-animation-styles";
-    style.textContent = `
-      @keyframes vinyl-spin-slow {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-      }
-      @keyframes scratch {
-        0% { transform: rotate(0deg) scale(1); }
-        25% { transform: rotate(3deg) scale(1.01); }
-        50% { transform: rotate(0deg) scale(1); }
-        75% { transform: rotate(-3deg) scale(0.99); }
-        100% { transform: rotate(0deg) scale(1); }
-      }
-      @keyframes needle-shake {
-        0% { transform: rotate(var(--needle-rotation)); }
-        25% { transform: rotate(calc(var(--needle-rotation) + 1deg)); }
-        50% { transform: rotate(var(--needle-rotation)); }
-        75% { transform: rotate(calc(var(--needle-rotation) - 1deg)); }
-        100% { transform: rotate(var(--needle-rotation)); }
-      }
-      @keyframes vinyl-shake {
-        0% { transform: rotate(0deg); }
-        25% { transform: rotate(1deg); }
-        50% { transform: rotate(0deg); }
-        75% { transform: rotate(-1deg); }
-        100% { transform: rotate(0deg); }
-      }
-      .animate-spin {
-        animation: vinyl-spin-slow 20s linear infinite !important;
-      }
-      .animate-scratch {
-        animation: scratch 0.15s ease-in-out infinite !important;
-      }
-      .animate-needle-shake {
-        animation: needle-shake 0.15s ease-in-out infinite !important;
-      }
-      .animate-vinyl-shake {
-        animation: vinyl-shake 0.15s ease-in-out infinite !important;
-      }
-      @keyframes holographic-glow {
-        0%, 100% {
-          box-shadow: 
-            0 0 20px rgba(255,107,107,0.6),
-            0 0 40px rgba(255,107,107,0.4),
-            inset 0 0 20px rgba(255,107,107,0.4),
-            0 0 60px rgba(255,107,107,0.2);
-          filter: brightness(1) hue-rotate(0deg);
-        }
-        50% {
-          box-shadow: 
-            0 0 30px rgba(255,107,107,0.8),
-            0 0 60px rgba(255,107,107,0.6),
-            inset 0 0 30px rgba(255,107,107,0.6),
-            0 0 90px rgba(255,107,107,0.4);
-          filter: brightness(1.2) hue-rotate(10deg);
-        }
-      }
+    if (isScratching) {
+      // Optimized scratching wobble with fewer keyframes
+      vinylControls.start({
+        rotate: [0, 8, -6, 6, -4, 8],
+        transition: {
+          duration: 0.2,
+          repeat: Infinity,
+          ease: "easeInOut",
+          times: [0, 0.25, 0.5, 0.75, 1],
+        },
+      });
+    } else if (isPlaying) {
+      // Ultra-smooth continuous rotation with optimized settings
+      vinylControls.start({
+        rotate: 360,
+        transition: {
+          duration: 33.3,
+          ease: "linear",
+          repeat: Infinity,
+          repeatType: "loop",
+        },
+      });
+    } else {
+      // Paused - stop animation but keep current position
+      vinylControls.stop();
+    }
+  }, [isPlaying, isScratching, vinylControls]);
 
-      @keyframes holographic-shine {
-        0% {
-          background-position: -200% center;
-        }
-        100% {
-          background-position: 200% center;
-        }
-      }
+  // 🎯 NEEDLE ANIMATION
+  useEffect(() => {
+    if (isPlaying) {
+      needleControls.start({
+        rotate: 35,
+        transition: { duration: 0.5, ease: "easeInOut" },
+      });
+    } else {
+      needleControls.start({
+        rotate: 15,
+        transition: { duration: 0.5, ease: "easeInOut" },
+      });
+    }
+  }, [isPlaying, needleControls]);
 
-      @keyframes icon-pulse {
-        0%, 100% {
-          transform: scale(1);
-          filter: drop-shadow(0 0 8px rgba(255,107,107,0.8));
-        }
-        50% {
-          transform: scale(1.1);
-          filter: drop-shadow(0 0 12px rgba(255,107,107,1));
-        }
-      }
+  // 🎯 PARTICLE ANIMATION
+  useEffect(() => {
+    if (isPlaying) {
+      particleControls.start({
+        y: [0, -15, 0],
+        opacity: [0.6, 1, 0.6],
+        transition: {
+          duration: 1.2,
+          repeat: Infinity,
+          ease: "easeInOut",
+        },
+      });
+    } else {
+      particleControls.stop();
+    }
+  }, [isPlaying, particleControls]);
 
-      .futuristic-button {
-        background: rgba(255,107,107,0.9);
-        position: relative;
-        border: 2px solid rgba(255,255,255,0.2);
-        backdrop-filter: blur(5px);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        overflow: hidden;
-      }
-
-      .futuristic-button::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: linear-gradient(
-          45deg,
-          transparent 0%,
-          rgba(255,255,255,0.1) 45%,
-          rgba(255,255,255,0.2) 50%,
-          rgba(255,255,255,0.1) 55%,
-          transparent 100%
-        );
-        transform: rotate(45deg);
-        animation: holographic-shine 3s linear infinite;
-        pointer-events: none;
-      }
-
-      .futuristic-button:hover {
-        animation: holographic-glow 2s ease-in-out infinite;
-        transform: translateY(-2px) scale(1.05);
-        border-color: rgba(255,255,255,0.4);
-      }
-
-      .futuristic-button:hover svg {
-        animation: icon-pulse 1.5s ease-in-out infinite;
-      }
-
-      .futuristic-button:active {
-        transform: scale(0.95) translateY(0);
-        animation: none;
-        box-shadow: 
-          0 0 15px rgba(255,107,107,0.4),
-          inset 0 0 10px rgba(255,107,107,0.3);
-      }
-
-      .futuristic-button.disabled {
-        opacity: 0.5;
-        filter: grayscale(0.7);
-        animation: none;
-        pointer-events: none;
-      }
-
-      .futuristic-button.disabled:hover {
-        transform: none;
-        animation: none;
-      }
-
-      .futuristic-button.disabled:hover svg {
-        animation: none;
-      }
-
-      @keyframes marquee {
-        0% { transform: translateX(0); }
-        100% { transform: translateX(-50%); }
-      }
-      .marquee-container {
-        width: 100%;
-        overflow: hidden;
-        white-space: nowrap;
-        position: relative;
-      }
-      .marquee-content {
-        display: inline-block;
-        white-space: nowrap;
-      }
-      .marquee-content.overflowing {
-        display: inline-flex;
-        animation: marquee 20s linear infinite;
-      }
-      .marquee-content.overflowing::after {
-        content: attr(data-text);
-        padding-left: 2rem;
-      }
-      .marquee-content.overflowing:hover {
-        animation-play-state: paused;
-      }
-    `;
-    document.head.appendChild(style);
-    return () => {
-      try {
-        const existingStyle = document.getElementById("vinyl-animation-styles");
-        if (existingStyle && existingStyle.parentNode) {
-          existingStyle.parentNode.removeChild(existingStyle);
-        }
-      } catch (error) {
-        console.warn("Could not remove vinyl animation styles:", error);
-      }
-    };
-  }, []);
+  // 🎯 GESTURE HANDLING FOR SCRATCHING
+  const handleVinylDrag = (
+    event: MouseEvent | TouchEvent | PointerEvent,
+    info: { velocity: { x: number; y: number } }
+  ) => {
+    const velocity = Math.abs(info.velocity.x);
+    if (velocity > 500) {
+      setIsScratching(true);
+      setTimeout(() => setIsScratching(false), 200);
+    }
+  };
 
   const formatTime = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -1124,8 +1034,9 @@ export default function SpotifyPlayer() {
         alt={song.title || "Album Art"}
         width={song.artwork.big.width || 640}
         height={song.artwork.big.height || 640}
-        className="w-full h-full object-cover"
+        className="w-full h-full object-cover rounded-full"
         priority
+        style={{ objectPosition: "center" }}
       />
     );
   };
@@ -1156,14 +1067,19 @@ export default function SpotifyPlayer() {
     }, [text]);
 
     return (
-      <div ref={containerRef} className="marquee-container">
-        <div
+      <div ref={containerRef} className="overflow-hidden">
+        <motion.div
           ref={contentRef}
-          className={`marquee-content ${isOverflowing ? "overflowing" : ""}`}
-          data-text={text}
+          className="whitespace-nowrap"
+          animate={isOverflowing ? { x: [0, -100] } : {}}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "linear",
+          }}
         >
           <span className={className}>{text}</span>
-        </div>
+        </motion.div>
       </div>
     );
   };
@@ -1309,113 +1225,186 @@ export default function SpotifyPlayer() {
       <div className="rounded-lg p-1 sm:p-2 lg:p-4 flex flex-col items-center w-full h-full gap-4">
         {/* Vinyl Section with Pickup Arm - Top section in column layout */}
         <div className="w-full flex items-center justify-center relative">
-          <div className="relative w-full max-w-[500px] lg:max-w-[600px] aspect-square flex items-center justify-center">
-            <div
-              className={`relative w-full h-full min-w-[200px] max-w-[500px] lg:max-w-[600px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_12px_var(--background)] flex items-center justify-center border-6 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
-                isPlaying ? "animate-spin" : ""
-              } ${isScratching ? "animate-needle-shake" : ""}`}
-              onMouseDown={handleSeekBarMouseDown}
-              style={
-                {
-                  cursor: "pointer",
-                  "--needle-rotation": "0deg",
-                } as React.CSSProperties
-              }
-            >
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/5 h-3/5 rounded-full bg-[var(--background)] shadow-[0_0_0_3px_var(--foreground),0_0_18px_#fff8_inset] overflow-hidden z-10 flex items-center justify-center">
-                {renderAlbumArt(currentSong as Song | null)}
-              </div>
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[var(--background)] border-3 border-[var(--foreground)] z-20" />
+          <div className="relative w-full max-w-[500px] lg:max-w-[600px] aspect-square">
+            {/* Outline and border wrapper */}
+            <div className="relative w-full h-full rounded-full border-6 border-[var(--foreground)] shadow-[0_0_0_12px_var(--background)]">
+              {/* Vinyl disk fills the outline */}
+              <motion.div
+                ref={vinylRef}
+                animate={vinylControls}
+                style={{
+                  filter: "brightness(1) contrast(1.05)",
+                  transform: "translateZ(0)", // Force hardware acceleration
+                  backfaceVisibility: "hidden", // Prevent flickering
+                  perspective: 1000, // Optimize 3D transforms
+                }}
+                whileHover={{
+                  scale: 1.02,
+                  transition: { type: "spring", stiffness: 300, damping: 20 },
+                }}
+                whileTap={{
+                  scale: 0.98,
+                  transition: { type: "spring", stiffness: 400, damping: 15 },
+                }}
+                drag="x"
+                dragConstraints={{ left: -30, right: 30 }}
+                dragElastic={0.05}
+                onDragEnd={handleVinylDrag}
+                className="absolute inset-0 rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:120%_120%] cursor-pointer will-change-transform"
+                onMouseDown={handleSeekBarMouseDown}
+              >
+                {/* Album Art - Centered with wrapper to prevent transform conflicts */}
+                <div className="absolute left-1/2 top-1/2 w-[68%] h-[68%] -translate-x-1/2 -translate-y-1/2 z-10">
+                  <motion.div
+                    ref={artworkRef}
+                    className="w-full h-full rounded-full bg-[var(--background)] shadow-[0_0_0_3px_var(--foreground),0_0_18px_#fff8_inset] overflow-hidden"
+                    whileHover={{
+                      scale: 1.03,
+                      transition: {
+                        type: "spring",
+                        stiffness: 350,
+                        damping: 22,
+                      },
+                    }}
+                  >
+                    {/* Professional Album Art Container */}
+                    <div className="w-full h-full flex items-center justify-center rounded-full overflow-hidden">
+                      {renderAlbumArt(currentSong as Song | null)}
+                    </div>
+                  </motion.div>
+                </div>
+
+                {/* Center Black Dot - Centered with wrapper */}
+                <div className="absolute left-1/2 top-1/2 w-6 h-6 -translate-x-1/2 -translate-y-1/2 z-20">
+                  <div className="w-full h-full rounded-full bg-[var(--background)] border-3 border-[var(--foreground)]" />
+                </div>
+              </motion.div>
             </div>
 
             {/* Enhanced Holographic Laser Scanner Pickup Needle */}
-            <div
-              className={`absolute top-[15%] right-[-15%] w-1/3 h-1/3 lg:w-2/5 lg:h-2/5 pointer-events-none z-20 transition-transform duration-500 ease-in-out ${
-                isPlaying ? "rotate-[35deg]" : "rotate-[15deg]"
-              } ${isScratching ? "animate-needle-shake" : ""}`}
-              style={
-                {
-                  transform: `rotate(${isPlaying ? "35deg" : "15deg"})`,
-                  transformOrigin: "80px 12px",
-                } as React.CSSProperties
-              }
+            <motion.div
+              ref={needleRef}
+              animate={needleControls}
+              className="absolute top-0 right-0 w-1/3 h-1/3 lg:w-2/5 lg:h-2/5 pointer-events-none z-20"
+              style={{
+                transformOrigin: "center center",
+                transform: "translate(25%, -25%)",
+              }}
             >
-              {/* Main Needle Arm - Futuristic Design */}
-              <div className="relative w-full h-full">
+              {/* Main Needle Arm - Futuristic Design - All components aligned on same line */}
+              <div className="relative w-full h-full flex flex-col items-center">
                 {/* Needle Base Circle */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-gradient-to-br from-red-400 to-red-600 border-2 border-red-300 shadow-[0_0_20px_rgba(255,107,107,0.8),inset_0_0_10px_rgba(255,107,107,0.4)] z-30" />
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-red-400 to-red-600 border-2 border-red-300 shadow-[0_0_20px_rgba(255,107,107,0.8),inset_0_0_10px_rgba(255,107,107,0.4)] z-30" />
 
                 {/* Main Needle Arm */}
-                <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-1.5 h-16 bg-gradient-to-b from-red-400 via-red-500 to-red-600 rounded-full shadow-[0_0_15px_rgba(255,107,107,0.6)] z-20" />
-
-                {/* Needle Tip */}
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0.5 h-5 bg-gradient-to-b from-red-300 to-red-500 rounded-full shadow-[0_0_10px_rgba(255,107,107,0.8)] z-10" />
+                <div className="w-1.5 h-16 bg-gradient-to-b from-red-400 via-red-500 to-red-600 rounded-full shadow-[0_0_15px_rgba(255,107,107,0.6)] z-20" />
 
                 {/* Holographic Laser Beam - Enhanced Visibility */}
-                {isPlaying && (
-                  <div
-                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-24 bg-gradient-to-b from-red-400/80 via-red-300/60 to-transparent rounded-full z-5"
-                    style={{
-                      boxShadow: `
+                <AnimatePresence>
+                  {isPlaying && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 0.9, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{ duration: 0.3 }}
+                      className="relative w-6 h-24 bg-gradient-to-b from-red-400/80 via-red-300/60 to-transparent rounded-full z-15"
+                      style={{
+                        boxShadow: `
                         0 0 30px rgba(255,107,107,0.8),
                         0 0 60px rgba(255,107,107,0.5),
                         0 0 90px rgba(255,107,107,0.3),
                         inset 0 0 20px rgba(255,107,107,0.4)
                       `,
-                      opacity: 0.9,
-                    }}
-                  >
-                    {/* Scanning Data Stream */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-red-400/40 via-red-300/30 to-transparent animate-pulse" />
+                      }}
+                    >
+                      {/* Scanning Data Stream */}
+                      <motion.div
+                        animate={{ opacity: [0.4, 0.9, 0.4] }}
+                        transition={{
+                          duration: 0.8,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                        }}
+                        className="absolute left-1/2 -translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-red-400/40 via-red-300/30 to-transparent"
+                      />
 
-                    {/* Bouncing Particles */}
-                    <div
-                      className="absolute top-3 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-red-300 rounded-full animate-bounce shadow-[0_0_8px_rgba(255,107,107,0.8)]"
-                      style={{
-                        animationDelay: "0s",
-                        animationDuration: "1.2s",
-                      }}
-                    />
-                    <div
-                      className="absolute top-9 left-1/2 -translate-x-1/2 w-1 h-1 bg-red-400 rounded-full animate-bounce shadow-[0_0_6px_rgba(255,107,107,0.8)]"
-                      style={{
-                        animationDelay: "0.3s",
-                        animationDuration: "1.5s",
-                      }}
-                    />
-                    <div
-                      className="absolute top-15 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-red-400 rounded-full animate-bounce shadow-[0_0_8px_rgba(255,107,107,0.8)]"
-                      style={{
-                        animationDelay: "0.6s",
-                        animationDuration: "1.8s",
-                      }}
-                    />
-                    <div
-                      className="absolute top-21 left-1/2 -translate-x-1/2 w-1 h-1 bg-red-300 rounded-full animate-bounce shadow-[0_0_6px_rgba(255,107,107,0.8)]"
-                      style={{
-                        animationDelay: "0.9s",
-                        animationDuration: "1.3s",
-                      }}
-                    />
-                  </div>
-                )}
+                      {/* Bouncing Particles */}
+                      <motion.div
+                        animate={particleControls}
+                        className="absolute left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-red-300 rounded-full shadow-[0_0_8px_rgba(255,107,107,0.8)]"
+                        style={{ top: "15%" }}
+                      />
+                      <motion.div
+                        animate={{
+                          y: [0, -12, 0],
+                          opacity: [0.6, 1, 0.6],
+                        }}
+                        transition={{
+                          duration: 1.2,
+                          repeat: Infinity,
+                          delay: 0.2,
+                          ease: "easeInOut",
+                        }}
+                        className="absolute left-1/2 -translate-x-1/2 w-1 h-1 bg-red-400 rounded-full shadow-[0_0_6px_rgba(255,107,107,0.8)]"
+                        style={{ top: "35%" }}
+                      />
+                      <motion.div
+                        animate={{
+                          y: [0, -15, 0],
+                          opacity: [0.6, 1, 0.6],
+                        }}
+                        transition={{
+                          duration: 1.4,
+                          repeat: Infinity,
+                          delay: 0.4,
+                          ease: "easeInOut",
+                        }}
+                        className="absolute left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-red-400 rounded-full shadow-[0_0_8px_rgba(255,107,107,0.8)]"
+                        style={{ top: "55%" }}
+                      />
+                      <motion.div
+                        animate={{
+                          y: [0, -14, 0],
+                          opacity: [0.6, 1, 0.6],
+                        }}
+                        transition={{
+                          duration: 1.1,
+                          repeat: Infinity,
+                          delay: 0.6,
+                          ease: "easeInOut",
+                        }}
+                        className="absolute left-1/2 -translate-x-1/2 w-1 h-1 bg-red-300 rounded-full shadow-[0_0_6px_rgba(255,107,107,0.8)]"
+                        style={{ top: "75%" }}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Needle Tip - Now positioned after scan area */}
+                <div className="w-0.5 h-5 bg-gradient-to-b from-red-300 to-red-500 rounded-full shadow-[0_0_10px_rgba(255,107,107,0.8)] z-25" />
 
                 {/* Holographic Counterweight */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -ml-6 w-3 h-2 bg-gradient-to-r from-red-400 to-red-500 rounded-full shadow-[0_0_10px_rgba(255,107,107,0.6)] z-25" />
+                <div className="absolute top-0 -ml-6 w-3 h-2 bg-gradient-to-r from-red-400 to-red-500 rounded-full shadow-[0_0_10px_rgba(255,107,107,0.6)] z-25" />
 
                 {/* Energy Field Around Needle */}
-                {isPlaying && (
-                  <div
-                    className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-24 rounded-full opacity-20"
-                    style={{
-                      background:
-                        "radial-gradient(ellipse at center, rgba(255,107,107,0.3) 0%, transparent 70%)",
-                      boxShadow: "0 0 40px rgba(255,107,107,0.2)",
-                    }}
-                  />
-                )}
+                <AnimatePresence>
+                  {isPlaying && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 0.2, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{ duration: 0.5 }}
+                      className="absolute top-0 w-12 h-24 rounded-full"
+                      style={{
+                        background:
+                          "radial-gradient(ellipse at center, rgba(255,107,107,0.3) 0%, transparent 70%)",
+                        boxShadow: "0 0 40px rgba(255,107,107,0.2)",
+                      }}
+                    />
+                  )}
+                </AnimatePresence>
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
 
@@ -1450,9 +1439,10 @@ export default function SpotifyPlayer() {
               onMouseDown={handleVolumeBarMouseDown}
             >
               <div className="absolute top-1/2 left-0 w-full h-2 -translate-y-1/2 bg-[var(--foreground)] opacity-12 rounded-md pointer-events-none z-0" />
-              <div
-                className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-red-500 rounded-md pointer-events-none z-10 transition-[width] duration-150"
+              <motion.div
+                className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-red-500 rounded-md pointer-events-none z-10"
                 style={{ width: `${displayVolume}%` }}
+                transition={{ duration: 0.15 }}
               />
             </div>
             <span className="text-[var(--foreground)] font-mono text-sm min-w-[32px] text-right">
@@ -1472,8 +1462,8 @@ export default function SpotifyPlayer() {
               onMouseDown={handleSeekBarMouseDown}
             >
               <div className="absolute top-1/2 left-0 w-full h-2 -translate-y-1/2 bg-[var(--foreground)] opacity-12 rounded-md pointer-events-none z-0" />
-              <div
-                className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-red-500 rounded-md pointer-events-none z-10 transition-[width] duration-150 linear"
+              <motion.div
+                className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-red-500 rounded-md pointer-events-none z-10"
                 style={{
                   width: duration
                     ? `${
@@ -1485,6 +1475,7 @@ export default function SpotifyPlayer() {
                       }%`
                     : "0%",
                 }}
+                transition={{ duration: 0.15, ease: "linear" }}
               />
             </div>
             <span className="text-[var(--foreground)] font-mono text-sm min-w-[32px] text-right">
@@ -1505,113 +1496,182 @@ export default function SpotifyPlayer() {
     <div className="rounded-lg p-1 sm:p-2 lg:p-4 flex flex-col items-center w-full h-full gap-4">
       {/* Vinyl Section with Pickup Arm - Top section in column layout */}
       <div className="w-full flex items-center justify-center relative">
-        <div className="relative w-full max-w-[500px] lg:max-w-[600px] aspect-square flex items-center justify-center">
-          <div
-            className={`relative w-full h-full min-w-[200px] max-w-[500px] lg:max-w-[600px] aspect-square rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:130%_130%] shadow-[0_0_0_12px_var(--background)] flex items-center justify-center border-6 border-[var(--foreground)] transform-origin-center transition-transform duration-200 ease-out ${
-              isPlaying ? "animate-spin" : ""
-            } ${isScratching ? "animate-needle-shake" : ""}`}
-            onMouseDown={handleSeekBarMouseDown}
-            style={
-              {
-                cursor: "pointer",
-                "--needle-rotation": "0deg",
-              } as React.CSSProperties
-            }
-          >
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/5 h-3/5 rounded-full bg-[var(--background)] shadow-[0_0_0_3px_var(--foreground),0_0_18px_#fff8_inset] overflow-hidden z-10 flex items-center justify-center">
-              {renderAlbumArt(currentSong as Song | null)}
-            </div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[var(--background)] border-3 border-[var(--foreground)] z-20" />
+        <div className="relative w-full max-w-[500px] lg:max-w-[600px] aspect-square">
+          {/* Outline and border wrapper */}
+          <div className="relative w-full h-full rounded-full border-6 border-[var(--foreground)] shadow-[0_0_0_12px_var(--background)]">
+            {/* Vinyl disk fills the outline */}
+            <motion.div
+              ref={vinylRef}
+              animate={vinylControls}
+              style={{
+                filter: "brightness(1) contrast(1.05)",
+                transform: "translateZ(0)", // Force hardware acceleration
+                backfaceVisibility: "hidden", // Prevent flickering
+                perspective: 1000, // Optimize 3D transforms
+              }}
+              whileHover={{
+                scale: 1.02,
+                transition: { type: "spring", stiffness: 300, damping: 20 },
+              }}
+              whileTap={{
+                scale: 0.98,
+                transition: { type: "spring", stiffness: 400, damping: 15 },
+              }}
+              drag="x"
+              dragConstraints={{ left: -30, right: 30 }}
+              dragElastic={0.05}
+              onDragEnd={handleVinylDrag}
+              className="absolute inset-0 rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:120%_120%] cursor-pointer will-change-transform"
+              onMouseDown={handleSeekBarMouseDown}
+            >
+              {/* Album Art - Centered with wrapper to prevent transform conflicts */}
+              <div className="absolute left-1/2 top-1/2 w-[68%] h-[68%] -translate-x-1/2 -translate-y-1/2 z-10">
+                <motion.div
+                  ref={artworkRef}
+                  className="w-full h-full rounded-full bg-[var(--background)] shadow-[0_0_0_3px_var(--foreground),0_0_18px_#fff8_inset] overflow-hidden"
+                  whileHover={{
+                    scale: 1.03,
+                    transition: { type: "spring", stiffness: 350, damping: 22 },
+                  }}
+                >
+                  {/* Professional Album Art Container */}
+                  <div className="w-full h-full flex items-center justify-center rounded-full overflow-hidden">
+                    {renderAlbumArt(currentSong as Song | null)}
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* Center Black Dot - Centered with wrapper */}
+              <div className="absolute left-1/2 top-1/2 w-6 h-6 -translate-x-1/2 -translate-y-1/2 z-20">
+                <div className="w-full h-full rounded-full bg-[var(--background)] border-3 border-[var(--foreground)]" />
+              </div>
+            </motion.div>
           </div>
 
           {/* Enhanced Holographic Laser Scanner Pickup Needle */}
-          <div
-            className={`absolute top-[15%] right-[-15%] w-1/3 h-1/3 lg:w-2/5 lg:h-2/5 pointer-events-none z-20 transition-transform duration-500 ease-in-out ${
-              isPlaying ? "rotate-[35deg]" : "rotate-[15deg]"
-            } ${isScratching ? "animate-needle-shake" : ""}`}
-            style={
-              {
-                transform: `rotate(${isPlaying ? "35deg" : "15deg"})`,
-                transformOrigin: "80px 12px",
-              } as React.CSSProperties
-            }
+          <motion.div
+            ref={needleRef}
+            animate={needleControls}
+            className="absolute top-0 right-0 w-1/3 h-1/3 lg:w-2/5 lg:h-2/5 pointer-events-none z-20"
+            style={{
+              transformOrigin: "center center",
+              transform: "translate(25%, -25%)",
+            }}
           >
-            {/* Main Needle Arm - Futuristic Design */}
-            <div className="relative w-full h-full">
+            {/* Main Needle Arm - Futuristic Design - All components aligned on same line */}
+            <div className="relative w-full h-full flex flex-col items-center">
               {/* Needle Base Circle */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-gradient-to-br from-red-400 to-red-600 border-2 border-red-300 shadow-[0_0_20px_rgba(255,107,107,0.8),inset_0_0_10px_rgba(255,107,107,0.4)] z-30" />
+              <div className="w-5 h-5 rounded-full bg-gradient-to-br from-red-400 to-red-600 border-2 border-red-300 shadow-[0_0_20px_rgba(255,107,107,0.8),inset_0_0_10px_rgba(255,107,107,0.4)] z-30" />
 
               {/* Main Needle Arm */}
-              <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-1.5 h-16 bg-gradient-to-b from-red-400 via-red-500 to-red-600 rounded-full shadow-[0_0_15px_rgba(255,107,107,0.6)] z-20" />
-
-              {/* Needle Tip */}
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0.5 h-5 bg-gradient-to-b from-red-300 to-red-500 rounded-full shadow-[0_0_10px_rgba(255,107,107,0.8)] z-10" />
+              <div className="w-1.5 h-16 bg-gradient-to-b from-red-400 via-red-500 to-red-600 rounded-full shadow-[0_0_15px_rgba(255,107,107,0.6)] z-20" />
 
               {/* Holographic Laser Beam - Enhanced Visibility */}
-              {isPlaying && (
-                <div
-                  className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-24 bg-gradient-to-b from-red-400/80 via-red-300/60 to-transparent rounded-full z-5"
-                  style={{
-                    boxShadow: `
+              <AnimatePresence>
+                {isPlaying && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 0.9, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.3 }}
+                    className="relative w-6 h-24 bg-gradient-to-b from-red-400/80 via-red-300/60 to-transparent rounded-full z-15"
+                    style={{
+                      boxShadow: `
                         0 0 30px rgba(255,107,107,0.8),
                         0 0 60px rgba(255,107,107,0.5),
                         0 0 90px rgba(255,107,107,0.3),
                         inset 0 0 20px rgba(255,107,107,0.4)
                       `,
-                    opacity: 0.9,
-                  }}
-                >
-                  {/* Scanning Data Stream */}
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-red-400/40 via-red-300/30 to-transparent animate-pulse" />
+                    }}
+                  >
+                    {/* Scanning Data Stream */}
+                    <motion.div
+                      animate={{ opacity: [0.4, 0.9, 0.4] }}
+                      transition={{
+                        duration: 0.8,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
+                      className="absolute left-1/2 -translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-red-400/40 via-red-300/30 to-transparent"
+                    />
 
-                  {/* Bouncing Particles */}
-                  <div
-                    className="absolute top-3 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-red-300 rounded-full animate-bounce shadow-[0_0_8px_rgba(255,107,107,0.8)]"
-                    style={{
-                      animationDelay: "0s",
-                      animationDuration: "1.2s",
-                    }}
-                  />
-                  <div
-                    className="absolute top-9 left-1/2 -translate-x-1/2 w-1 h-1 bg-red-400 rounded-full animate-bounce shadow-[0_0_6px_rgba(255,107,107,0.8)]"
-                    style={{
-                      animationDelay: "0.3s",
-                      animationDuration: "1.5s",
-                    }}
-                  />
-                  <div
-                    className="absolute top-15 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-red-400 rounded-full animate-bounce shadow-[0_0_8px_rgba(255,107,107,0.8)]"
-                    style={{
-                      animationDelay: "0.6s",
-                      animationDuration: "1.8s",
-                    }}
-                  />
-                  <div
-                    className="absolute top-21 left-1/2 -translate-x-1/2 w-1 h-1 bg-red-300 rounded-full animate-bounce shadow-[0_0_6px_rgba(255,107,107,0.8)]"
-                    style={{
-                      animationDelay: "0.9s",
-                      animationDuration: "1.3s",
-                    }}
-                  />
-                </div>
-              )}
+                    {/* Bouncing Particles */}
+                    <motion.div
+                      animate={particleControls}
+                      className="absolute left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-red-300 rounded-full shadow-[0_0_8px_rgba(255,107,107,0.8)]"
+                      style={{ top: "15%" }}
+                    />
+                    <motion.div
+                      animate={{
+                        y: [0, -12, 0],
+                        opacity: [0.6, 1, 0.6],
+                      }}
+                      transition={{
+                        duration: 1.2,
+                        repeat: Infinity,
+                        delay: 0.2,
+                        ease: "easeInOut",
+                      }}
+                      className="absolute left-1/2 -translate-x-1/2 w-1 h-1 bg-red-400 rounded-full shadow-[0_0_6px_rgba(255,107,107,0.8)]"
+                      style={{ top: "35%" }}
+                    />
+                    <motion.div
+                      animate={{
+                        y: [0, -15, 0],
+                        opacity: [0.6, 1, 0.6],
+                      }}
+                      transition={{
+                        duration: 1.4,
+                        repeat: Infinity,
+                        delay: 0.4,
+                        ease: "easeInOut",
+                      }}
+                      className="absolute left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-red-400 rounded-full shadow-[0_0_8px_rgba(255,107,107,0.8)]"
+                      style={{ top: "55%" }}
+                    />
+                    <motion.div
+                      animate={{
+                        y: [0, -14, 0],
+                        opacity: [0.6, 1, 0.6],
+                      }}
+                      transition={{
+                        duration: 1.1,
+                        repeat: Infinity,
+                        delay: 0.6,
+                        ease: "easeInOut",
+                      }}
+                      className="absolute left-1/2 -translate-x-1/2 w-1 h-1 bg-red-300 rounded-full shadow-[0_0_6px_rgba(255,107,107,0.8)]"
+                      style={{ top: "75%" }}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Needle Tip - Now positioned after scan area */}
+              <div className="w-0.5 h-5 bg-gradient-to-b from-red-300 to-red-500 rounded-full shadow-[0_0_10px_rgba(255,107,107,0.8)] z-25" />
 
               {/* Holographic Counterweight */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 -ml-6 w-3 h-2 bg-gradient-to-r from-red-400 to-red-500 rounded-full shadow-[0_0_10px_rgba(255,107,107,0.6)] z-25" />
+              <div className="absolute top-0 -ml-6 w-3 h-2 bg-gradient-to-r from-red-400 to-red-500 rounded-full shadow-[0_0_10px_rgba(255,107,107,0.6)] z-25" />
 
               {/* Energy Field Around Needle */}
-              {isPlaying && (
-                <div
-                  className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-24 rounded-full opacity-20"
-                  style={{
-                    background:
-                      "radial-gradient(ellipse at center, rgba(255,107,107,0.3) 0%, transparent 70%)",
-                    boxShadow: "0 0 40px rgba(255,107,107,0.2)",
-                  }}
-                />
-              )}
+              <AnimatePresence>
+                {isPlaying && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 0.2, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.5 }}
+                    className="absolute top-0 w-12 h-24 rounded-full"
+                    style={{
+                      background:
+                        "radial-gradient(ellipse at center, rgba(255,107,107,0.3) 0%, transparent 70%)",
+                      boxShadow: "0 0 40px rgba(255,107,107,0.2)",
+                    }}
+                  />
+                )}
+              </AnimatePresence>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
 
@@ -1644,9 +1704,10 @@ export default function SpotifyPlayer() {
             onMouseDown={handleVolumeBarMouseDown}
           >
             <div className="absolute top-1/2 left-0 w-full h-2 -translate-y-1/2 bg-[var(--foreground)] opacity-12 rounded-md pointer-events-none z-0" />
-            <div
-              className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-red-500 rounded-md pointer-events-none z-10 transition-[width] duration-150"
+            <motion.div
+              className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-red-500 rounded-md pointer-events-none z-10"
               style={{ width: `${displayVolume}%` }}
+              transition={{ duration: 0.15 }}
             />
           </div>
           <span className="text-[var(--foreground)] font-mono text-sm min-w-[32px] text-right">
@@ -1666,8 +1727,8 @@ export default function SpotifyPlayer() {
             onMouseDown={handleSeekBarMouseDown}
           >
             <div className="absolute top-1/2 left-0 w-full h-2 -translate-y-1/2 bg-[var(--foreground)] opacity-12 rounded-md pointer-events-none z-0" />
-            <div
-              className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-red-500 rounded-md pointer-events-none z-10 transition-[width] duration-150 linear"
+            <motion.div
+              className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-red-500 rounded-md pointer-events-none z-10"
               style={{
                 width: duration
                   ? `${
@@ -1679,6 +1740,7 @@ export default function SpotifyPlayer() {
                     }%`
                   : "0%",
               }}
+              transition={{ duration: 0.15, ease: "linear" }}
             />
           </div>
           <span className="text-[var(--foreground)] font-mono text-sm min-w-[32px] text-right">

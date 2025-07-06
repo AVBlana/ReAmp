@@ -1,7 +1,10 @@
+"use client";
+
 import Link from "next/link";
 import { FaHome } from "react-icons/fa";
 import { ReactNode, useEffect, useState, useRef } from "react";
 import { useUnifiedContext } from "@/context/UnifiedContext";
+import { motion, useAnimation } from "framer-motion";
 
 interface HeaderProps {
   icon?: ReactNode;
@@ -140,6 +143,7 @@ export default function Header({
   const [isAnimating, setIsAnimating] = useState(false);
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const previousPlaybackStateRef = useRef<string | null>(null);
+  const logoControls = useAnimation();
 
   // Check if any music is currently playing
   useEffect(() => {
@@ -200,6 +204,44 @@ export default function Header({
     };
   }, [youtube.selectedVideo, spotify.currentSong?.id, isAnyPlaying, isPlaying]);
 
+  // Logo animation effect
+  useEffect(() => {
+    if (isAnimating) {
+      if (isPlaying) {
+        // Turn on animation
+        logoControls.start({
+          opacity: [0.3, 1, 1],
+          filter: [
+            "none",
+            "drop-shadow(0 0 20px rgba(255, 107, 107, 1)) drop-shadow(0 0 40px rgba(255, 107, 107, 0.8)) drop-shadow(0 0 60px rgba(255, 107, 107, 0.6))",
+            "drop-shadow(0 0 8px rgba(255, 107, 107, 0.8)) drop-shadow(0 0 16px rgba(255, 107, 107, 0.6)) drop-shadow(0 0 24px rgba(255, 107, 107, 0.4)) drop-shadow(0 0 32px rgba(255, 107, 107, 0.2))",
+          ],
+          scale: [1, 1.2, 1],
+        });
+      } else {
+        // Turn off animation
+        logoControls.start({
+          opacity: [1, 0.8, 0.3],
+          filter: [
+            "drop-shadow(0 0 8px rgba(255, 107, 107, 0.8)) drop-shadow(0 0 16px rgba(255, 107, 107, 0.6)) drop-shadow(0 0 24px rgba(255, 107, 107, 0.4)) drop-shadow(0 0 32px rgba(255, 107, 107, 0.2))",
+            "drop-shadow(0 0 15px rgba(255, 107, 107, 0.6)) drop-shadow(0 0 30px rgba(255, 107, 107, 0.4))",
+            "none",
+          ],
+          scale: [1, 1.1, 1],
+        });
+      }
+    } else {
+      // Set final state without animation
+      logoControls.set({
+        opacity: isPlaying ? 1 : 0.3,
+        filter: isPlaying
+          ? "drop-shadow(0 0 8px rgba(255, 107, 107, 0.8)) drop-shadow(0 0 16px rgba(255, 107, 107, 0.6)) drop-shadow(0 0 24px rgba(255, 107, 107, 0.4)) drop-shadow(0 0 32px rgba(255, 107, 107, 0.2))"
+          : "none",
+        scale: 1,
+      });
+    }
+  }, [isPlaying, isAnimating, logoControls]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -217,84 +259,19 @@ export default function Header({
           <div className="flex items-center space-x-3 w-full lg:w-auto justify-between lg:justify-start">
             <div className="flex items-center space-x-3">
               {icon && icon}
-              <h1
-                className={`text-2xl font-bold text-transparent tracking-tighter relative transition-all duration-800 ease-out ${
-                  isPlaying ? "logo-on" : "logo-off"
-                } ${isAnimating ? "logo-animating" : ""}`}
+              <motion.h1
+                className="text-2xl font-bold text-transparent tracking-tighter relative"
+                style={{
+                  WebkitTextStroke: "1px #ff6b6b",
+                }}
+                animate={logoControls}
+                transition={{
+                  duration: 0.8,
+                  ease: [0.4, 0, 0.2, 1],
+                }}
               >
                 {title}
-                <style jsx>{`
-                  h1 {
-                    -webkit-text-stroke: 1px #ff6b6b;
-                    text-stroke: 1px #ff6b6b;
-                  }
-
-                  .logo-off {
-                    opacity: 0.3;
-                    filter: none;
-                    transform: scale(1);
-                  }
-
-                  .logo-on {
-                    opacity: 1;
-                    filter: drop-shadow(0 0 8px rgba(255, 107, 107, 0.8))
-                      drop-shadow(0 0 16px rgba(255, 107, 107, 0.6))
-                      drop-shadow(0 0 24px rgba(255, 107, 107, 0.4))
-                      drop-shadow(0 0 32px rgba(255, 107, 107, 0.2));
-                    transform: scale(1);
-                  }
-
-                  .logo-animating {
-                    animation: ${isPlaying ? "turnOn" : "turnOff"} 0.8s
-                      cubic-bezier(0.4, 0, 0.2, 1) forwards;
-                  }
-
-                  @keyframes turnOn {
-                    0% {
-                      opacity: 0.3;
-                      filter: none;
-                      transform: scale(1);
-                    }
-                    50% {
-                      opacity: 1;
-                      filter: drop-shadow(0 0 20px rgba(255, 107, 107, 1))
-                        drop-shadow(0 0 40px rgba(255, 107, 107, 0.8))
-                        drop-shadow(0 0 60px rgba(255, 107, 107, 0.6));
-                      transform: scale(1.2);
-                    }
-                    100% {
-                      opacity: 1;
-                      filter: drop-shadow(0 0 8px rgba(255, 107, 107, 0.8))
-                        drop-shadow(0 0 16px rgba(255, 107, 107, 0.6))
-                        drop-shadow(0 0 24px rgba(255, 107, 107, 0.4))
-                        drop-shadow(0 0 32px rgba(255, 107, 107, 0.2));
-                      transform: scale(1);
-                    }
-                  }
-
-                  @keyframes turnOff {
-                    0% {
-                      opacity: 1;
-                      filter: drop-shadow(0 0 8px rgba(255, 107, 107, 0.8))
-                        drop-shadow(0 0 16px rgba(255, 107, 107, 0.6))
-                        drop-shadow(0 0 24px rgba(255, 107, 107, 0.4))
-                        drop-shadow(0 0 32px rgba(255, 107, 107, 0.2));
-                      transform: scale(1);
-                    }
-                    50% {
-                      opacity: 0.8;
-                      filter: drop-shadow(0 0 15px rgba(255, 107, 107, 0.6))
-                        drop-shadow(0 0 30px rgba(255, 107, 107, 0.4));
-                      transform: scale(1.1);
-                    }
-                    100% {
-                      opacity: 0.3;
-                      filter: none;
-                      transform: scale(1);
-                    }
-                  }
-                `}</style>
-              </h1>
+              </motion.h1>
             </div>
             {/* Show home and logout on mobile */}
             <div className="flex items-center space-x-2 lg:hidden">

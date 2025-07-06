@@ -238,56 +238,57 @@ const areArraysEqual = <T extends Song | YoutubeVideo>(
 // Memoize the state value to prevent unnecessary re-renders
 const PlaylistProvider: React.FC<{ children: React.ReactNode }> = memo(
   ({ children }) => {
-    // Unified playlist name state
+    // Unified playlist name state - always start with default value to prevent hydration mismatch
     const [unifiedPlaylistName, setUnifiedPlaylistName] = useState<string>(
-      () => {
-        if (typeof window !== "undefined") {
-          // Clear old separate playlist names to prevent conflicts
-          const oldYoutubeName = safeLocalStorage.get(
-            STORAGE_KEYS.YOUTUBE.PLAYLIST_NAME
-          );
-          const oldSpotifyName = safeLocalStorage.get(
-            STORAGE_KEYS.SPOTIFY.PLAYLIST_NAME
-          );
+      "Create a new playlist"
+    );
 
-          if (oldYoutubeName || oldSpotifyName) {
-            console.log("Found old separate playlist names, clearing them:", {
-              oldYoutubeName,
-              oldSpotifyName,
-            });
-            safeLocalStorage.remove(STORAGE_KEYS.YOUTUBE.PLAYLIST_NAME);
-            safeLocalStorage.remove(STORAGE_KEYS.SPOTIFY.PLAYLIST_NAME);
-          }
+    useEffect(() => {
+      if (typeof window !== "undefined") {
+        // Clear old separate playlist names to prevent conflicts
+        const oldYoutubeName = safeLocalStorage.get(
+          STORAGE_KEYS.YOUTUBE.PLAYLIST_NAME
+        );
+        const oldSpotifyName = safeLocalStorage.get(
+          STORAGE_KEYS.SPOTIFY.PLAYLIST_NAME
+        );
 
-          const unifiedName = safeLocalStorage.get(
-            STORAGE_KEYS.UNIFIED.PLAYLIST_NAME
-          );
+        if (oldYoutubeName || oldSpotifyName) {
+          console.log("Found old separate playlist names, clearing them:", {
+            oldYoutubeName,
+            oldSpotifyName,
+          });
+          safeLocalStorage.remove(STORAGE_KEYS.YOUTUBE.PLAYLIST_NAME);
+          safeLocalStorage.remove(STORAGE_KEYS.SPOTIFY.PLAYLIST_NAME);
+        }
+
+        const unifiedName = safeLocalStorage.get(
+          STORAGE_KEYS.UNIFIED.PLAYLIST_NAME
+        );
+        console.log(
+          "Loading unified playlist name from localStorage:",
+          unifiedName
+        );
+
+        // If there's a saved name but no playlists, clear it and use default
+        const savedPlaylists = safeLocalStorage.get(
+          STORAGE_KEYS.UNIFIED.SAVED_PLAYLISTS
+        );
+        const hasPlaylists =
+          savedPlaylists && JSON.parse(savedPlaylists).length > 0;
+
+        if (unifiedName && !hasPlaylists) {
           console.log(
-            "Loading unified playlist name from localStorage:",
+            "Found saved playlist name but no playlists, clearing name:",
             unifiedName
           );
-
-          // If there's a saved name but no playlists, clear it and use default
-          const savedPlaylists = safeLocalStorage.get(
-            STORAGE_KEYS.UNIFIED.SAVED_PLAYLISTS
-          );
-          const hasPlaylists =
-            savedPlaylists && JSON.parse(savedPlaylists).length > 0;
-
-          if (unifiedName && !hasPlaylists) {
-            console.log(
-              "Found saved playlist name but no playlists, clearing name:",
-              unifiedName
-            );
-            safeLocalStorage.remove(STORAGE_KEYS.UNIFIED.PLAYLIST_NAME);
-            return "Create a new playlist";
-          }
-
-          return unifiedName || "Create a new playlist";
+          safeLocalStorage.remove(STORAGE_KEYS.UNIFIED.PLAYLIST_NAME);
+          setUnifiedPlaylistName("Create a new playlist");
+        } else if (unifiedName) {
+          setUnifiedPlaylistName(unifiedName);
         }
-        return "Create a new playlist";
       }
-    );
+    }, []);
 
     // Create a wrapper for setUnifiedPlaylistName to add debugging
     const setUnifiedPlaylistNameWithDebug = useCallback(
@@ -319,21 +320,6 @@ const PlaylistProvider: React.FC<{ children: React.ReactNode }> = memo(
         );
       }
     }, [unifiedPlaylistName]);
-
-    // Save unified playlists to localStorage whenever they change
-    // useEffect(() => {
-    //   if (typeof window !== "undefined" && unifiedSavedPlaylists.length > 0) {
-    //     safeLocalStorage.set(
-    //       STORAGE_KEYS.UNIFIED.SAVED_PLAYLISTS,
-    //       JSON.stringify(unifiedSavedPlaylists)
-    //     );
-    //     console.log(
-    //       "Saved unified playlists to localStorage:",
-    //       unifiedSavedPlaylists.length,
-    //       "playlists"
-    //     );
-    //   }
-    // }, [unifiedSavedPlaylists]);
 
     // YouTube playlist state
     const [youtubePlaylist, setYoutubePlaylist] = useState<YoutubeVideo[]>(
@@ -838,7 +824,11 @@ const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const refreshSpotifyToken = useCallback(async () => {
     try {
       const response = await fetch("/api/spotify/refresh");
-      if (!response.ok) throw new Error("Failed to refresh token");
+      if (!response.ok) {
+        // If refresh fails, redirect to login
+        window.location.href = "/api/spotify/login?origin=/reamp";
+        throw new Error("Failed to refresh token");
+      }
       const data = await response.json();
       return data;
     } catch (error) {
@@ -1006,6 +996,31 @@ const DragDropWrapper: React.FC<{ children: React.ReactNode }> = memo(
             spotifyCurrentSong: spotify.currentSong?.id,
             spotifyCurrentSongTitle: spotify.currentSong?.title,
           });
+          return;
+        }
+
+        // Handle dropping to DJ players
+        if (destination.droppableId.startsWith("dj-player-")) {
+          const playerId = destination.droppableId.split("-")[2] as "A" | "B";
+          const [service, id] = draggableId.split("-");
+
+          console.log("Dropping to DJ player:", {
+            playerId,
+            draggableId,
+            service,
+            id,
+          });
+
+          if (!service || !id) {
+            console.warn("Invalid draggableId format:", draggableId);
+            return;
+          }
+
+          // Dispatch custom event for DJ player to handle
+          const dropEvent = new CustomEvent("dj-player-drop", {
+            detail: { playerId, service, id, draggableId },
+          });
+          window.dispatchEvent(dropEvent);
           return;
         }
 

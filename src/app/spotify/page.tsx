@@ -10,11 +10,11 @@ import SpotifySearchResultsList from "../components/SpotifySearchResultsList";
 import { DragDropContext, Droppable, DropResult } from "@hello-pangea/dnd";
 import { useSpotify } from "@/context/UnifiedContext";
 import { useEffect, useState } from "react";
-import { configureWebGL } from "../utils/webglConfig";
 import { SpotifyFooter } from "../components/Footer";
 import PlaylistLibrary from "../components/PlaylistLibrary";
 import { ServiceType, Song } from "@/types/playerTypes";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 interface SpotifyTrack {
   id: string;
@@ -46,63 +46,27 @@ function SpotifySearchContent() {
     addToPlaylist,
   } = useSpotify();
 
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const [currentSearchTerm, setCurrentSearchTerm] = useState<string>("");
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const router = useRouter();
-
-  useEffect(() => {
-    configureWebGL();
-  }, []);
 
   // Check authentication status
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Check if we have a token in localStorage
         const token = localStorage.getItem("spotify_token");
-
-        if (!token) {
-          // No token found, redirect to login
-          setIsAuthenticated(false);
-          router.push("/api/spotify/login?origin=/spotify");
-          return;
-        }
-
-        // Verify the token is still valid by making a test API call
-        const response = await fetch("https://api.spotify.com/v1/me", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (response.status === 401) {
-          // Token is invalid, try to refresh
-          try {
-            const refreshResponse = await fetch("/api/spotify/refresh");
-            if (!refreshResponse.ok) {
-              // Refresh failed, redirect to login
-              localStorage.removeItem("spotify_token");
-              setIsAuthenticated(false);
-              router.push("/api/spotify/login?origin=/spotify");
-              return;
-            }
-            // Refresh successful, token should be updated in localStorage
+        if (token) {
+          // Verify token is still valid
+          const response = await fetch("/api/spotify/refresh");
+          if (response.ok) {
             setIsAuthenticated(true);
-          } catch (refreshError) {
-            console.error("Error refreshing token:", refreshError);
-            localStorage.removeItem("spotify_token");
+          } else {
             setIsAuthenticated(false);
             router.push("/api/spotify/login?origin=/spotify");
-            return;
           }
-        } else if (response.ok) {
-          // Token is valid
-          setIsAuthenticated(true);
         } else {
-          // Other error, redirect to login
           setIsAuthenticated(false);
           router.push("/api/spotify/login?origin=/spotify");
         }
@@ -116,44 +80,16 @@ function SpotifySearchContent() {
     checkAuth();
   }, [router]);
 
-  // Add the animation styles
-  useEffect(() => {
-    const style = document.createElement("style");
-    style.id = "spotify-animation-styles";
-    style.textContent = `
-      @keyframes glow {
-        0%, 100% {
-          box-shadow: 0 0 10px rgba(29,185,84,0.6), 0 0 20px rgba(29,185,84,0.4);
-        }
-        50% {
-          box-shadow: 0 0 30px rgba(29,185,84,0.8), 0 0 50px rgba(29,185,84,0.6);
-        }
-      }
-      .animate-glow {
-        animation: glow 1.5s ease-in-out infinite;
-      }
-    `;
-    document.head.appendChild(style);
-    return () => {
-      try {
-        const existingStyle = document.getElementById(
-          "spotify-animation-styles"
-        );
-        if (existingStyle && existingStyle.parentNode) {
-          existingStyle.parentNode.removeChild(existingStyle);
-        }
-      } catch (error) {
-        console.warn("Could not remove Spotify animation styles:", error);
-      }
-    };
-  }, []);
-
   // Show loading state while checking authentication
   if (isAuthenticated === null) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] text-gray-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1DB954] mx-auto mb-4"></div>
+          <motion.div
+            className="rounded-full h-12 w-12 border-b-2 border-[#1DB954] mx-auto mb-4"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          />
           <p className="text-lg">Connecting to Spotify...</p>
         </div>
       </div>
