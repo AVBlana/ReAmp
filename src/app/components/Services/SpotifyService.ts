@@ -3,6 +3,7 @@ import { ServiceType, Song } from "../../../types/playerTypes";
 interface SpotifyTrack {
   id: string;
   name: string;
+  duration_ms: number;
   artists: Array<{
     id: string;
     name: string;
@@ -19,19 +20,6 @@ interface SpotifyTrack {
 interface SearchResponse {
   items: Song[];
   nextPageToken: string | null;
-}
-
-export interface Song {
-  id: string;
-  title: string;
-  artist?: {
-    name: string;
-  };
-  artwork?: {
-    small?: { url: string };
-    medium?: { url: string };
-    big?: { url: string };
-  };
 }
 
 export const searchSpotify = async (
@@ -84,6 +72,7 @@ export const searchSpotify = async (
           height: track.album.images[0]?.height || 640,
         },
       },
+      duration: track.duration_ms,
     }));
 
     return {

@@ -140,10 +140,7 @@ const PlaylistItem = memo(
               className="w-5 h-5 flex items-center justify-center text-white hover:text-white/90 transition-colors duration-200"
               title="Delete playlist"
             >
-              <FaTrash
-                size={8}
-                className="drop-shadow-[0_0_4px_rgba(255,255,255,0.3)]"
-              />
+              <FaTrash size={8} />
             </button>
           </div>
 
@@ -152,8 +149,8 @@ const PlaylistItem = memo(
             onClick={onSelect}
             className={`flex-none w-12 h-12 rounded-lg flex items-center justify-center transform-none hover:transform-none ${
               isActive
-                ? "bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm border-2 border-[#FF6B6B] shadow-[0_0_8px_rgba(255,107,107,0.6)]"
-                : "hover:bg-gradient-to-br hover:from-white/10 hover:to-white/5 backdrop-blur-sm border border-transparent hover:border-2 hover:border-[#FF6B6B]/60 hover:shadow-[0_0_8px_rgba(255,107,107,0.3)]"
+                ? "bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm border-2 border-[#FF6B6B]"
+                : "hover:bg-gradient-to-br hover:from-white/10 hover:to-white/5 backdrop-blur-sm border border-transparent hover:border-2 hover:border-[#FF6B6B]/60"
             }`}
           >
             <PlaylistThumbnail items={playlist.items} />
@@ -304,22 +301,16 @@ const UnifiedPlaylistLibrary = memo(
       <div className="flex flex-row lg:flex-col items-center lg:items-start space-x-2 lg:space-x-0 lg:space-y-2 h-full">
         {/* Library Icon */}
         <div className="flex-none w-12 h-12 flex items-center justify-center text-gray-400 bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg backdrop-blur-sm border border-white/5">
-          <FaMusic
-            size={20}
-            className="drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
-          />
+          <FaMusic size={20} />
         </div>
 
         {/* Create New Playlist Button */}
         <button
           onClick={handleCreatePlaylist}
-          className="flex-none w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-[#FF6B6B] to-[#FF6B6B]/80 hover:from-[#FF6B6B]/80 hover:to-[#FF6B6B] text-white transition-all duration-300 shadow-lg hover:shadow-[#FF6B6B]/30 backdrop-blur-sm border border-white/10"
+          className="flex-none w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-[#FF6B6B] to-[#FF6B6B]/80 hover:from-[#FF6B6B]/80 hover:to-[#FF6B6B] text-white transition-all duration-300 backdrop-blur-sm border border-white/10"
           title="Create New Playlist"
         >
-          <FaPlus
-            size={20}
-            className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
-          />
+          <FaPlus size={20} className="text-white" />
         </button>
 
         {/* Save Current Playlist Button */}
@@ -335,13 +326,10 @@ const UnifiedPlaylistLibrary = memo(
         })() && (
           <button
             onClick={handleSaveCurrentPlaylist}
-            className="flex-none w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-500 text-white transition-all duration-300 shadow-lg hover:shadow-green-500/30 backdrop-blur-sm border border-white/10 animate-pulse"
+            className="flex-none w-12 h-12 rounded-lg flex items-center justify-center bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-500 text-white transition-all duration-300 backdrop-blur-sm border border-white/10 animate-pulse"
             title="Save Current Playlist (Unsaved Changes)"
           >
-            <FaCheck
-              size={20}
-              className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
-            />
+            <FaCheck size={20} className="text-white" />
           </button>
         )}
 
@@ -362,13 +350,10 @@ const UnifiedPlaylistLibrary = memo(
         {/* Clear All Button */}
         <button
           onClick={handleClearAll}
-          className="w-12 h-12 flex-shrink-0 rounded-lg flex items-center justify-center bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-500 text-white transition-all duration-300 shadow-lg hover:shadow-red-500/30 backdrop-blur-sm border border-white/10"
+          className="w-12 h-12 flex-shrink-0 rounded-lg flex items-center justify-center bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-500 text-white transition-all duration-300 backdrop-blur-sm border border-white/10"
           title="Clear All Playlists"
         >
-          <FaTrash
-            size={20}
-            className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
-          />
+          <FaTrash size={20} className="text-white" />
         </button>
 
         {/* Playlists */}
