@@ -1544,92 +1544,8 @@ export default function DJSetPlayer({ className = "" }: DJSetPlayerProps) {
       videos.push({ playerId: "B", video: players.B.song as YoutubeVideo });
     }
 
-    console.log(`📺 getCurrentYouTubeVideos called:`, {
-      videosCount: videos.length,
-      videos: videos.map((v) => ({
-        playerId: v.playerId,
-        title: v.video.snippet.title,
-      })),
-    });
-
     return videos;
   };
-
-  // Move YouTube players to their visible containers
-  // Disabled for now since we're creating players in visible containers from the start
-  /*
-  const moveYouTubePlayersToVisibleContainers = () => {
-    const currentVideos = getCurrentYouTubeVideos();
-    currentVideos.forEach(async ({ playerId }) => {
-      const visibleContainer = document.getElementById(
-        `youtube-player-${playerId}`
-      ) as HTMLDivElement;
-      const currentContainer = youtubeManager.getContainer(playerId);
-
-      if (
-        visibleContainer &&
-        currentContainer &&
-        visibleContainer !== currentContainer
-      ) {
-        console.log(
-          `🔄 Moving YouTube player ${playerId} to visible container`
-        );
-
-        // Move the player to the visible container
-        const player = youtubeManager.getPlayer(playerId);
-        if (player) {
-          // Store current state before destroying
-          const currentState = youtubeManager.playerStates.get(playerId);
-          const video = players[playerId].song as YoutubeVideo;
-
-          // Destroy the current player and recreate it in the visible container
-          youtubeManager.destroyPlayer(playerId);
-
-          try {
-            console.log(
-              `🔄 Recreating YouTube player ${playerId} in visible container`
-            );
-            await youtubeManager.createPlayer(
-              playerId,
-              video.id.videoId,
-              visibleContainer
-            );
-
-            // Restore state if it existed
-            if (currentState) {
-              youtubeManager.setPlayerState(playerId, currentState);
-            }
-
-            console.log(
-              `✅ YouTube player ${playerId} moved to visible container successfully`
-            );
-          } catch (error) {
-            console.error(`❌ Error moving YouTube player ${playerId}:`, error);
-            // If recreation fails, try to recreate in the original container
-            try {
-              console.log(
-                `🔄 Attempting to recreate ${playerId} in original container`
-              );
-              await youtubeManager.createPlayer(
-                playerId,
-                video.id.videoId,
-                currentContainer
-              );
-              console.log(
-                `✅ YouTube player ${playerId} recreated in original container`
-              );
-            } catch (fallbackError) {
-              console.error(
-                `❌ Failed to recreate ${playerId} in original container:`,
-                fallbackError
-              );
-            }
-          }
-        }
-      }
-    });
-  };
-  */
 
   const [crossfade, setCrossfade] = useState(0);
   const [isCrossfadeEnabled, setIsCrossfadeEnabled] = useState(false);
@@ -2065,15 +1981,6 @@ export default function DJSetPlayer({ className = "" }: DJSetPlayerProps) {
           const duration = youtubeManager.getDuration(playerId) * 1000; // Convert to ms
           const playerStateNum = youtubeManager.getPlayerState(playerId);
 
-          console.log(`Progress update for ${playerId}:`, {
-            currentTime: Math.round(currentTime / 1000),
-            duration: Math.round(duration / 1000),
-            isPlaying: playerStateNum === 1,
-            crossfadeEnabled: isCrossfadeEnabledRef.current,
-            crossfadePercentage: crossfadeRef.current,
-            crossfadeInProgress: crossfadeInProgressRef.current,
-          });
-
           // Update the UI state directly (like SpotifyPlayer)
           setPlayers((prev) => ({
             ...prev,
@@ -2171,15 +2078,6 @@ export default function DJSetPlayer({ className = "" }: DJSetPlayerProps) {
           if (player && typeof player.getCurrentState === "function") {
             const state = await player.getCurrentState();
             if (state) {
-              console.log(`Progress update for ${playerId}:`, {
-                currentTime: Math.round(state.position / 1000),
-                duration: Math.round(state.duration / 1000),
-                isPlaying: !state.paused,
-                crossfadeEnabled: isCrossfadeEnabledRef.current,
-                crossfadePercentage: crossfadeRef.current,
-                crossfadeInProgress: crossfadeInProgressRef.current,
-              });
-
               // Update the UI state directly (like SpotifyPlayer)
               setPlayers((prev) => ({
                 ...prev,

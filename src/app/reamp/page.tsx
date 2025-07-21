@@ -251,19 +251,7 @@ function ReAMPContent() {
         <div className="flex flex-col lg:flex-row gap-6 h-full">
           {/* Library Section - Vertical in desktop, Horizontal in tablet/mobile */}
           <div className="flex flex-row lg:flex-col">
-            <motion.div
-              className="bg-black/20 rounded-lg p-4 h-full flex flex-col"
-              whileHover={{
-                boxShadow:
-                  "0 0 30px rgba(255,107,107,0.8), 0 0 50px rgba(78,205,196,0.6)",
-              }}
-              transition={{
-                duration: 1.5,
-                ease: "easeInOut",
-                repeat: Infinity,
-                repeatType: "reverse",
-              }}
-            >
+            <motion.div className="bg-black/20 rounded-lg p-4 flex flex-col min-h-0 max-h-full">
               <UnifiedPlaylistLibrary
                 theme={{
                   primary: "#FF6B6B",
