@@ -6,6 +6,7 @@ import { Song } from "@/types/playerTypes";
 import { ServiceType } from "@/types/playerTypes";
 import { useUnifiedContext } from "@/context/UnifiedContext";
 import { FaPlay, FaTrash } from "react-icons/fa";
+import Image from "next/image";
 
 export interface PlaylistItemProps {
   item: YoutubeVideo | Song;
@@ -75,8 +76,14 @@ const PlaylistItem = memo(({ item, service }: PlaylistItemProps) => {
   return (
     <>
       {/* Thumbnail */}
-      <div className="w-12 h-12 flex-shrink-0 rounded overflow-hidden">
-        <img src={thumbnail} alt="" className="w-full h-full object-cover" />
+      <div className="w-12 h-12 flex-shrink-0 rounded overflow-hidden relative">
+        <Image
+          src={thumbnail}
+          alt=""
+          fill
+          className="object-cover"
+          sizes="48px"
+        />
       </div>
 
       {/* Info */}

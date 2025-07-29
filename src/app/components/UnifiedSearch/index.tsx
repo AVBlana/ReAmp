@@ -6,6 +6,7 @@ import SearchResultsContainer from "../SearchResultsContainer";
 import { useUnifiedContext } from "@/context/UnifiedContext";
 import { ServiceType, Song } from "@/types/playerTypes";
 import { YoutubeVideo } from "@/app/components/Services/YtService";
+import Image from "next/image";
 
 type SearchResult = YoutubeVideo | Song;
 
@@ -310,10 +311,12 @@ export default function UnifiedSearch({
             >
               {/* Thumbnail */}
               <div className="w-12 h-12 flex-shrink-0 rounded overflow-hidden relative">
-                <img
+                <Image
                   src={getThumbnailUrl(result)}
                   alt=""
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
+                  sizes="48px"
                 />
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <button
