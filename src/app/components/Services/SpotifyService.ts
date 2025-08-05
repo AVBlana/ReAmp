@@ -1,89 +1,71 @@
-import { ServiceType, Song } from "../../../types/playerTypes";
+import { Song } from "@/app/types/playerTypes";
 
-interface SpotifyTrack {
-  id: string;
-  name: string;
-  duration_ms: number;
-  artists: Array<{
-    id: string;
-    name: string;
-  }>;
-  album: {
-    images: Array<{
-      url: string;
-      width: number;
-      height: number;
-    }>;
-  };
-}
-
-interface SearchResponse {
+export interface SpotifySearchResponse {
   items: Song[];
   nextPageToken: string | null;
 }
 
-export const searchSpotify = async (
-  searchTerm: string,
+export async function searchSpotify(
+  query: string,
   token: string,
   offset?: string
-): Promise<SearchResponse> => {
+): Promise<SpotifySearchResponse> {
   try {
-    const response = await fetch(
-      `https://api.spotify.com/v1/search?q=${searchTerm}&type=track&limit=10${
-        offset ? `&offset=${offset}` : ""
-      }`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const url = new URL("https://api.spotify.com/v1/search");
+    url.searchParams.append("q", query);
+    url.searchParams.append("type", "track");
+    url.searchParams.append("limit", "20");
+
+    if (offset) {
+      url.searchParams.append("offset", offset);
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     if (!response.ok) {
-      throw new Error("Failed to search Spotify");
+      if (response.status === 401) {
+        throw new Error("authentication failed");
+      }
+      throw new Error(`Spotify API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const tracks = data.tracks.items as SpotifyTrack[];
 
-    const songs: Song[] = tracks.map((track) => ({
+    const items: Song[] = data.tracks.items.map((track: any) => ({
       id: track.id,
-      type: ServiceType.Spotify,
       title: track.name,
       artist: {
-        id: track.artists[0].id,
-        name: track.artists[0].name,
+        id: track.artists[0]?.id || "",
+        name: track.artists[0]?.name || "Unknown Artist",
+      },
+      album: {
+        id: track.album?.id || "",
+        name: track.album?.name || "Unknown Album",
       },
       artwork: {
-        small: {
-          url: track.album.images[2]?.url || "",
-          width: track.album.images[2]?.width || 64,
-          height: track.album.images[2]?.height || 64,
-        },
-        medium: {
-          url: track.album.images[1]?.url || "",
-          width: track.album.images[1]?.width || 300,
-          height: track.album.images[1]?.height || 300,
-        },
-        big: {
-          url: track.album.images[0]?.url || "",
-          width: track.album.images[0]?.width || 640,
-          height: track.album.images[0]?.height || 640,
-        },
+        small: { url: track.album?.images?.[2]?.url || "" },
+        medium: { url: track.album?.images?.[1]?.url || "" },
+        large: { url: track.album?.images?.[0]?.url || "" },
       },
       duration: track.duration_ms,
+      uri: track.uri,
+      type: "spotify" as const,
     }));
 
+    const nextPageToken = data.tracks.next
+      ? (data.tracks.offset + data.tracks.limit).toString()
+      : null;
+
     return {
-      items: songs,
-      nextPageToken: data.tracks.next ? data.tracks.offset + 10 : null,
+      items,
+      nextPageToken,
     };
   } catch (error) {
     console.error("Error searching Spotify:", error);
-    return {
-      items: [],
-      nextPageToken: null,
-    };
+    throw error;
   }
-};
+}

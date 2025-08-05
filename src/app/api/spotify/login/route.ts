@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 
 const SPOTIFY_CLIENT_ID = process.env.REACT_APP_SPOTIFY_CLIENT_ID;
 const REDIRECT_URI =
-  process.env.REACT_APP_PUBLIC_REDIRECT_URI ||
+  process.env.REACT_APP_SPOTIFY_REDIRECT_URI ||
   "http://localhost:3000/api/spotify/callback";
 
 export async function GET(request: Request) {
@@ -25,7 +25,8 @@ export async function GET(request: Request) {
   }
 
   // Store the origin page in a cookie
-  cookies().set("spotify_auth_origin", originPage, {
+  const cookieStore = await cookies();
+  cookieStore.set("spotify_auth_origin", originPage, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

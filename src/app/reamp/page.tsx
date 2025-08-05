@@ -1,39 +1,18 @@
 "use client";
 
-import { UnifiedProvider } from "@/context/UnifiedContext";
-import Header from "../components/Header";
-import UnifiedSearch from "../components/UnifiedSearch";
-import DJSetPlayer from "../components/DJSetPlayer";
-import UnifiedPlaylistView from "../components/UnifiedPlaylistView";
-import { useUnifiedContext } from "@/context/UnifiedContext";
+import { UnifiedProvider } from "@/app/context/UnifiedContext";
+import Header from "@/app/components/organisms/Header";
+import DJSetPlayer from "@/app/components/organisms/DJSetPlayer";
+import { useUnifiedContext } from "@/app/context/UnifiedContext";
 import { useState, useCallback } from "react";
-import { ServiceType, Song } from "@/types/playerTypes";
-import { getYouTubeVideos } from "../components/Services/YtService";
-import UnifiedPlaylistLibrary from "@/app/components/UnifiedPlaylistLibrary";
-import SpotifyAuthCheck from "../components/SpotifyAuthCheck";
-import DebugPlayer from "../components/DebugPlayer";
-
+import { ServiceType } from "@/app/types/playerTypes";
+import { getYouTubeVideos } from "@/app/components/Services/YtService";
+import { searchSpotify } from "@/app/components/Services/SpotifyService";
+import SpotifyAuthCheck from "@/app/components/organisms/SpotifyAuthCheck/SpotifyAuthCheck";
+import UnifiedSearch from "@/app/components/organisms/UnifiedSearch";
+import UnifiedPlaylistLibrary from "@/app/components/organisms/UnifiedPlaylistLibrary";
+import UnifiedPlaylistView from "@/app/components/organisms/UnifiedPlaylistView";
 import { motion } from "framer-motion";
-
-interface SpotifyImage {
-  url: string;
-  width: number;
-  height: number;
-}
-
-interface SpotifyArtist {
-  id: string;
-  name: string;
-}
-
-interface SpotifyTrack {
-  id: string;
-  name: string;
-  artists: SpotifyArtist[];
-  album: {
-    images: SpotifyImage[];
-  };
-}
 
 function ReAMPContent() {
   const { youtube, spotify } = useUnifiedContext();
@@ -51,72 +30,34 @@ function ReAMPContent() {
         youtube.setCurrentSearchTerm(query);
       } else {
         try {
-          const response = await fetch(
-            `/api/spotify/search?q=${encodeURIComponent(query)}`
-          );
-          if (!response.ok) throw new Error("Failed to fetch search results");
-          const data = await response.json();
+          // Get Spotify token from localStorage
+          const token = localStorage.getItem("spotify_token");
+          if (!token) {
+            console.log("No Spotify token found, redirecting to login...");
+            window.location.href = "/api/spotify/login?origin=/reamp";
+            return;
+          }
 
-          // Map Spotify tracks to Song type
-          const mappedResults: Song[] = data.tracks.items.map(
-            (track: SpotifyTrack) => {
-              const images = track.album.images || [];
-              const smallImage = images.find(
-                (img: SpotifyImage) => img.width <= 64
-              ) ||
-                images[images.length - 1] || { url: "", width: 64, height: 64 };
-              const mediumImage = images.find(
-                (img: SpotifyImage) => img.width <= 300
-              ) ||
-                images[images.length - 1] || {
-                  url: "",
-                  width: 300,
-                  height: 300,
-                };
-              const bigImage = images[0] ||
-                images[images.length - 1] || {
-                  url: "",
-                  width: 640,
-                  height: 640,
-                };
-
-              return {
-                id: track.id,
-                type: ServiceType.Spotify,
-                title: track.name,
-                artist: {
-                  id: track.artists[0]?.id || "",
-                  name: track.artists[0]?.name || "Unknown Artist",
-                },
-                artwork: {
-                  small: {
-                    url: smallImage.url || "",
-                    width: smallImage.width || 64,
-                    height: smallImage.height || 64,
-                  },
-                  medium: {
-                    url: mediumImage.url || "",
-                    width: mediumImage.width || 300,
-                    height: mediumImage.height || 300,
-                  },
-                  big: {
-                    url: bigImage.url || "",
-                    width: bigImage.width || 640,
-                    height: bigImage.height || 640,
-                  },
-                },
-              };
-            }
-          );
-
-          spotify.setSearchResults(mappedResults);
-          setSpotifyNextPageToken(
-            data.tracks.next
-              ? String(data.tracks.offset + data.tracks.items.length)
-              : null
-          );
+          // Use the proper SpotifyService
+          const { items, nextPageToken } = await searchSpotify(query, token);
+          spotify.setSearchResults(items);
+          setSpotifyNextPageToken(nextPageToken);
+          youtube.setCurrentSearchTerm(query); // Use youtube for search term tracking
         } catch (error) {
           console.error("Error searching Spotify:", error);
+
+          // Check if it's an authentication error
+          if (
+            error instanceof Error &&
+            error.message.includes("authentication")
+          ) {
+            console.log(
+              "Spotify authentication failed, redirecting to login..."
+            );
+            window.location.href = "/api/spotify/login?origin=/reamp";
+            return;
+          }
+
           spotify.setSearchResults([]);
           setSpotifyNextPageToken(null);
         }
@@ -140,79 +81,21 @@ function ReAMPContent() {
         if (spotifyNextPageToken && !isLoadingMore) {
           setIsLoadingMore(true);
           try {
-            const response = await fetch(
-              `/api/spotify/search?q=${encodeURIComponent(
-                youtube.currentSearchTerm
-              )}&offset=${spotifyNextPageToken}`
-            );
-            if (!response.ok) throw new Error("Failed to fetch more results");
-            const data = await response.json();
+            const token = localStorage.getItem("spotify_token");
+            if (!token) {
+              console.error("No Spotify token found");
+              return;
+            }
 
-            // Map additional Spotify tracks to Song type
-            const mappedResults: Song[] = data.tracks.items.map(
-              (track: SpotifyTrack) => {
-                const images = track.album.images || [];
-                const smallImage = images.find(
-                  (img: SpotifyImage) => img.width <= 64
-                ) ||
-                  images[images.length - 1] || {
-                    url: "",
-                    width: 64,
-                    height: 64,
-                  };
-                const mediumImage = images.find(
-                  (img: SpotifyImage) => img.width <= 300
-                ) ||
-                  images[images.length - 1] || {
-                    url: "",
-                    width: 300,
-                    height: 300,
-                  };
-                const bigImage = images[0] ||
-                  images[images.length - 1] || {
-                    url: "",
-                    width: 640,
-                    height: 640,
-                  };
-
-                return {
-                  id: track.id,
-                  type: ServiceType.Spotify,
-                  title: track.name,
-                  artist: {
-                    id: track.artists[0]?.id || "",
-                    name: track.artists[0]?.name || "Unknown Artist",
-                  },
-                  artwork: {
-                    small: {
-                      url: smallImage.url || "",
-                      width: smallImage.width || 64,
-                      height: smallImage.height || 64,
-                    },
-                    medium: {
-                      url: mediumImage.url || "",
-                      width: mediumImage.width || 300,
-                      height: mediumImage.height || 300,
-                    },
-                    big: {
-                      url: bigImage.url || "",
-                      width: bigImage.width || 640,
-                      height: bigImage.height || 640,
-                    },
-                  },
-                };
-              }
+            // Use the proper SpotifyService with offset
+            const { items, nextPageToken } = await searchSpotify(
+              youtube.currentSearchTerm || "",
+              token,
+              spotifyNextPageToken
             );
 
-            spotify.setSearchResults([
-              ...spotify.searchResults,
-              ...mappedResults,
-            ]);
-            setSpotifyNextPageToken(
-              data.tracks.next
-                ? String(data.tracks.offset + data.tracks.items.length)
-                : null
-            );
+            spotify.setSearchResults([...spotify.searchResults, ...items]);
+            setSpotifyNextPageToken(nextPageToken);
           } catch (error) {
             console.error("Error loading more Spotify results:", error);
           } finally {
@@ -230,7 +113,6 @@ function ReAMPContent() {
       <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black_70%)]" />
 
       <SpotifyAuthCheck />
-      <DebugPlayer />
 
       <Header
         title="ReAMP"

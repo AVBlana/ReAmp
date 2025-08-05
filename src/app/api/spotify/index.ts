@@ -1,0 +1,4 @@
+// Spotify API routes are handled by Next.js API routes
+// This file serves as a placeholder for potential future exports
+export * from "./callback/route";
+export * from "./logout/route";

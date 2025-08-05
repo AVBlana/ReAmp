@@ -4,13 +4,14 @@ import { cookies } from "next/headers";
 const SPOTIFY_CLIENT_ID = process.env.REACT_APP_SPOTIFY_CLIENT_ID;
 const SPOTIFY_CLIENT_SECRET = process.env.REACT_APP_SPOTIFY_API_KEY;
 const REDIRECT_URI =
-  process.env.REACT_APP_PUBLIC_REDIRECT_URI ||
+  process.env.REACT_APP_SPOTIFY_REDIRECT_URI ||
   "http://localhost:3000/api/spotify/callback";
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
 // Add a function to get the origin page from cookies
-function getOriginPage() {
-  const origin = cookies().get("spotify_auth_origin")?.value;
+async function getOriginPage() {
+  const cookieStore = await cookies();
+  const origin = cookieStore.get("spotify_auth_origin")?.value;
   return origin || "/spotify"; // Default to /spotify if no origin is set
 }
 
@@ -59,14 +60,15 @@ export async function GET(request: Request) {
     }
 
     // Store both tokens in cookies
-    cookies().set("spotify_refresh_token", data.refresh_token, {
+    const cookieStore = await cookies();
+    cookieStore.set("spotify_refresh_token", data.refresh_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 30, // 30 days
     });
 
-    cookies().set("spotify_access_token", data.access_token, {
+    cookieStore.set("spotify_access_token", data.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -74,8 +76,8 @@ export async function GET(request: Request) {
     });
 
     // Get the origin page and clear the origin cookie
-    const originPage = getOriginPage();
-    cookies().delete("spotify_auth_origin");
+    const originPage = await getOriginPage();
+    cookieStore.delete("spotify_auth_origin");
 
     // Create a response that will set the token in localStorage and redirect to the origin page
     const html = `

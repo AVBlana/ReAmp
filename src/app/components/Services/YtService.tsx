@@ -1,50 +1,107 @@
-export interface YoutubeVideo {
-  id: { kind: string; videoId: string };
+import { YoutubeVideo } from "@/app/types/youtubeTypes";
+
+export interface YouTubeSearchResponse {
+  items: YoutubeVideo[];
+  nextPageToken: string | null;
+}
+
+interface YouTubeAPIItem {
+  id: {
+    videoId: string;
+  };
   snippet: {
     title: string;
-    description: string;
-    thumbnails: {
-      default: { url: string; width: number; height: number };
-      medium: { url: string; width: number; height: number };
-      high: { url: string; width: number; height: number };
-    };
     channelTitle: string;
-    publishTime: string;
+    thumbnails: {
+      default: {
+        url: string;
+        width: number;
+        height: number;
+      };
+      medium: {
+        url: string;
+        width: number;
+        height: number;
+      };
+      high: {
+        url: string;
+        width: number;
+        height: number;
+      };
+    };
   };
 }
 
-const PLAYLIST_STORAGE_KEY = "youtube_playlist";
+interface YouTubeAPIResponse {
+  items: YouTubeAPIItem[];
+  nextPageToken?: string;
+}
 
 export async function getYouTubeVideos(
   query: string,
   pageToken?: string
-): Promise<{ items: YoutubeVideo[]; nextPageToken?: string }> {
+): Promise<YouTubeSearchResponse> {
   try {
-    const response = await fetch(
-      `/api/youtube?q=${encodeURIComponent(query)}${
-        pageToken ? `&pageToken=${pageToken}` : ""
-      }`
-    );
-    if (!response.ok) {
-      throw new Error("Failed to fetch YouTube data");
+    const url = new URL("https://www.googleapis.com/youtube/v3/search");
+    url.searchParams.append("part", "snippet");
+    url.searchParams.append("maxResults", "20");
+    url.searchParams.append("q", query);
+    url.searchParams.append("type", "video");
+    url.searchParams.append("videoCategoryId", "10"); // Music category
+
+    if (pageToken) {
+      url.searchParams.append("pageToken", pageToken);
     }
-    const data = await response.json();
-    return { items: data.items, nextPageToken: data.nextPageToken };
+
+    // Note: You'll need to add your YouTube API key to the environment variables
+    const apiKey = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
+    if (!apiKey) {
+      throw new Error("YouTube API key not found");
+    }
+
+    url.searchParams.append("key", apiKey);
+
+    const response = await fetch(url.toString());
+
+    if (!response.ok) {
+      throw new Error(`YouTube API error: ${response.status}`);
+    }
+
+    const data: YouTubeAPIResponse = await response.json();
+
+    const items: YoutubeVideo[] = data.items.map((item: YouTubeAPIItem) => ({
+      id: {
+        videoId: item.id.videoId,
+      },
+      snippet: {
+        title: item.snippet.title,
+        channelTitle: item.snippet.channelTitle,
+        thumbnails: {
+          default: {
+            url: item.snippet.thumbnails.default.url,
+            width: item.snippet.thumbnails.default.width,
+            height: item.snippet.thumbnails.default.height,
+          },
+          medium: {
+            url: item.snippet.thumbnails.medium.url,
+            width: item.snippet.thumbnails.medium.width,
+            height: item.snippet.thumbnails.medium.height,
+          },
+          high: {
+            url: item.snippet.thumbnails.high.url,
+            width: item.snippet.thumbnails.high.width,
+            height: item.snippet.thumbnails.high.height,
+          },
+        },
+      },
+    }));
+
+    return {
+      items,
+      nextPageToken: data.nextPageToken || null,
+    };
   } catch (error) {
-    console.error("Error fetching YouTube videos:", error);
+    console.error("Error searching YouTube:", error);
     throw error;
   }
 }
-
-export const getPlaylist = (): YoutubeVideo[] => {
-  const playlistJson = localStorage.getItem(PLAYLIST_STORAGE_KEY);
-  return playlistJson ? JSON.parse(playlistJson) : [];
-};
-
-export const removeFromPlaylist = (videoId: string): void => {
-  const playlist = getPlaylist();
-  const updatedPlaylist = playlist.filter(
-    (item) => item.id.videoId !== videoId
-  );
-  localStorage.setItem(PLAYLIST_STORAGE_KEY, JSON.stringify(updatedPlaylist));
-};

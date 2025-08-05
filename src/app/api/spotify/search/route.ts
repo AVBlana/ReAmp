@@ -31,8 +31,9 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("q");
   const offset = searchParams.get("offset");
-  let accessToken = cookies().get("spotify_access_token")?.value;
-  const refreshToken = cookies().get("spotify_refresh_token")?.value;
+  const cookieStore = await cookies();
+  let accessToken = cookieStore.get("spotify_access_token")?.value;
+  const refreshToken = cookieStore.get("spotify_refresh_token")?.value;
 
   if (!query) {
     return NextResponse.json(
@@ -64,7 +65,7 @@ export async function GET(request: Request) {
 
       // Store the new access token
       if (accessToken) {
-        cookies().set("spotify_access_token", accessToken, {
+        cookieStore.set("spotify_access_token", accessToken, {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
           sameSite: "lax",

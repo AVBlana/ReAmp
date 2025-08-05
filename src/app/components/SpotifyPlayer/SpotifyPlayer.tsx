@@ -9,14 +9,14 @@ import {
   FaVolumeMute,
   FaFastForward,
 } from "react-icons/fa";
-import { ServiceType } from "@/types/playerTypes";
+import { ServiceType } from "@/app/types/playerTypes";
 import Image from "next/image";
 import type {
   Player,
   PlaybackState,
   PlayerOptions,
 } from "spotify-web-playback-sdk";
-import { useSpotify, useUnifiedContext } from "@/context/UnifiedContext";
+import { useSpotify, useUnifiedContext } from "@/app/context/UnifiedContext";
 import { motion, useAnimation, AnimatePresence } from "framer-motion";
 
 // Define proper types for the song object

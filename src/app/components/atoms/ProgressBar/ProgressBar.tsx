@@ -1,0 +1,127 @@
+import React, { useCallback, useRef, useState } from "react";
+
+export interface ProgressBarProps {
+  currentTime: number;
+  duration: number;
+  onSeek?: (time: number) => void;
+  color?: "red" | "blue" | "green" | "purple" | "teal";
+  height?: "sm" | "md" | "lg";
+  showTime?: boolean;
+  disabled?: boolean;
+  className?: string;
+}
+
+const ProgressBar: React.FC<ProgressBarProps> = ({
+  currentTime,
+  duration,
+  onSeek,
+  color = "red",
+  height = "md",
+  showTime = false,
+  disabled = false,
+  className = "",
+}) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragTime, setDragTime] = useState(currentTime);
+  const progressRef = useRef<HTMLDivElement>(null);
+
+  const progress =
+    duration > 0 ? (isDragging ? dragTime : currentTime) / duration : 0;
+
+  const colorClasses = {
+    red: "bg-[#FF6B6B]",
+    blue: "bg-blue-500",
+    green: "bg-green-500",
+    purple: "bg-purple-500",
+    teal: "bg-[#4ECDC4]",
+  };
+
+  const heightClasses = {
+    sm: "h-1",
+    md: "h-2",
+    lg: "h-3",
+  };
+
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (disabled || !onSeek) return;
+      setIsDragging(true);
+      handleMouseMove(e);
+    },
+    [disabled, onSeek]
+  );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent | MouseEvent) => {
+      if (!isDragging || !progressRef.current || !onSeek) return;
+
+      const rect = progressRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const percentage = Math.max(0, Math.min(1, x / rect.width));
+      const newTime = percentage * duration;
+      setDragTime(newTime);
+    },
+    [isDragging, duration, onSeek]
+  );
+
+  const handleMouseUp = useCallback(() => {
+    if (!isDragging || !onSeek) return;
+    setIsDragging(false);
+    onSeek(dragTime);
+  }, [isDragging, onSeek, dragTime]);
+
+  React.useEffect(() => {
+    if (isDragging) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
+
+  return (
+    <div className={`flex items-center gap-2 ${className}`}>
+      {showTime && (
+        <span className="text-xs text-gray-400 font-mono min-w-[40px]">
+          {formatTime(isDragging ? dragTime : currentTime)}
+        </span>
+      )}
+
+      <div
+        ref={progressRef}
+        className={`flex-1 bg-gray-700 rounded-full cursor-pointer relative ${
+          heightClasses[height]
+        } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+        onMouseDown={handleMouseDown}
+      >
+        <div
+          className={`h-full rounded-full ${colorClasses[color]} relative`}
+          style={{ width: `${progress * 100}%` }}
+        />
+
+        {!disabled && onSeek && (
+          <div
+            className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg"
+            style={{ left: `${progress * 100}%` }}
+          />
+        )}
+      </div>
+
+      {showTime && (
+        <span className="text-xs text-gray-400 font-mono min-w-[40px]">
+          {formatTime(duration)}
+        </span>
+      )}
+    </div>
+  );
+};
+
+export default ProgressBar;
