@@ -5,7 +5,7 @@ export interface InputProps {
   onChange: (value: string) => void;
   placeholder?: string;
   type?: "text" | "email" | "password" | "search";
-  variant?: "default" | "search" | "ghost";
+  variant?: "default" | "search" | "ghost" | "watermelon";
   size?: "sm" | "md" | "lg";
   disabled?: boolean;
   className?: string;
@@ -13,6 +13,7 @@ export interface InputProps {
   onIconClick?: () => void;
   onFocus?: () => void;
   onBlur?: () => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   autoFocus?: boolean;
 }
 
@@ -31,17 +32,23 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       onIconClick,
       onFocus,
       onBlur,
+      onKeyDown,
       autoFocus = false,
     },
     ref
   ) => {
     const baseClasses =
-      "w-full bg-black/20 text-white placeholder-gray-400 rounded-lg border-2 border-[#FF6B6B] focus:outline-none focus:bg-black/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed";
+      "w-full text-white placeholder-gray-400 rounded-lg border-2 focus:outline-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed";
 
     const variantClasses = {
-      default: "bg-black/20 border-[#FF6B6B]",
-      search: "bg-black/20 border-[#FF6B6B]",
-      ghost: "bg-transparent border-transparent focus:bg-black/10",
+      default:
+        "bg-black/20 border-[#FF6B6B] focus:bg-black/30 focus:border-[#FF5252] focus:shadow-lg focus:shadow-[#FF6B6B]/25",
+      search:
+        "bg-black/20 border-[#FF6B6B] focus:bg-black/30 focus:border-[#FF5252] focus:shadow-lg focus:shadow-[#FF6B6B]/25",
+      ghost:
+        "bg-transparent border-transparent focus:bg-black/10 focus:border-[#FF6B6B]/40",
+      watermelon:
+        "bg-black/30 border-[#FF6B6B] focus:bg-black/40 focus:border-[#FF5252] focus:shadow-lg focus:shadow-[#FF6B6B]/30",
     };
 
     const sizeClasses = {
@@ -64,6 +71,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           className={classes}
           onFocus={onFocus}
           onBlur={onBlur}
+          onKeyDown={onKeyDown}
           autoFocus={autoFocus}
         />
         {icon && (

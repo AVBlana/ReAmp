@@ -2,16 +2,55 @@
 
 import { useEffect, useState } from "react";
 
+// Import atomic design components
+import Button from "@/app/components/atoms/Button";
+import Icon from "@/app/components/atoms/Icon";
+import { FaCheck, FaExclamationTriangle } from "react-icons/fa";
+import { useNotifications } from "@/app/context/NotificationContext";
+
 export default function SpotifyAuthCheck() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
+  const [isChecking, setIsChecking] = useState(false);
+  const { addNotification } = useNotifications();
 
   useEffect(() => {
     const checkAuth = () => {
       const token = localStorage.getItem("spotify_token");
-      setIsAuthenticated(!!token);
+      const wasAuthenticated = isAuthenticated;
+      const newAuthState = !!token;
+
+      setIsAuthenticated(newAuthState);
       setIsChecking(false);
+
+      // Show notification when auth state changes
+      if (wasAuthenticated !== newAuthState) {
+        if (newAuthState) {
+          addNotification({
+            type: "success",
+            message: "Spotify connected successfully",
+            icon: <FaCheck size={16} />,
+            duration: 4000,
+          });
+        } else {
+          addNotification({
+            type: "warning",
+            message: "Spotify disconnected",
+            icon: <FaExclamationTriangle size={16} />,
+            duration: 4000,
+          });
+        }
+      }
     };
+
+    // Show initial status notification
+    const token = localStorage.getItem("spotify_token");
+    if (token) {
+      addNotification({
+        type: "info",
+        message: "Welcome back! Spotify is connected",
+        duration: 3000,
+      });
+    }
 
     checkAuth();
 
@@ -24,43 +63,40 @@ export default function SpotifyAuthCheck() {
 
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
+  }, [isAuthenticated, addNotification]);
 
   const handleLogin = () => {
     window.location.href = "/api/spotify/login?origin=/reamp";
   };
 
   if (isChecking) {
-    return (
-      <div className="fixed top-4 right-4 bg-yellow-600/90 text-white px-4 py-2 rounded-lg z-50 backdrop-blur-sm">
-        <div className="flex items-center gap-2">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-          <span>Checking Spotify authentication...</span>
-        </div>
-      </div>
-    );
+    return null; // Don't show anything while checking
   }
 
   if (!isAuthenticated) {
     return (
-      <div className="fixed top-4 right-4 bg-red-600/90 text-white px-4 py-2 rounded-lg z-50 backdrop-blur-sm shadow-lg">
+      <div className="bg-red-600/90 text-white px-3 py-1.5 rounded-lg backdrop-blur-sm shadow-lg">
         <div className="flex items-center gap-2">
-          <span>🎵 Spotify not connected</span>
-          <button
+          <Icon icon={<FaExclamationTriangle size={14} />} color="white" />
+          <span className="text-sm">Spotify not connected</span>
+          <Button
             onClick={handleLogin}
-            className="bg-white text-red-600 px-3 py-1 rounded text-sm hover:bg-gray-100 transition-colors font-medium"
+            variant="ghost"
+            size="sm"
+            className="bg-white text-red-600 hover:bg-gray-100 text-xs px-2 py-1"
           >
-            Connect Spotify
-          </button>
+            Connect
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed top-4 right-4 bg-green-600/90 text-white px-4 py-2 rounded-lg z-50 backdrop-blur-sm shadow-lg">
+    <div className="bg-green-600/90 text-white px-3 py-1.5 rounded-lg backdrop-blur-sm shadow-lg">
       <div className="flex items-center gap-2">
-        <span>✅ Spotify connected</span>
+        <Icon icon={<FaCheck size={14} />} color="white" />
+        <span className="text-sm">Spotify connected</span>
       </div>
     </div>
   );

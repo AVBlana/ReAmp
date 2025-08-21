@@ -5,120 +5,86 @@ import {
   FaStop,
   FaStepForward,
   FaStepBackward,
-  FaVolumeUp,
-  FaVolumeMute,
-  FaVolumeDown,
-  FaExpand,
-  FaCompress,
-  FaCog,
-  FaHeart,
-  FaRegHeart,
-  FaRandom,
-  FaRedo,
 } from "react-icons/fa";
 
 export interface PlayerControlsProps {
   isPlaying: boolean;
   onPlay: () => void;
   onPause: () => void;
-  onNext: () => void;
-  onPrevious: () => void;
-  onShuffle?: () => void;
-  onRepeat?: () => void;
-  canPlay?: boolean;
-  canPause?: boolean;
-  canNext?: boolean;
-  canPrevious?: boolean;
-  isShuffled?: boolean;
-  repeatMode?: "none" | "one" | "all";
-  className?: string;
+  onStop: () => void;
+  onNext?: () => void;
+  onPrevious?: () => void;
+  disabled?: boolean;
   size?: "sm" | "md" | "lg";
+  variant?: "default" | "watermelon" | "minimal";
+  className?: string;
 }
 
 const PlayerControls: React.FC<PlayerControlsProps> = ({
   isPlaying,
   onPlay,
   onPause,
+  onStop,
   onNext,
   onPrevious,
-  onShuffle,
-  onRepeat,
-  canPlay = true,
-  canPause = true,
-  canNext = true,
-  canPrevious = true,
-  isShuffled = false,
-  repeatMode = "none",
-  className = "",
+  disabled = false,
   size = "md",
+  variant = "watermelon",
+  className = "",
 }) => {
-  const iconSize = size === "sm" ? 12 : size === "lg" ? 20 : 16;
-
-  const getRepeatIcon = () => {
-    switch (repeatMode) {
-      case "one":
-        return <FaRedo className="text-[#FF6B6B]" />;
-      case "all":
-        return <FaRedo />;
-      default:
-        return <FaRedo className="text-gray-400" />;
-    }
+  const sizeClasses = {
+    sm: "w-8 h-8 text-xs",
+    md: "w-10 h-10 text-sm",
+    lg: "w-12 h-12 text-base",
   };
 
+  const variantClasses = {
+    default: "bg-gray-700 hover:bg-gray-600 text-white",
+    watermelon:
+      "bg-[#FF6B6B] hover:bg-[#FF5252] text-white shadow-lg hover:shadow-xl hover:shadow-[#FF6B6B]/25",
+    minimal:
+      "bg-transparent hover:bg-white/10 text-white border border-white/20",
+  };
+
+  const baseClasses =
+    "inline-flex items-center justify-center font-medium rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed";
+  const classes = `${baseClasses} ${sizeClasses[size]} ${variantClasses[variant]} ${className}`;
+
   return (
-    <div className={`flex items-center justify-center space-x-2 ${className}`}>
-      {/* Shuffle Button */}
-      {onShuffle && (
-        <button
-          onClick={onShuffle}
-          disabled={!canPlay}
-          className={`p-2 rounded-full transition-all ${
-            isShuffled ? "text-[#FF6B6B]" : "text-gray-400"
-          }`}
-        >
-          <FaRandom size={iconSize} />
+    <div className="flex items-center gap-2">
+      {/* Previous Button */}
+      {onPrevious && (
+        <button onClick={onPrevious} disabled={disabled} className={classes}>
+          <FaStepBackward size={size === "sm" ? 12 : size === "md" ? 14 : 16} />
         </button>
       )}
-
-      {/* Previous Button */}
-      <button
-        onClick={onPrevious}
-        disabled={!canPrevious}
-        className="p-2 rounded-full bg-transparent hover:bg-white/10 text-gray-400 hover:text-white transition-all"
-      >
-        <FaStepBackward size={iconSize} />
-      </button>
 
       {/* Play/Pause Button */}
       <button
         onClick={isPlaying ? onPause : onPlay}
-        disabled={isPlaying ? !canPause : !canPlay}
-        className={`p-2 rounded-full transition-all ${
-          isPlaying
-            ? "bg-red-600 hover:bg-red-700"
-            : "bg-green-600 hover:bg-green-700"
+        disabled={disabled}
+        className={`${classes} ${
+          variant === "watermelon"
+            ? "bg-[#4ECDC4] hover:bg-[#45B7AA] hover:shadow-[#4ECDC4]/25"
+            : ""
         }`}
       >
-        {isPlaying ? <FaPause size={iconSize} /> : <FaPlay size={iconSize} />}
+        {isPlaying ? (
+          <FaPause size={size === "sm" ? 12 : size === "md" ? 14 : 16} />
+        ) : (
+          <FaPlay size={size === "sm" ? 12 : size === "md" ? 14 : 16} />
+        )}
+      </button>
+
+      {/* Stop Button */}
+      <button onClick={onStop} disabled={disabled} className={classes}>
+        <FaStop size={size === "sm" ? 12 : size === "md" ? 14 : 16} />
       </button>
 
       {/* Next Button */}
-      <button
-        onClick={onNext}
-        disabled={!canNext}
-        className="p-2 rounded-full bg-transparent hover:bg-white/10 text-gray-400 hover:text-white transition-all"
-      >
-        <FaStepForward size={iconSize} />
-      </button>
-
-      {/* Repeat Button */}
-      {onRepeat && (
-        <button
-          onClick={onRepeat}
-          disabled={!canPlay}
-          className="p-2 rounded-full bg-transparent hover:bg-white/10 text-gray-400 hover:text-white transition-all"
-        >
-          {getRepeatIcon()}
+      {onNext && (
+        <button onClick={onNext} disabled={disabled} className={classes}>
+          <FaStepForward size={size === "sm" ? 12 : size === "md" ? 14 : 16} />
         </button>
       )}
     </div>

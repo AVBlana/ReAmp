@@ -81,7 +81,7 @@ const VolumeSlider: React.FC<VolumeSliderProps> = ({
       {showIcon && (
         <button
           onClick={handleMuteToggle}
-          className="text-gray-400 hover:text-white transition-colors"
+          className="text-gray-400 hover:text-[#FF6B6B] transition-colors hover:scale-110"
         >
           {isMuted ? (
             <FaVolumeMute size={iconSizes[size]} />
@@ -98,9 +98,10 @@ const VolumeSlider: React.FC<VolumeSliderProps> = ({
           max="100"
           value={currentVolume}
           onChange={(e) => onVolumeChange(parseInt(e.target.value))}
-          className={`flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider ${sizeClasses[size]}`}
+          className={`flex-1 rounded-lg appearance-none cursor-pointer slider ${sizeClasses[size]} bg-gray-700 hover:bg-gray-600 transition-colors`}
           style={{
             background: `linear-gradient(to right, ${playerColor} 0%, ${playerColor} ${currentVolume}%, #374151 ${currentVolume}%, #374151 100%)`,
+            boxShadow: `0 0 10px ${playerColor}20`,
           }}
         />
 

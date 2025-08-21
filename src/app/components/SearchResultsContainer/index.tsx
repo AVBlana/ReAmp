@@ -1,5 +1,9 @@
 import { ReactNode } from "react";
 
+// Import atomic design components
+import Button from "@/app/components/atoms/Button";
+import Loading from "@/app/components/atoms/Loading";
+
 interface SearchResultsContainerProps {
   isOpen: boolean;
   children: ReactNode;
@@ -39,13 +43,16 @@ export default function SearchResultsContainer({
           {/* Load More Button */}
           {hasMore && (
             <div className="px-4 py-2 flex justify-center">
-              <button
+              <Button
                 onClick={onLoadMore}
                 disabled={isLoadingMore || !onLoadMore}
-                className={`px-4 py-2 rounded-md bg-[${theme.primary}]/10 hover:bg-[${theme.primary}]/20 text-[${theme.primary}] transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
+                variant="watermelon"
+                size="sm"
+                className="bg-[#FF6B6B]/10 hover:bg-[#FF6B6B]/20 text-[#FF6B6B] border border-[#FF6B6B]/20"
+                loading={isLoadingMore}
               >
                 {isLoadingMore ? "Loading..." : "Load More"}
-              </button>
+              </Button>
             </div>
           )}
         </div>

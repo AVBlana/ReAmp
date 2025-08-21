@@ -4,7 +4,7 @@ export interface ProgressBarProps {
   currentTime: number;
   duration: number;
   onSeek?: (time: number) => void;
-  color?: "red" | "blue" | "green" | "purple" | "teal";
+  color?: "red" | "blue" | "green" | "purple" | "teal" | "watermelon";
   height?: "sm" | "md" | "lg";
   showTime?: boolean;
   disabled?: boolean;
@@ -15,7 +15,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
   currentTime,
   duration,
   onSeek,
-  color = "red",
+  color = "watermelon",
   height = "md",
   showTime = false,
   disabled = false,
@@ -31,9 +31,10 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
   const colorClasses = {
     red: "bg-[#FF6B6B]",
     blue: "bg-blue-500",
-    green: "bg-green-500",
+    green: "bg-[#4ECDC4]",
     purple: "bg-purple-500",
     teal: "bg-[#4ECDC4]",
+    watermelon: "bg-gradient-to-r from-[#FF6B6B] to-[#FF5252]",
   };
 
   const heightClasses = {
@@ -43,8 +44,9 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
   };
 
   const formatTime = (time: number) => {
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
+    const totalSeconds = Math.floor(time / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
@@ -99,17 +101,19 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
         ref={progressRef}
         className={`flex-1 bg-gray-700 rounded-full cursor-pointer relative ${
           heightClasses[height]
-        } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+        } ${
+          disabled ? "opacity-50 cursor-not-allowed" : ""
+        } hover:bg-gray-600 transition-colors`}
         onMouseDown={handleMouseDown}
       >
         <div
-          className={`h-full rounded-full ${colorClasses[color]} relative`}
+          className={`h-full rounded-full ${colorClasses[color]} relative shadow-lg`}
           style={{ width: `${progress * 100}%` }}
         />
 
         {!disabled && onSeek && (
           <div
-            className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg"
+            className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg border-2 border-[#FF6B6B] hover:scale-110 transition-transform"
             style={{ left: `${progress * 100}%` }}
           />
         )}

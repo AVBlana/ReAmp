@@ -2,18 +2,15 @@
 
 import React, { useState, useEffect, useCallback, memo } from "react";
 import { useUnifiedContext } from "@/app/context/UnifiedContext";
-import {
-  FaMusic,
-  FaPlus,
-  FaTrash,
-  FaCheck,
-  FaSave,
-  FaDownload,
-  FaUpload,
-} from "react-icons/fa";
+import { FaMusic, FaPlus, FaTrash, FaCheck } from "react-icons/fa";
 import Image from "next/image";
 import { ServiceType, Song } from "@/app/types/playerTypes";
 import { YoutubeVideo } from "@/app/types/youtubeTypes";
+
+// Import atomic design components
+import Button from "@/app/components/atoms/Button";
+import Loading from "@/app/components/atoms/Loading";
+import Icon from "@/app/components/atoms/Icon";
 
 // Storage key for unified playlists
 const STORAGE_KEY = "unified_saved_playlists";
@@ -68,10 +65,10 @@ interface UnifiedPlaylistLibraryProps {
   };
 }
 
-// Loading component
+// Loading component using atomic Loading component
 const LoadingComponent = () => (
   <div className="flex items-center justify-center h-full">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+    <Loading size="lg" color="watermelon" />
   </div>
 );
 
@@ -142,14 +139,15 @@ const PlaylistItem = memo(
       <div className="flex-none">
         <div className="group relative">
           {/* Delete button - appears on hover */}
-          <div className="absolute -right-1 -top-1 bg-red-500/90 hover:bg-red-600/90 opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-full z-10 shadow-lg border border-white/20 backdrop-blur-sm">
-            <button
+          <div className="absolute -right-1 -top-1 opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-full z-10">
+            <Button
               onClick={() => onDelete(playlist.id)}
-              className="w-5 h-5 flex items-center justify-center text-white hover:text-white/90 transition-colors duration-200"
-              title="Delete playlist"
+              variant="danger"
+              size="sm"
+              className="w-5 h-5 p-0 min-w-0"
             >
               <FaTrash size={8} />
-            </button>
+            </Button>
           </div>
 
           {/* Playlist button */}
@@ -246,19 +244,14 @@ const UnifiedPlaylistLibrary = memo(
       }
     }, [unified]);
 
-    const handleSavePlaylist = useCallback(
-      (e: React.MouseEvent) => {
-        e.stopPropagation();
-        e.preventDefault();
-        console.log("Save button clicked!");
-        console.log("Current playlist:", unified.playlist);
-        console.log("Current playlist ID:", unified.currentPlaylistId);
-        console.log("Has unsaved changes:", unified.hasUnsavedChanges);
-        // Use the unified context's saveCurrentPlaylist function
-        unified.saveCurrentPlaylist();
-      },
-      [unified]
-    );
+    const handleSavePlaylist = useCallback(() => {
+      console.log("Save button clicked!");
+      console.log("Current playlist:", unified.playlist);
+      console.log("Current playlist ID:", unified.currentPlaylistId);
+      console.log("Has unsaved changes:", unified.hasUnsavedChanges);
+      // Use the unified context's saveCurrentPlaylist function
+      unified.saveCurrentPlaylist();
+    }, [unified]);
 
     const handleSelectPlaylist = useCallback(
       (playlist: UnifiedPlaylist) => {
@@ -307,27 +300,29 @@ const UnifiedPlaylistLibrary = memo(
       <div className="flex flex-row lg:flex-col items-center lg:items-start space-x-2 lg:space-x-0 lg:space-y-2 h-full">
         {/* Library Icon */}
         <div className="flex-none w-12 h-12 flex items-center justify-center text-gray-400 bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg backdrop-blur-sm border border-white/5">
-          <FaMusic size={20} />
+          <Icon icon={<FaMusic size={20} />} color="gray" />
         </div>
 
         {/* Create New Playlist Button */}
-        <button
+        <Button
           onClick={handleCreatePlaylist}
-          className="flex-none w-12 h-12 flex items-center justify-center bg-gradient-to-br from-[#FF6B6B] to-[#FF5252] hover:from-[#FF5252] hover:to-[#FF4040] rounded-lg backdrop-blur-sm border border-white/10 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-          title="Create New Playlist"
+          variant="watermelon"
+          size="lg"
+          className="w-12 h-12 p-0 min-w-0"
         >
-          <FaPlus size={20} className="text-white" />
-        </button>
+          <FaPlus size={20} />
+        </Button>
 
         {/* Save Current Playlist Button */}
         {unified.hasUnsavedChanges && (
-          <button
+          <Button
             onClick={handleSavePlaylist}
-            className="flex-none w-12 h-12 flex items-center justify-center bg-gradient-to-br from-[#4ECDC4] to-[#45B7AA] hover:from-[#45B7AA] hover:to-[#3DA89B] rounded-lg backdrop-blur-sm border border-white/10 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-            title="Save Current Playlist (Unsaved Changes)"
+            variant="secondary"
+            size="lg"
+            className="w-12 h-12 p-0 min-w-0"
           >
-            <FaCheck size={20} className="text-white" />
-          </button>
+            <FaCheck size={20} />
+          </Button>
         )}
 
         {/* Status Indicator */}
@@ -345,13 +340,14 @@ const UnifiedPlaylistLibrary = memo(
           ) : null)}
 
         {/* Clear All Button */}
-        <button
+        <Button
           onClick={handleClearAll}
-          className="flex-none w-12 h-12 flex items-center justify-center bg-gradient-to-br from-red-500/90 to-red-600/90 hover:from-red-600/90 hover:to-red-700/90 rounded-lg backdrop-blur-sm border border-white/10 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-          title="Clear All Playlists"
+          variant="danger"
+          size="lg"
+          className="w-12 h-12 p-0 min-w-0"
         >
-          <FaTrash size={20} className="text-white" />
-        </button>
+          <FaTrash size={20} />
+        </Button>
 
         {/* Playlists */}
         <div className="flex-none flex flex-row lg:flex-col items-center lg:items-start space-x-2 lg:space-x-0 lg:space-y-2">

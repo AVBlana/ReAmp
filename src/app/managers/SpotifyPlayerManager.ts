@@ -202,12 +202,11 @@ export class SpotifyPlayerManager {
         player.addListener(
           "player_state_changed",
           (state: SpotifyPlaybackState | null) => {
-            console.log(`🔄 Spotify player ${playerId} state changed:`, state);
-            if (state && state.duration > 0) {
-              console.log(`✅ Track loaded in SDK for ${playerId}:`, {
+            if (state) {
+              this.setPlayerState(playerId, {
+                currentTime: state.position,
                 duration: state.duration,
-                position: state.position,
-                paused: state.paused,
+                isPlaying: !state.paused,
               });
             }
           }

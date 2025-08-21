@@ -1,36 +1,47 @@
 import React from "react";
 
 export interface DeckLabelProps {
-  playerId: "A" | "B";
-  variant?: "default" | "compact" | "highlighted";
+  deckId: "A" | "B" | string;
   isActive?: boolean;
+  isPlaying?: boolean;
+  variant?: "default" | "watermelon" | "minimal";
+  size?: "sm" | "md" | "lg";
   className?: string;
 }
 
 const DeckLabel: React.FC<DeckLabelProps> = ({
-  playerId,
-  variant = "default",
+  deckId,
   isActive = false,
+  isPlaying = false,
+  variant = "watermelon",
+  size = "md",
   className = "",
 }) => {
-  const playerColor = playerId === "A" ? "#FF6B6B" : "#4ECDC4";
-
-  const variantClasses = {
-    default: "text-xl font-bold font-mono",
-    compact: "text-sm font-medium",
-    highlighted: "text-2xl font-bold font-mono",
+  const sizeClasses = {
+    sm: "text-xs px-2 py-1",
+    md: "text-sm px-3 py-1.5",
+    lg: "text-base px-4 py-2",
   };
 
-  const activeClasses = isActive ? "ring-2 ring-white/50 bg-opacity-80" : "";
+  const variantClasses = {
+    default: "bg-gray-700 text-white border border-gray-600",
+    watermelon:
+      "bg-gradient-to-r from-[#FF6B6B] to-[#FF5252] text-white shadow-lg shadow-[#FF6B6B]/25",
+    minimal: "bg-transparent text-white border border-white/20",
+  };
 
-  return (
-    <div
-      className={`text-center ${variantClasses[variant]} ${activeClasses} ${className}`}
-      style={{ color: playerColor }}
-    >
-      DECK {playerId}
-    </div>
-  );
+  const stateClasses = {
+    active: isActive
+      ? "ring-2 ring-[#FF6B6B]/50 shadow-lg shadow-[#FF6B6B]/25"
+      : "",
+    playing: isPlaying ? "animate-pulse" : "",
+  };
+
+  const baseClasses =
+    "font-mono font-bold rounded-lg transition-all duration-200";
+  const classes = `${baseClasses} ${sizeClasses[size]} ${variantClasses[variant]} ${stateClasses.active} ${stateClasses.playing} ${className}`;
+
+  return <div className={classes}>DECK {deckId}</div>;
 };
 
 export default DeckLabel;

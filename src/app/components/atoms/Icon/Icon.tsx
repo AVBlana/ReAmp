@@ -3,7 +3,15 @@ import React from "react";
 export interface IconProps {
   icon: React.ReactNode;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
-  color?: "primary" | "secondary" | "white" | "gray" | "red";
+  color?:
+    | "primary"
+    | "secondary"
+    | "white"
+    | "gray"
+    | "red"
+    | "watermelon"
+    | "spotify"
+    | "youtube";
   className?: string;
   onClick?: () => void;
   disabled?: boolean;
@@ -33,13 +41,19 @@ const Icon: React.FC<IconProps> = ({
     white: "text-white",
     gray: "text-gray-400",
     red: "text-red-500",
+    watermelon: "text-[#FF6B6B]",
+    spotify: "text-[#1DB954]",
+    youtube: "text-[#FF0000]",
   };
 
   const baseClasses = `inline-block transition-colors duration-200 ${sizeClasses[size]} ${colorClasses[color]}`;
-  const interactiveClasses = onClick ? "cursor-pointer hover:scale-110" : "";
+  const interactiveClasses = onClick
+    ? "cursor-pointer hover:scale-110 hover:text-[#FF5252]"
+    : "";
   const disabledClasses = disabled ? "opacity-50 cursor-not-allowed" : "";
+  const animatedClasses = animated ? "animate-pulse" : "";
 
-  const classes = `${baseClasses} ${interactiveClasses} ${disabledClasses} ${className}`;
+  const classes = `${baseClasses} ${interactiveClasses} ${disabledClasses} ${animatedClasses} ${className}`;
 
   return (
     <div className={classes} onClick={disabled ? undefined : onClick}>

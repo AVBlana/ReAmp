@@ -1,44 +1,42 @@
 import { FaGithub, FaTwitter, FaLinkedin } from "react-icons/fa";
 
+// Import atomic design components
+import Icon from "@/app/components/atoms/Icon";
+import Button from "@/app/components/atoms/Button";
+
 interface FooterProps {
   className?: string;
   showSocialLinks?: boolean;
 }
 
 const SocialIcons = ({ isYouTube = true }: { isYouTube?: boolean }) => (
-  <div className="flex space-x-6 relative z-10">
+  <div className="flex space-x-4 relative z-10">
     <a
       href="https://github.com"
       target="_blank"
       rel="noopener noreferrer"
-      className={`text-gray-400 transition-colors duration-300 cursor-pointer relative z-10 ${
-        isYouTube ? "hover:text-[#FF0000]" : "hover:text-[#1DB954]"
-      }`}
+      className="text-gray-400 transition-colors duration-300 cursor-pointer relative z-10 hover:text-[#FF6B6B]"
       style={{ pointerEvents: "auto" }}
     >
-      <FaGithub size={24} />
+      <Icon icon={<FaGithub size={20} />} color="gray" animated={false} />
     </a>
     <a
       href="https://twitter.com"
       target="_blank"
       rel="noopener noreferrer"
-      className={`text-gray-400 transition-colors duration-300 cursor-pointer relative z-10 ${
-        isYouTube ? "hover:text-[#FF0000]" : "hover:text-[#1DB954]"
-      }`}
+      className="text-gray-400 transition-colors duration-300 cursor-pointer relative z-10 hover:text-[#FF6B6B]"
       style={{ pointerEvents: "auto" }}
     >
-      <FaTwitter size={24} />
+      <Icon icon={<FaTwitter size={20} />} color="gray" animated={false} />
     </a>
     <a
       href="https://linkedin.com"
       target="_blank"
       rel="noopener noreferrer"
-      className={`text-gray-400 transition-colors duration-300 cursor-pointer relative z-10 ${
-        isYouTube ? "hover:text-[#FF0000]" : "hover:text-[#1DB954]"
-      }`}
+      className="text-gray-400 transition-colors duration-300 cursor-pointer relative z-10 hover:text-[#FF6B6B]"
       style={{ pointerEvents: "auto" }}
     >
-      <FaLinkedin size={24} />
+      <Icon icon={<FaLinkedin size={20} />} color="gray" animated={false} />
     </a>
   </div>
 );
@@ -51,14 +49,16 @@ export function YouTubeFooter({
 
   return (
     <footer
-      className={`bg-black/80 border-t border-white/10 mt-8 ${className} relative z-10`}
+      className={`bg-gradient-to-r from-black/90 to-gray-900/90 border-t border-white/20 mt-6 ${className} relative z-10`}
     >
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex flex-col items-center space-y-4">
-          {showSocialLinks && <SocialIcons isYouTube={true} />}
-          <div className="text-center text-gray-400">
-            <p>© {currentYear} ReAMP. All rights reserved.</p>
+      <div className="container mx-auto px-6 py-3">
+        <div className="flex items-center justify-between">
+          <div className="text-gray-400 text-sm font-medium">
+            © {currentYear}{" "}
+            <span className="text-[#FF6B6B] font-semibold">ReAMP</span>. All
+            rights reserved.
           </div>
+          {showSocialLinks && <SocialIcons isYouTube={true} />}
         </div>
       </div>
     </footer>
@@ -73,14 +73,16 @@ export function SpotifyFooter({
 
   return (
     <footer
-      className={`bg-black/80 border-t border-white/10 mt-8 ${className} relative z-10`}
+      className={`bg-gradient-to-r from-black/90 to-gray-900/90 border-t border-white/20 mt-6 ${className} relative z-10`}
     >
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex flex-col items-center space-y-4">
-          {showSocialLinks && <SocialIcons isYouTube={false} />}
-          <div className="text-center text-gray-400">
-            <p>© {currentYear} ReAMP. All rights reserved.</p>
+      <div className="container mx-auto px-6 py-3">
+        <div className="flex items-center justify-between">
+          <div className="text-gray-400 text-sm font-medium">
+            © {currentYear}{" "}
+            <span className="text-[#FF6B6B] font-semibold">ReAMP</span>. All
+            rights reserved.
           </div>
+          {showSocialLinks && <SocialIcons isYouTube={false} />}
         </div>
       </div>
     </footer>

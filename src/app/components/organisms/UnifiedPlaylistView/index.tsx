@@ -17,11 +17,15 @@ import {
   DraggableStateSnapshot,
 } from "@hello-pangea/dnd";
 import { useUnifiedContext } from "@/app/context/UnifiedContext";
-import { FaYoutube, FaSpotify } from "react-icons/fa";
 import { ServiceType } from "@/app/types/playerTypes";
 import { YoutubeVideo } from "@/app/types/youtubeTypes";
 import { Song } from "@/app/types/playerTypes";
-import { UnifiedPlaylistItem } from "./PlaylistItem";
+import PlaylistItem from "@/app/components/molecules/PlaylistItem";
+
+// Import atomic design components
+import Input from "@/app/components/atoms/Input";
+import ServiceIcon from "@/app/components/atoms/ServiceIcon";
+import Button from "@/app/components/atoms/Button";
 
 interface UnifiedPlaylistItem {
   id: string;
@@ -47,25 +51,88 @@ const PlaylistItemContent = memo(
     isDragging: boolean;
     isCurrentlyPlaying: boolean;
   }) => {
+    const { youtube, spotify, unified } = useUnifiedContext();
+
+    const getTitle = (data: YoutubeVideo | Song, service: ServiceType) => {
+      if (service === ServiceType.Youtube) {
+        return (data as YoutubeVideo).snippet.title;
+      } else {
+        return (data as Song).title;
+      }
+    };
+
+    const getArtist = (data: YoutubeVideo | Song, service: ServiceType) => {
+      if (service === ServiceType.Youtube) {
+        return (data as YoutubeVideo).snippet.channelTitle;
+      } else {
+        return (data as Song).artist?.name || "Unknown Artist";
+      }
+    };
+
+    const getThumbnail = (data: YoutubeVideo | Song, service: ServiceType) => {
+      if (service === ServiceType.Youtube) {
+        return (data as YoutubeVideo).snippet.thumbnails.default.url;
+      } else {
+        return (
+          (data as Song).artwork?.small?.url ||
+          (data as Song).artwork?.medium?.url ||
+          (data as Song).artwork?.big?.url ||
+          ""
+        );
+      }
+    };
+
+    const handlePlay = () => {
+      if (item.type === ServiceType.Youtube) {
+        const video = item.data as YoutubeVideo;
+        if (youtube.selectedVideo !== video.id.videoId) {
+          youtube.setSelectedVideo(video.id.videoId);
+          if (spotify.currentSong) {
+            spotify.setCurrentSong(null);
+          }
+        }
+      } else {
+        const song = item.data as Song;
+        if (spotify.currentSong?.id !== song.id) {
+          spotify.setCurrentSong(song);
+          if (youtube.selectedVideo) {
+            youtube.setSelectedVideo(null);
+          }
+        }
+      }
+    };
+
+    const handleRemove = () => {
+      unified.removeFromPlaylist(item.id);
+    };
+
+    const onDragStart = (e: React.DragEvent) => {
+      e.dataTransfer.setData("text/plain", `${item.type}-${item.id}`);
+    };
+
     return (
       <div
-        className={`flex items-center space-x-4 p-3 ${
+        className={`${
           isDragging ? "bg-[#FF6B6B]/10" : "hover:bg-[#FF6B6B]/5"
         } transition-colors ${
           isCurrentlyPlaying
             ? "border-2 border-[#FF6B6B] shadow-[0_0_8px_rgba(255,107,107,0.6)]"
             : ""
-        }`}
+        } rounded-lg`}
         style={style}
       >
-        <UnifiedPlaylistItem item={item.data} service={item.type} />
-        <div className="flex-shrink-0">
-          {item.type === ServiceType.Youtube ? (
-            <FaYoutube className="text-[#FF0000]" size={16} />
-          ) : (
-            <FaSpotify className="text-[#1DB954]" size={16} />
-          )}
-        </div>
+        <PlaylistItem
+          id={item.id}
+          title={getTitle(item.data, item.type)}
+          artist={getArtist(item.data, item.type)}
+          thumbnail={getThumbnail(item.data, item.type)}
+          service={item.type === ServiceType.Youtube ? "youtube" : "spotify"}
+          isCurrent={isCurrentlyPlaying}
+          onPlay={handlePlay}
+          onRemove={handleRemove}
+          draggable={true}
+          onDragStart={onDragStart}
+        />
       </div>
     );
   },
@@ -132,7 +199,7 @@ DraggableItem.displayName = "DraggableItem";
 // Memoized playlist items component
 const PlaylistItems = memo(({ items }: { items: UnifiedPlaylistItem[] }) => {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 w-full">
       {items.map((item, index) => (
         <DraggableItem
           key={`${item.type}-${item.id}`}
@@ -161,7 +228,7 @@ const DroppableContent = memo(
       <div
         ref={provided.innerRef}
         {...provided.droppableProps}
-        className={`space-y-2 transition-colors duration-200 ${
+        className={`w-full transition-colors duration-200 ${
           snapshot.isDraggingOver ? "bg-gray-100/10" : ""
         }`}
       >
@@ -241,19 +308,30 @@ const UnifiedPlaylistView = () => {
   }, [unified.playlist]);
 
   // Memoize handlers to prevent unnecessary re-renders
-  const handleClearAll = useCallback(() => {
-    if (window.confirm("Are you sure you want to clear all playlists?")) {
-      unified.setPlaylist([]);
-    }
-  }, [unified.setPlaylist]);
-
   const handlePlaylistNameChange = useCallback(
     (newName: string) => {
       console.log("handlePlaylistNameChange called with:", newName);
-      unified.setPlaylistName(newName);
-      console.log("setPlaylistName called for unified playlist");
+
+      // Validate the playlist name
+      const trimmedName = newName.trim();
+      if (!trimmedName) {
+        console.warn(
+          "Playlist name cannot be empty, reverting to previous name"
+        );
+        setTempName(unified.playlistName);
+        return;
+      }
+
+      // Only update if the name actually changed
+      if (trimmedName !== unified.playlistName) {
+        unified.setPlaylistName(trimmedName);
+        console.log(
+          "setPlaylistName called for unified playlist with:",
+          trimmedName
+        );
+      }
     },
-    [unified.setPlaylistName]
+    [unified.setPlaylistName, unified.playlistName]
   );
 
   return (
@@ -261,12 +339,29 @@ const UnifiedPlaylistView = () => {
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-white/10">
         <div className="flex items-center space-x-4">
+          {/* Save button for unsaved changes */}
+          {unified.hasUnsavedChanges && (
+            <Button
+              onClick={() => {
+                console.log("Save button clicked from playlist view!");
+                unified.saveCurrentPlaylist();
+              }}
+              variant="secondary"
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              Save
+            </Button>
+          )}
+
           <div className="flex items-center space-x-2">
             {isEditingName ? (
-              <input
-                type="text"
+              <Input
                 value={tempName}
-                onChange={(e) => setTempName(e.target.value)}
+                onChange={setTempName}
+                variant="ghost"
+                size="sm"
+                className="bg-transparent border-b border-white/20 focus:border-white/40 px-1"
                 onBlur={() => {
                   console.log("Input onBlur, tempName:", tempName);
                   setIsEditingName(false);
@@ -274,28 +369,37 @@ const UnifiedPlaylistView = () => {
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    console.log("Input onKeyDown Enter, tempName:", tempName);
                     setIsEditingName(false);
                     handlePlaylistNameChange(tempName);
+                  } else if (e.key === "Escape") {
+                    setIsEditingName(false);
+                    setTempName(unified.playlistName); // Reset to original name
                   }
                 }}
-                className="bg-transparent border-b border-white/20 focus:border-white/40 outline-none px-1"
+                onFocus={() => {}}
                 autoFocus
               />
             ) : (
-              <h2
-                className="text-lg font-semibold cursor-pointer hover:text-white/80 transition-colors text-[#FF6B6B]"
-                onClick={() => {
-                  console.log(
-                    "Starting to edit playlist name, current name:",
-                    unified.playlistName
-                  );
-                  setTempName(unified.playlistName);
-                  setIsEditingName(true);
-                }}
-              >
-                {isClient ? unified.playlistName : "Create a new playlist"}
-              </h2>
+              <div className="flex items-center space-x-2">
+                <h2
+                  className="text-lg font-semibold cursor-pointer hover:text-white/80 transition-colors text-[#FF6B6B]"
+                  onClick={() => {
+                    console.log(
+                      "Starting to edit playlist name, current name:",
+                      unified.playlistName
+                    );
+                    setTempName(unified.playlistName);
+                    setIsEditingName(true);
+                  }}
+                >
+                  {isClient ? unified.playlistName : "Create a new playlist"}
+                </h2>
+                {unified.hasUnsavedChanges && (
+                  <span className="text-xs text-yellow-400 bg-yellow-500/20 px-2 py-1 rounded-full border border-yellow-500/30">
+                    Unsaved
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -313,31 +417,36 @@ const UnifiedPlaylistView = () => {
                 <>
                   {youtubeCount > 0 && (
                     <div className="flex items-center text-red-500">
-                      <FaYoutube className="mr-1" />
-                      <span className="text-sm">{youtubeCount}</span>
+                      <ServiceIcon
+                        service="youtube"
+                        size="sm"
+                        variant="watermelon"
+                      />
+                      <span className="text-sm ml-1">{youtubeCount}</span>
                     </div>
                   )}
                   {spotifyCount > 0 && (
                     <div className="flex items-center text-green-500">
-                      <FaSpotify className="mr-1" />
-                      <span className="text-sm">{spotifyCount}</span>
+                      <ServiceIcon
+                        service="spotify"
+                        size="sm"
+                        variant="watermelon"
+                      />
+                      <span className="text-sm ml-1">{spotifyCount}</span>
                     </div>
                   )}
                 </>
               );
             })()}
           </div>
-          <button
-            onClick={handleClearAll}
-            className="text-red-500 hover:text-red-400 transition-colors duration-200"
-          >
-            Clear All
-          </button>
         </div>
       </div>
 
       {/* Playlist Content */}
-      <div ref={playlistContainerRef} className="flex-1 overflow-y-auto p-4">
+      <div
+        ref={playlistContainerRef}
+        className="flex-1 overflow-y-auto overflow-x-hidden p-4"
+      >
         <Droppable droppableId="unified-playlist">
           {(provided, snapshot) => (
             <DroppableContent

@@ -9,7 +9,8 @@ export interface ButtonProps {
     | "danger"
     | "ghost"
     | "spotify"
-    | "youtube";
+    | "youtube"
+    | "watermelon";
   size?: "sm" | "md" | "lg";
   disabled?: boolean;
   className?: string;
@@ -33,12 +34,20 @@ const Button: React.FC<ButtonProps> = ({
     "inline-flex items-center justify-center font-medium rounded-md transition-all duration-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed";
 
   const variantClasses = {
-    primary: "bg-[#FF6B6B] hover:bg-[#FF6B6B]/80 text-white",
-    secondary: "bg-[#4ECDC4] hover:bg-[#4ECDC4]/80 text-white",
-    danger: "bg-red-500/90 hover:bg-red-600 text-white",
-    ghost: "bg-transparent hover:bg-white/10 text-gray-400 hover:text-white",
-    spotify: "bg-[#1DB954] hover:bg-[#1DB954]/80 text-white",
-    youtube: "bg-[#FF0000] hover:bg-[#FF0000]/80 text-white",
+    primary:
+      "bg-[#FF6B6B] hover:bg-[#FF5252] text-white shadow-lg hover:shadow-xl hover:shadow-[#FF6B6B]/25",
+    secondary:
+      "bg-[#4ECDC4] hover:bg-[#45B7AA] text-white shadow-lg hover:shadow-xl hover:shadow-[#4ECDC4]/25",
+    danger:
+      "bg-red-500/90 hover:bg-red-600 text-white shadow-lg hover:shadow-xl",
+    ghost:
+      "bg-transparent hover:bg-white/10 text-gray-400 hover:text-white border border-white/20 hover:border-[#FF6B6B]/40",
+    spotify:
+      "bg-[#1DB954] hover:bg-[#1ed760] text-white shadow-lg hover:shadow-xl hover:shadow-[#1DB954]/25",
+    youtube:
+      "bg-[#FF0000] hover:bg-[#CC0000] text-white shadow-lg hover:shadow-xl hover:shadow-[#FF0000]/25",
+    watermelon:
+      "bg-gradient-to-r from-[#FF6B6B] to-[#FF5252] hover:from-[#FF5252] hover:to-[#FF4040] text-white shadow-lg hover:shadow-xl hover:shadow-[#FF6B6B]/30",
   };
 
   const sizeClasses = {

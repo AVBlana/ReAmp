@@ -1,89 +1,76 @@
-import React, { useState } from "react";
-import { motion } from "framer-motion";
-import { FaMusic, FaImage } from "react-icons/fa";
+import React from "react";
+import Image from "next/image";
 
 export interface AlbumArtProps {
-  src?: string;
-  alt?: string;
-  size?: "sm" | "md" | "lg" | "xl";
-  fallback?: React.ReactNode;
+  src: string;
+  alt: string;
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
+  variant?: "square" | "rounded" | "circle" | "vinyl";
   className?: string;
-  aspectRatio?: "square" | "video" | "custom";
+  fallbackText?: string;
+  loading?: "lazy" | "eager";
+  priority?: boolean;
 }
 
 const AlbumArt: React.FC<AlbumArtProps> = ({
   src,
-  alt = "Album Art",
+  alt,
   size = "md",
-  fallback,
+  variant = "rounded",
   className = "",
-  aspectRatio = "square",
+  fallbackText = "No Image",
+  loading = "lazy",
+  priority = false,
 }) => {
-  const [imageError, setImageError] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
-
   const sizeClasses = {
+    xs: "w-8 h-8",
     sm: "w-12 h-12",
     md: "w-16 h-16",
     lg: "w-24 h-24",
     xl: "w-32 h-32",
   };
 
-  const aspectClasses = {
-    square: "aspect-square",
-    video: "aspect-video",
-    custom: "",
+  const variantClasses = {
+    square: "rounded-none",
+    rounded: "rounded-lg",
+    circle: "rounded-full",
+    vinyl: "rounded-full shadow-[0_0_0_3px_#FF6B6B,0_0_18px_#fff8_inset]",
   };
 
-  const handleImageError = () => {
-    setImageError(true);
+  const fallbackClasses = {
+    square: "bg-gradient-to-br from-gray-700 to-gray-900",
+    rounded: "bg-gradient-to-br from-gray-700 to-gray-900",
+    circle: "bg-gradient-to-br from-gray-700 to-gray-900",
+    vinyl: "bg-gradient-to-br from-black to-gray-800",
   };
 
-  const handleImageLoad = () => {
-    setImageLoaded(true);
-    setImageError(false);
-  };
+  const classes = `${sizeClasses[size]} ${variantClasses[variant]} ${fallbackClasses[variant]} ${className}`;
 
-  const renderFallback = () => {
-    if (fallback) return fallback;
+  const [imageError, setImageError] = React.useState(false);
 
-    return (
-      <div className="flex items-center justify-center w-full h-full bg-gray-700 rounded-lg">
-        <FaMusic className="text-gray-400 text-xl" />
-      </div>
-    );
-  };
-
-  if (!src || imageError) {
+  if (imageError || !src) {
     return (
       <div
-        className={`${sizeClasses[size]} ${aspectClasses[aspectRatio]} ${className}`}
+        className={`${classes} flex items-center justify-center overflow-hidden`}
       >
-        {renderFallback()}
+        <span className="text-gray-400 text-xs font-mono text-center px-1">
+          {fallbackText}
+        </span>
       </div>
     );
   }
 
   return (
-    <div
-      className={`relative ${sizeClasses[size]} ${aspectClasses[aspectRatio]} ${className}`}
-    >
-      <motion.img
+    <div className={`${classes} overflow-hidden relative`}>
+      <Image
         src={src}
         alt={alt}
-        className="w-full h-full object-cover rounded-lg"
-        onError={handleImageError}
-        onLoad={handleImageLoad}
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: imageLoaded ? 1 : 0, scale: imageLoaded ? 1 : 0.9 }}
-        transition={{ duration: 0.3 }}
+        fill
+        className="object-cover"
+        sizes={`${sizeClasses[size].split(" ")[1]}px`}
+        {...(priority ? { priority: true } : { loading })}
+        onError={() => setImageError(true)}
       />
-
-      {!imageLoaded && !imageError && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-700 rounded-lg">
-          <FaImage className="text-gray-400 text-xl animate-pulse" />
-        </div>
-      )}
     </div>
   );
 };

@@ -3,6 +3,7 @@ export { default as Button } from "./Button";
 export { default as Icon } from "./Icon";
 export { default as Input } from "./Input";
 export { default as Loading } from "./Loading";
+export { default as NotificationBadge } from "./NotificationBadge";
 export { default as ProgressBar } from "./ProgressBar";
 export { default as VolumeSlider } from "./VolumeSlider";
 export { default as ControlButton } from "./ControlButton";

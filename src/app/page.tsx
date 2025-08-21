@@ -4,6 +4,9 @@ import { FaMusic } from "react-icons/fa";
 import { useState } from "react";
 import { motion } from "framer-motion";
 
+// Import atomic design components
+import Icon from "@/app/components/atoms/Icon";
+
 export default function Home() {
   const [hovered, setHovered] = useState<string | null>(null);
 
@@ -55,7 +58,7 @@ export default function Home() {
               transition={{ duration: 0.5 }}
             />
             <div className="relative flex items-center space-x-4 px-8 py-4 bg-[#1A1A1A] rounded-2xl border border-white/20 hover:border-white/40 transition-all duration-300">
-              <FaMusic className="w-8 h-8 text-transparent bg-clip-text bg-gradient-to-r from-[#FF6B6B] to-[#FF8E8E]" />
+              <Icon icon={<FaMusic size={32} />} color="watermelon" />
               <span className="text-white text-xl font-medium">ReAMP</span>
             </div>
           </motion.a>
@@ -76,7 +79,7 @@ export default function Home() {
               transition={{ duration: 0.5 }}
             />
             <div className="relative flex items-center space-x-4 px-8 py-4 bg-[#1A1A1A] rounded-2xl border border-white/20 hover:border-white/40 transition-all duration-300">
-              <FaMusic className="w-8 h-8 text-transparent bg-clip-text bg-gradient-to-r from-[#4ECDC4] to-[#6EE7DF]" />
+              <Icon icon={<FaMusic size={32} />} color="secondary" />
               <span className="text-white text-xl font-medium">Demo</span>
             </div>
           </motion.a>

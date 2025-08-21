@@ -8,11 +8,12 @@ import { useState, useCallback } from "react";
 import { ServiceType } from "@/app/types/playerTypes";
 import { getYouTubeVideos } from "@/app/components/Services/YtService";
 import { searchSpotify } from "@/app/components/Services/SpotifyService";
-import SpotifyAuthCheck from "@/app/components/organisms/SpotifyAuthCheck/SpotifyAuthCheck";
+
 import UnifiedSearch from "@/app/components/organisms/UnifiedSearch";
 import UnifiedPlaylistLibrary from "@/app/components/organisms/UnifiedPlaylistLibrary";
 import UnifiedPlaylistView from "@/app/components/organisms/UnifiedPlaylistView";
 import { motion } from "framer-motion";
+import { YouTubeFooter } from "@/app/components/organisms/Footer";
 
 function ReAMPContent() {
   const { youtube, spotify } = useUnifiedContext();
@@ -112,8 +113,6 @@ function ReAMPContent() {
       {/* Background Grid */}
       <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black_70%)]" />
 
-      <SpotifyAuthCheck />
-
       <Header
         title="ReAMP"
         searchComponent={
@@ -165,6 +164,7 @@ function ReAMPContent() {
           </div>
         </div>
       </main>
+      <YouTubeFooter />
     </div>
   );
 }

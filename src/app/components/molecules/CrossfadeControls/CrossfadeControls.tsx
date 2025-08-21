@@ -1,113 +1,129 @@
-import React, { useCallback, useRef, useState } from "react";
-import { FaExchangeAlt } from "react-icons/fa";
+import React from "react";
+import { FaExchangeAlt, FaPlay } from "react-icons/fa";
 
 export interface CrossfadeControlsProps {
-  enabled: boolean;
-  percentage: number;
+  crossfade: number;
+  onCrossfadeChange: (value: number) => void;
+  isEnabled: boolean;
   onToggle: () => void;
-  onChange: (percentage: number) => void;
+  onManualCrossfade?: () => void;
+  isActive?: boolean;
   className?: string;
 }
 
 const CrossfadeControls: React.FC<CrossfadeControlsProps> = ({
-  enabled,
-  percentage,
+  crossfade,
+  onCrossfadeChange,
+  isEnabled,
   onToggle,
-  onChange,
+  onManualCrossfade,
+  isActive = false,
   className = "",
 }) => {
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragPercentage, setDragPercentage] = useState(percentage);
-  const sliderRef = useRef<HTMLDivElement>(null);
-
-  const currentPercentage = isDragging ? dragPercentage : percentage;
-
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      if (!enabled) return;
-      setIsDragging(true);
-      handleMouseMove(e);
-    },
-    [enabled]
-  );
-
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent | MouseEvent) => {
-      if (!isDragging || !sliderRef.current || !enabled) return;
-
-      const rect = sliderRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
-      setDragPercentage(Math.round(percentage));
-    },
-    [isDragging, enabled]
-  );
-
-  const handleMouseUp = useCallback(() => {
-    if (!isDragging || !enabled) return;
-    setIsDragging(false);
-    onChange(dragPercentage);
-  }, [isDragging, enabled, onChange, dragPercentage]);
-
-  React.useEffect(() => {
-    if (isDragging) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-      return () => {
-        document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
-      };
-    }
-  }, [isDragging, handleMouseMove, handleMouseUp]);
-
   return (
-    <div
-      className={`flex items-center gap-4 p-4 bg-black/30 rounded-lg ${className}`}
-    >
-      {/* Toggle Button */}
+    <div className={`flex flex-row items-center gap-4 ${className}`}>
+      {/* Crossfade Toggle Button */}
       <button
         onClick={onToggle}
-        className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
-          enabled
-            ? "bg-[#FF6B6B] text-white"
-            : "bg-gray-600/50 text-gray-400 hover:bg-gray-600/70"
+        disabled={isActive}
+        className={`px-4 py-2 rounded-lg font-mono text-sm transition-all duration-200 ${
+          isActive
+            ? "bg-gradient-to-r from-[#4ECDC4] to-[#4ECDC4] text-white shadow-lg shadow-[#4ECDC4]/25 cursor-not-allowed"
+            : isEnabled
+            ? "bg-gradient-to-r from-[#FF6B6B] to-[#FF5252] hover:from-[#FF5252] hover:to-[#FF4040] text-white shadow-lg hover:shadow-xl hover:shadow-[#FF6B6B]/30"
+            : "bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 text-white shadow-lg hover:shadow-xl"
         }`}
+        title={
+          isEnabled ? "Click to disable crossfade" : "Click to enable crossfade"
+        }
       >
-        <FaExchangeAlt size={16} />
-        <span className="text-sm font-medium">Crossfade</span>
+        <div className="flex items-center gap-2">
+          <FaExchangeAlt
+            className={`inline ${isActive ? "animate-spin" : ""}`}
+          />
+          {isActive
+            ? "CROSSFADING..."
+            : isEnabled
+            ? "CROSSFADE ON"
+            : "CROSSFADE OFF"}
+        </div>
       </button>
 
-      {/* Slider */}
-      <div className="flex-1">
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-400 font-mono min-w-[40px]">
-            0%
-          </span>
-
-          <div
-            ref={sliderRef}
-            className={`flex-1 h-2 bg-gray-700 rounded-full cursor-pointer relative ${
-              enabled ? "" : "opacity-50 cursor-not-allowed"
-            }`}
-            onMouseDown={handleMouseDown}
-          >
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-[#4ECDC4] to-[#FF6B6B]"
-              style={{ width: `${currentPercentage}%` }}
-            />
-
-            {enabled && (
-              <div
-                className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg"
-                style={{ left: `${currentPercentage}%` }}
-              />
-            )}
+      {/* Manual Crossfade Button */}
+      {onManualCrossfade && (
+        <button
+          onClick={onManualCrossfade}
+          disabled={isActive || !isEnabled}
+          className={`px-4 py-2 rounded-lg font-mono text-sm transition-all duration-200 ${
+            isActive || !isEnabled
+              ? "bg-gray-600 text-gray-400 cursor-not-allowed"
+              : "bg-gradient-to-r from-[#4ECDC4] to-[#45B7AA] hover:from-[#45B7AA] hover:to-[#4ECDC4] text-white shadow-lg hover:shadow-xl hover:shadow-[#4ECDC4]/30"
+          }`}
+          title={
+            isEnabled
+              ? "Manually trigger crossfade now"
+              : "Enable crossfade first"
+          }
+        >
+          <div className="flex items-center gap-2">
+            <FaPlay className="inline" />
+            MANUAL CROSSFADE
           </div>
+        </button>
+      )}
 
-          <span className="text-xs text-gray-400 font-mono min-w-[40px]">
-            {currentPercentage}%
+      {/* Crossfade Slider */}
+      <div className="w-48">
+        <div className="flex items-center gap-3">
+          <span
+            className={`font-mono text-sm ${
+              isEnabled ? "text-white" : "text-gray-500"
+            }`}
+          >
+            CROSSFADE
+          </span>
+          <div
+            className={`flex-1 h-2 rounded-full relative ${
+              isEnabled ? "bg-gray-700" : "bg-gray-800"
+            }`}
+          >
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={crossfade}
+              onChange={(e) => onCrossfadeChange(Number(e.target.value))}
+              disabled={!isEnabled}
+              className={`absolute inset-0 w-full h-full opacity-0 ${
+                isEnabled ? "cursor-pointer" : "cursor-not-allowed"
+              }`}
+            />
+            <div
+              className={`absolute top-0 left-0 h-full rounded-full transition-all duration-100 ${
+                isEnabled
+                  ? "bg-gradient-to-r from-[#FF6B6B] to-[#FF5252] shadow-lg"
+                  : "bg-gray-600"
+              }`}
+              style={{ width: `${crossfade}%` }}
+            />
+          </div>
+          <span
+            className={`font-mono text-sm ${
+              isEnabled ? "text-white" : "text-gray-500"
+            }`}
+          >
+            {isEnabled ? `${crossfade}%` : "OFF"}
           </span>
         </div>
+      </div>
+
+      {/* Status indicator */}
+      <div
+        className={`text-xs font-mono ${
+          isEnabled ? "text-green-400" : "text-gray-500"
+        }`}
+      >
+        {isEnabled ? "Auto-crossfade enabled" : "Auto-crossfade disabled"}
       </div>
     </div>
   );

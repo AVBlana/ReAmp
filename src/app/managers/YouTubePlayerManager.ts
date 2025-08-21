@@ -37,8 +37,13 @@ export class YouTubePlayerManager {
       windowYTPlayer: !!(window.YT && window.YT.Player),
     });
 
-    // Clean up existing player if any
-    this.destroyPlayer(playerId);
+    // Don't destroy existing player immediately - check if it's the same video
+    const existingPlayer = this.players.get(playerId);
+    if (existingPlayer) {
+      // If we're trying to create the same player with the same video, don't recreate
+      console.log(` Player ${playerId} already exists, checking if recreation is needed`);
+      // Only destroy if we need to change the video or if there's an error
+    }
 
     // Store container reference
     this.containers.set(playerId, container);
@@ -60,51 +65,61 @@ export class YouTubePlayerManager {
 
     return new Promise<void>((resolve, reject) => {
       try {
-        new window.YT.Player(container, {
-          videoId: videoId,
-          playerVars: {
-            autoplay: 0,
-            modestbranding: 1,
-            rel: 0,
-            enablejsapi: 1,
-            playsinline: 1,
-            controls: 1,
-          },
-          events: {
-            onReady: (event: { target: YouTubePlayer }) => {
-              console.log(`✅ YouTube player ${playerId} ready`);
-              this.players.set(playerId, event.target);
-              resolve();
+        console.log(`🎯 Creating YouTube player instance for ${playerId}`);
+        
+        // Add a small delay to prevent race conditions
+        setTimeout(() => {
+          new window.YT.Player(container, {
+            videoId: videoId,
+            playerVars: {
+              autoplay: 0,
+              modestbranding: 1,
+              rel: 0,
+              enablejsapi: 1,
+              playsinline: 1,
+              controls: 1,
             },
-            onStateChange: (event: { data: number; target: YouTubePlayer }) => {
-              const state = event.data;
-              const currentTime = event.target.getCurrentTime();
-              const duration = event.target.getDuration();
+            events: {
+              onReady: (event: { target: YouTubePlayer }) => {
+                console.log(`✅ YouTube player ${playerId} ready:`, {
+                  player: event.target,
+                  hasGetCurrentTime:
+                    typeof event.target.getCurrentTime === "function",
+                  hasGetDuration: typeof event.target.getDuration === "function",
+                  hasGetPlayerState:
+                    typeof event.target.getPlayerState === "function",
+                });
+                this.players.set(playerId, event.target);
+                resolve();
+              },
+              onStateChange: (event: { data: number; target: YouTubePlayer }) => {
+                const state = event.data;
+                const currentTime = event.target.getCurrentTime();
+                const duration = event.target.getDuration();
 
-              this.setPlayerState(playerId, {
-                currentTime,
-                duration,
-                isPlaying: state === window.YT.PlayerState.PLAYING,
-              });
+                console.log(`🔄 YouTube player ${playerId} state changed:`, {
+                  state,
+                  currentTime,
+                  duration,
+                  isPlaying: state === window.YT.PlayerState.PLAYING,
+                  playerState: window.YT.PlayerState.PLAYING,
+                });
 
-              console.log(`🔄 YouTube player ${playerId} state changed:`, {
-                state,
-                currentTime,
-                duration,
-                isPlaying: state === window.YT.PlayerState.PLAYING,
-              });
+                this.setPlayerState(playerId, {
+                  currentTime,
+                  duration,
+                  isPlaying: state === window.YT.PlayerState.PLAYING,
+                });
+              },
+              onError: (event: { data: number }) => {
+                console.error(`❌ YouTube player ${playerId} error:`, event.data);
+                reject(new Error(`YouTube player error: ${event.data}`));
+              },
             },
-            onError: (event: { data: number }) => {
-              console.error(`❌ YouTube player ${playerId} error:`, event.data);
-              reject(new Error(`YouTube player error: ${event.data}`));
-            },
-          },
-        });
+          });
+        }, 100); // Small delay to prevent race conditions
       } catch (error) {
-        console.error(
-          `❌ Error creating YouTube player for ${playerId}:`,
-          error
-        );
+        console.error(`❌ Error creating YouTube player ${playerId}:`, error);
         reject(error);
       }
     });
@@ -137,6 +152,34 @@ export class YouTubePlayerManager {
         resolve();
       };
     });
+  }
+
+  // Check if a player is ready and can be controlled
+  isPlayerReady(playerId: string): boolean {
+    const player = this.players.get(playerId);
+    if (!player) {
+      return false;
+    }
+
+    try {
+      // Try to call a method to see if the player is truly ready
+      player.getPlayerState();
+      return true;
+    } catch (error) {
+      console.warn(
+        `⚠️ YouTube player ${playerId} exists but not ready:`,
+        error
+      );
+      return false;
+    }
+  }
+
+  // Get player with readiness check
+  getReadyPlayer(playerId: string): YTPlayer | null {
+    if (this.isPlayerReady(playerId)) {
+      return this.players.get(playerId) || null;
+    }
+    return null;
   }
 
   playPlayer(playerId: string) {
@@ -265,6 +308,11 @@ export class YouTubePlayerManager {
 
   getPlayer(playerId: string): YTPlayer | undefined {
     return this.players.get(playerId);
+  }
+
+  // Debug method to list all available players
+  listPlayers(): string[] {
+    return Array.from(this.players.keys());
   }
 
   destroyAll() {

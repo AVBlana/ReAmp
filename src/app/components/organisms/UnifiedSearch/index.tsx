@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { FaYoutube, FaSpotify, FaSearch, FaPlus } from "react-icons/fa";
 import { useUnifiedContext } from "@/app/context/UnifiedContext";
 import { ServiceType, Song } from "@/app/types/playerTypes";
-import Image from "next/image";
 import SearchResultsContainer from "@/app/components/SearchResultsContainer";
 import { YoutubeVideo } from "@/app/types/youtubeTypes";
+// Import atomic design components
+import SearchBar from "@/app/components/molecules/SearchBar";
+import SearchResultItem from "@/app/components/molecules/SearchResultItem";
 
 type SearchResult = YoutubeVideo | Song;
 
@@ -250,27 +251,18 @@ export default function UnifiedSearch({
     <div className="relative w-full" ref={searchRef}>
       <form onSubmit={handleSearch} className="relative">
         <div className="relative flex items-center">
-          {/* Search Input */}
-          <input
-            type="text"
-            id="unified-search-input"
-            name="unified-search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => setIsOpen(true)}
+          {/* Search Input - Now using SearchBar molecule */}
+          <SearchBar
+            onSearch={(searchQuery) => {
+              setQuery(searchQuery);
+              setIsOpen(true);
+            }}
             placeholder="Search for songs..."
-            className="w-full bg-black/20 text-white placeholder-gray-400 rounded-lg pl-4 pr-4 py-2 border-2 border-[#FF6B6B] focus:outline-none focus:ring-2 focus:ring-[#FF6B6B] focus:bg-black/30 transition-all duration-200"
-            autoComplete="off"
+            debounceMs={500}
+            className="w-full"
+            loading={isSearching}
+            autoFocus={false}
           />
-
-          {/* Search Button - Now just for visual purposes */}
-          <button
-            type="submit"
-            className="absolute right-2 p-2 text-gray-400 hover:text-white transition-colors"
-            aria-label="Search"
-          >
-            <FaSearch size={16} />
-          </button>
         </div>
       </form>
 
@@ -298,66 +290,22 @@ export default function UnifiedSearch({
           });
 
           return (
-            <div
+            <SearchResultItem
               key={getUniqueKey(result)}
-              className="flex items-center space-x-4 p-3 hover:bg-white/5 transition-colors cursor-pointer group"
-              draggable
+              title={getTitle(result)}
+              subtitle={getSubtitle(result)}
+              thumbnail={getThumbnailUrl(result)}
+              service={isYoutube ? "youtube" : "spotify"}
+              isInPlaylist={isInPlaylist}
+              onAddToPlaylist={() => handleAddToPlaylist(result, serviceType)}
+              draggable={true}
               onDragStart={(e) => {
                 e.dataTransfer.setData(
                   "text/plain",
                   `${serviceType}-${resultId}`
                 );
               }}
-            >
-              {/* Thumbnail */}
-              <div className="w-12 h-12 flex-shrink-0 rounded overflow-hidden relative">
-                <Image
-                  src={getThumbnailUrl(result)}
-                  alt=""
-                  fill
-                  className="object-cover"
-                  sizes="48px"
-                />
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAddToPlaylist(result, serviceType);
-                    }}
-                    disabled={isInPlaylist}
-                    className={`p-1.5 rounded-full ${
-                      isInPlaylist
-                        ? "bg-gray-500 cursor-not-allowed"
-                        : "bg-[#FF6B6B] hover:bg-[#FF6B6B]/80"
-                    } transition-colors`}
-                    title={
-                      isInPlaylist ? "Already in playlist" : "Add to playlist"
-                    }
-                  >
-                    <FaPlus className="text-white" size={12} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Info */}
-              <div className="flex-grow min-w-0">
-                <h3 className="text-sm font-medium text-white truncate">
-                  {getTitle(result)}
-                </h3>
-                <p className="text-xs text-gray-400 truncate">
-                  {getSubtitle(result)}
-                </p>
-              </div>
-
-              {/* Service Icon */}
-              <div className="flex-shrink-0">
-                {isYoutube ? (
-                  <FaYoutube className="text-[#FF0000]" size={16} />
-                ) : (
-                  <FaSpotify className="text-[#1DB954]" size={16} />
-                )}
-              </div>
-            </div>
+            />
           );
         })}
       </SearchResultsContainer>

@@ -66,13 +66,13 @@ const SearchBar: React.FC<SearchBarProps> = ({
           placeholder={placeholder}
           disabled={disabled}
           autoFocus={autoFocus}
-          className="w-full bg-black/20 text-white placeholder-gray-400 rounded-lg pl-4 pr-4 py-2 border-2 border-[#FF6B6B] focus:outline-none focus:bg-black/30 transition-all duration-200"
+          className="w-full bg-black/20 text-white placeholder-gray-400 rounded-lg pl-4 pr-4 py-2 border-2 border-[#FF6B6B] focus:outline-none focus:bg-black/30 focus:border-[#FF5252] focus:shadow-lg focus:shadow-[#FF6B6B]/25 transition-all duration-200"
           autoComplete="off"
         />
 
-        <div className="absolute right-2 p-2 text-gray-400 hover:text-white transition-colors">
+        <div className="absolute right-2 p-2 text-gray-400 hover:text-[#FF6B6B] transition-colors">
           {loading ? (
-            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <div className="w-4 h-4 border-2 border-[#FF6B6B]/30 border-t-[#FF6B6B] rounded-full animate-spin" />
           ) : (
             <FaSearch size={16} />
           )}
@@ -83,7 +83,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         <div className="absolute right-12 top-1/2 transform -translate-y-1/2">
           <button
             onClick={handleClear}
-            className="p-1 min-w-0 bg-transparent hover:bg-white/10 text-gray-400 hover:text-white transition-all rounded"
+            className="p-1 min-w-0 bg-transparent hover:bg-[#FF6B6B]/20 text-gray-400 hover:text-[#FF6B6B] transition-all rounded hover:scale-110"
           >
             <FaTimes />
           </button>

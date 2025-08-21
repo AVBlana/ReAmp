@@ -2,16 +2,16 @@
 
 import { useRef, useState, useEffect } from "react";
 import { motion, useAnimation, AnimatePresence } from "framer-motion";
-import {
-  FaPlay,
-  FaPause,
-  FaStop,
-  FaVolumeUp,
-  FaVolumeMute,
-} from "react-icons/fa";
+
 import { Song, ServiceType } from "@/app/types/playerTypes";
 import { YoutubeVideo } from "@/app/types/youtubeTypes";
-import Image from "next/image";
+
+// Import atomic design components
+import PlayerControls from "@/app/components/molecules/PlayerControls";
+import ProgressBar from "@/app/components/atoms/ProgressBar";
+import TimeDisplay from "@/app/components/atoms/TimeDisplay";
+import VolumeControl from "@/app/components/molecules/VolumeControl";
+import AlbumArt from "@/app/components/atoms/AlbumArt";
 
 interface DJPlayerState {
   service: ServiceType | null;
@@ -33,264 +33,85 @@ interface VinylPlayerProps {
   onPause: () => void;
   onStop: () => void;
   onVolumeChange: (volume: number) => void;
-  onMuteToggle: () => void;
-  onScratch: (direction: "forward" | "backward") => void;
   onSeek: (position: number) => void;
 }
 
 export default function VinylPlayer({
-  playerId,
   playerState,
   onPlay,
   onPause,
   onStop,
   onVolumeChange,
-  onMuteToggle,
-  onScratch,
   onSeek,
 }: VinylPlayerProps) {
   const vinylRef = useRef<HTMLDivElement>(null);
   const needleRef = useRef<HTMLDivElement>(null);
   const artworkRef = useRef<HTMLDivElement>(null);
-  const seekBarRef = useRef<HTMLDivElement>(null);
   const vinylControls = useAnimation();
   const needleControls = useAnimation();
-  const [seekPreview, setSeekPreview] = useState<number | null>(null);
-  const [isScratching, setIsScratching] = useState(false);
-  const [isSeeking, setIsSeeking] = useState(false);
-  const lastMouseX = useRef(0);
 
-  const handleVinylDrag = (
-    event: MouseEvent | TouchEvent | PointerEvent,
-    info: { velocity: { x: number; y: number } }
-  ) => {
-    const velocity = Math.abs(info.velocity.x);
-    if (velocity > 500) {
-      setIsScratching(true);
-      setTimeout(() => setIsScratching(false), 200);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartX, setDragStartX] = useState(0);
 
-      // Actually seek the song based on drag direction
-      const direction = info.velocity.x > 0 ? "forward" : "backward";
-      onScratch(direction);
-    }
-
-    // Clear seek preview when drag ends
-    setSeekPreview(null);
+  // Handle vinyl drag to seek the song
+  const handleVinylDragStart = (e: React.PointerEvent) => {
+    setIsDragging(true);
+    setDragStartX(e.clientX);
   };
 
-  // Add live seek preview during vinyl drag
-  const handleVinylDragMove = (
-    event: MouseEvent | TouchEvent | PointerEvent,
-    info: { point: { x: number; y: number } }
-  ) => {
-    // Calculate position based on drag distance from center
-    const dragDistance = info.point.x;
-    const maxDragDistance = 60; // Based on dragConstraints
-    const dragPercent = Math.max(
+  const handleVinylDragMove = (e: React.PointerEvent) => {
+    if (!isDragging) return;
+
+    const currentX = e.clientX;
+    const dragDistance = currentX - dragStartX;
+    const maxDragDistance = 100; // Maximum drag distance for full seek
+
+    // Calculate seek percentage based on drag distance
+    const seekPercentage = Math.max(
       -1,
       Math.min(1, dragDistance / maxDragDistance)
     );
 
-    // Calculate time offset (10 seconds per full drag for more responsive feel)
-    const timeOffset = dragPercent * 10000; // 10 seconds in ms
-    const newPosition = Math.max(
+    // Calculate new position (10 second increments)
+    const seekSeconds = seekPercentage * 10;
+    const newPosition = playerState.currentTime + (seekSeconds * 1000); // Convert to milliseconds
+    const clampedPosition = Math.max(
       0,
-      Math.min(playerState.duration, playerState.currentTime + timeOffset)
+      Math.min(playerState.duration, newPosition)
     );
 
-    setSeekPreview(newPosition);
+    // Call onSeek with the new position in milliseconds
+    onSeek(clampedPosition);
   };
 
-  const formatTime = (ms: number) => {
-    if (!ms || isNaN(ms)) return "0:00";
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  const handleVinylDragEnd = () => {
+    setIsDragging(false);
   };
 
-  // Improved seekbar handlers - using the working approach from SpotifyPlayer
-  const handleSeekBarMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    console.log(
-      `Seek bar mouse down for player ${playerId}, duration: ${playerState.duration}`
-    );
-    setIsSeeking(true);
-    setIsScratching(true);
-    lastMouseX.current = e.clientX;
-    handleSeekBarMove(e);
-    window.addEventListener("mousemove", handleSeekBarMove);
-    window.addEventListener("mouseup", handleSeekBarMouseUp);
-  };
-
-  const handleSeekBarMove = (e: MouseEvent | React.MouseEvent) => {
-    if (!seekBarRef.current || !isSeeking) return;
-
-    const rect = seekBarRef.current.getBoundingClientRect();
-    const x = (e as MouseEvent).clientX - rect.left;
-    const percent = Math.max(0, Math.min(1, x / rect.width));
-    const newPosition = Math.floor(percent * playerState.duration);
-
-    // Calculate scratching intensity based on mouse movement speed
-    const currentX = (e as MouseEvent).clientX;
-    const speed = Math.abs(currentX - lastMouseX.current);
-    lastMouseX.current = currentX;
-
-    // Update scratching intensity
-    if (speed > 5) {
-      setIsScratching(true);
-    }
-
-    setSeekPreview(newPosition);
-  };
-
-  const handleSeekBarMouseUp = (e: MouseEvent) => {
-    if (!seekBarRef.current) return;
-
-    setIsSeeking(false);
-    setIsScratching(false);
-
-    const rect = seekBarRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const percent = Math.max(0, Math.min(1, x / rect.width));
-    const newPosition = Math.floor(percent * playerState.duration);
-
-    console.log(`Seek bar mouse up for player ${playerId}:`, {
-      x,
-      rectWidth: rect.width,
-      percent,
-      duration: playerState.duration,
-      newPosition,
-    });
-
-    // Call the seek method
-    onSeek(newPosition);
-
-    setSeekPreview(null);
-    window.removeEventListener("mousemove", handleSeekBarMove);
-    window.removeEventListener("mouseup", handleSeekBarMouseUp);
-  };
-
-  // Touch event handlers for mobile
-  const handleSeekBarTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsSeeking(true);
-    setIsScratching(true);
-    const touch = e.touches[0];
-    lastMouseX.current = touch.clientX;
-    handleSeekBarTouchMove(e);
-    window.addEventListener(
-      "touchmove",
-      handleSeekBarTouchMove as EventListener
-    );
-    window.addEventListener("touchend", handleSeekBarTouchEnd as EventListener);
-  };
-
-  const handleSeekBarTouchMove = (e: TouchEvent | React.TouchEvent) => {
-    if (!seekBarRef.current || !isSeeking) return;
-
-    const touch = (e as TouchEvent).touches[0];
-    const rect = seekBarRef.current.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    const percent = Math.max(0, Math.min(1, x / rect.width));
-    const newPosition = Math.floor(percent * playerState.duration);
-
-    // Calculate scratching intensity based on touch movement speed
-    const currentX = touch.clientX;
-    const speed = Math.abs(currentX - lastMouseX.current);
-    lastMouseX.current = currentX;
-
-    // Update scratching intensity
-    if (speed > 5) {
-      setIsScratching(true);
-    }
-
-    setSeekPreview(newPosition);
-  };
-
-  const handleSeekBarTouchEnd = (e: TouchEvent) => {
-    if (!seekBarRef.current) return;
-
-    setIsSeeking(false);
-    setIsScratching(false);
-
-    const touch = e.changedTouches[0];
-    const rect = seekBarRef.current.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    const percent = Math.max(0, Math.min(1, x / rect.width));
-    const newPosition = Math.floor(percent * playerState.duration);
-
-    // Call the seek method
-    onSeek(newPosition);
-
-    setSeekPreview(null);
-    window.removeEventListener(
-      "touchmove",
-      handleSeekBarTouchMove as EventListener
-    );
-    window.removeEventListener(
-      "touchend",
-      handleSeekBarTouchEnd as EventListener
-    );
-  };
-
-  const renderControlButton = (
-    onClick: () => void,
-    icon: React.ReactNode,
-    disabled = false
-  ) => (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="w-10 h-10 rounded-full bg-gradient-to-br from-red-400 to-red-600 border-2 border-red-300 shadow-[0_0_15px_rgba(255,107,107,0.6)] hover:shadow-[0_0_20px_rgba(255,107,107,0.8)] transition-all duration-200 flex items-center justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      {icon}
-    </button>
-  );
-
-  const renderIcon = (
-    Icon: React.ComponentType<{ size: number; className?: string }>,
-    size: number
-  ) => <Icon size={size} className="text-white" />;
-
-  const renderAlbumArt = (song: Song | YoutubeVideo | null) => {
+  const getAlbumArtProps = (song: Song | YoutubeVideo | null) => {
     if (!song) {
-      return (
-        <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center rounded-full">
-          <span className="text-gray-400 text-xs">No Track</span>
-        </div>
-      );
+      return {
+        src: "",
+        alt: "No Track",
+        fallbackText: "No Track",
+      };
     }
 
     // Check if it's a Spotify song by checking for the type property
     if ("type" in song && song.type === ServiceType.Spotify) {
       const spotifySong = song as Song;
-      return (
-        <div className="w-full h-full rounded-full overflow-hidden">
-          <Image
-            src={spotifySong.artwork.medium.url}
-            alt={spotifySong.title}
-            fill
-            className="object-cover rounded-full"
-            sizes="128px"
-            priority
-          />
-        </div>
-      );
+      return {
+        src: spotifySong.artwork.medium.url,
+        alt: spotifySong.title,
+        fallbackText: "No Artwork",
+      };
     } else {
       const youtubeSong = song as YoutubeVideo;
-      return (
-        <div className="w-full h-full rounded-full overflow-hidden">
-          <Image
-            src={youtubeSong.snippet.thumbnails.medium.url}
-            alt={youtubeSong.snippet.title}
-            fill
-            className="object-cover rounded-full"
-            sizes="128px"
-            priority
-          />
-        </div>
-      );
+      return {
+        src: youtubeSong.snippet.thumbnails.medium.url,
+        alt: youtubeSong.snippet.title,
+        fallbackText: "No Thumbnail",
+      };
     }
   };
 
@@ -334,7 +155,7 @@ export default function VinylPlayer({
 
   // Animate vinyl rotation when playing
   useEffect(() => {
-    if (isScratching) {
+    if (isDragging) {
       // Optimized scratching wobble with fewer keyframes
       vinylControls.start({
         rotate: [0, 8, -6, 6, -4, 8],
@@ -360,7 +181,7 @@ export default function VinylPlayer({
       // Paused - stop animation but keep current position
       vinylControls.stop();
     }
-  }, [playerState.isPlaying, isScratching, vinylControls]);
+  }, [playerState.isPlaying, isDragging, vinylControls]);
 
   // Needle animation
   useEffect(() => {
@@ -399,14 +220,11 @@ export default function VinylPlayer({
             scale: 0.98,
             transition: { type: "spring", stiffness: 400, damping: 15 },
           }}
-          drag="x"
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={0}
-          dragMomentum={false}
-          onDrag={handleVinylDragMove}
-          onDragEnd={handleVinylDrag}
+          onPointerDown={handleVinylDragStart}
+          onPointerMove={handleVinylDragMove}
+          onPointerUp={handleVinylDragEnd}
+          onPointerLeave={handleVinylDragEnd}
           className="absolute inset-0 rounded-full bg-[url('/vinylDisk.png')] bg-center bg-no-repeat bg-[length:120%_120%] cursor-pointer will-change-transform"
-          onMouseDown={handleSeekBarMouseDown}
         >
           {/* Album Art - Centered */}
           <div className="absolute left-1/2 top-1/2 w-[68%] h-[68%] -translate-x-1/2 -translate-y-1/2 z-10">
@@ -418,7 +236,13 @@ export default function VinylPlayer({
                 transition: { type: "spring", stiffness: 350, damping: 22 },
               }}
             >
-              {renderAlbumArt(playerState.song)}
+              <AlbumArt
+                {...getAlbumArtProps(playerState.song)}
+                size="xl"
+                variant="vinyl"
+                className="w-full h-full"
+                priority={true}
+              />
             </motion.div>
           </div>
 
@@ -567,115 +391,50 @@ export default function VinylPlayer({
 
       {/* Progress Bar */}
       <div className="w-full max-w-[300px] mb-4">
-        <div className="flex justify-between text-xs text-gray-400 mb-1">
-          <span>
-            {formatTime(
-              (isSeeking || isScratching) && seekPreview !== null
-                ? seekPreview
-                : playerState.currentTime
-            )}
-          </span>
-          <span>{formatTime(playerState.duration)}</span>
+        <div className="mb-1">
+          <TimeDisplay
+            currentTime={playerState.currentTime}
+            duration={playerState.duration}
+            format="mm:ss"
+            size="sm"
+            color="watermelon"
+            className="text-center"
+          />
         </div>
 
-        <div
-          ref={seekBarRef}
-          className={`relative flex-1 h-[14px] flex items-center mx-2 min-w-[100px] cursor-pointer seek-bar-container-${playerId}`}
-          onMouseDown={handleSeekBarMouseDown}
-          onTouchStart={handleSeekBarTouchStart}
-          onClick={(e) => {
-            console.log(
-              `Seek bar clicked for player ${playerId}, duration: ${playerState.duration}`
-            );
-            if (playerState.duration > 0) {
-              const rect = e.currentTarget.getBoundingClientRect();
-              const x = e.clientX - rect.left;
-              const percent = Math.max(0, Math.min(1, x / rect.width));
-              const newPosition = Math.floor(percent * playerState.duration);
-              console.log(
-                `Click seek: x=${x}, percent=${percent}, position=${newPosition}`
-              );
-              onSeek(newPosition);
-            } else {
-              console.log(`Cannot seek: duration is ${playerState.duration}`);
-            }
-          }}
-        >
-          <div className="absolute top-1/2 left-0 w-full h-2 -translate-y-1/2 bg-[var(--foreground)] opacity-12 rounded-md pointer-events-none z-0" />
-          <motion.div
-            className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-red-500 rounded-md pointer-events-none z-10"
-            style={{
-              width: playerState.duration
-                ? `${
-                    (((isSeeking || isScratching) && seekPreview !== null
-                      ? seekPreview
-                      : playerState.currentTime) /
-                      playerState.duration) *
-                    100
-                  }%`
-                : "0%",
-            }}
-            transition={{ duration: 0.15, ease: "linear" }}
-          />
-          {/* Seek handle */}
-          <motion.div
-            className="absolute top-1/2 w-4 h-4 bg-red-400 rounded-full shadow-[0_0_10px_rgba(255,107,107,0.8)] pointer-events-none z-20"
-            style={{
-              left: playerState.duration
-                ? `${
-                    (((isSeeking || isScratching) && seekPreview !== null
-                      ? seekPreview
-                      : playerState.currentTime) /
-                      playerState.duration) *
-                    100
-                  }%`
-                : "0%",
-              transform: "translate(-50%, -50%)",
-            }}
-            transition={{ duration: 0.15, ease: "linear" }}
-          />
-        </div>
+        <ProgressBar
+          currentTime={playerState.currentTime}
+          duration={playerState.duration}
+          onSeek={onSeek}
+          color="watermelon"
+          height="md"
+          className="flex-1 mx-2 min-w-[100px]"
+        />
       </div>
 
       {/* Controls */}
       <div className="flex justify-center items-center gap-3 mb-4">
-        {renderControlButton(
-          playerState.isPlaying ? onPause : onPlay,
-          playerState.isPlaying
-            ? renderIcon(FaPause, 20)
-            : renderIcon(FaPlay, 20)
-        )}
-        {renderControlButton(onStop, renderIcon(FaStop, 20))}
-        {renderControlButton(
-          onMuteToggle,
-          playerState.isMuted
-            ? renderIcon(FaVolumeMute, 18)
-            : renderIcon(FaVolumeUp, 18)
-        )}
+        <PlayerControls
+          isPlaying={playerState.isPlaying}
+          onPlay={onPlay}
+          onPause={onPause}
+          onStop={onStop}
+          size="lg"
+          variant="watermelon"
+          disabled={false}
+        />
       </div>
 
-      {/* Volume Slider */}
-      <div className="flex items-center gap-2 w-full max-w-[250px]">
-        <span className="text-white font-mono text-xs min-w-[32px] text-right">
-          VOL
-        </span>
-        <div className="relative flex-1 h-2 bg-gray-700 rounded-full cursor-pointer">
-          <div
-            className="absolute left-0 top-0 h-full bg-gradient-to-r from-red-400 to-red-600 rounded-full transition-all duration-100"
-            style={{ width: `${playerState.volume}%` }}
-          />
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={playerState.volume}
-            onChange={(e) => onVolumeChange(Number(e.target.value))}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          />
-        </div>
-        <span className="text-white font-mono text-xs min-w-[24px]">
-          {Math.round(playerState.volume)}
-        </span>
+      {/* Volume Control */}
+      <div className="w-full max-w-[250px]">
+        <VolumeControl
+          volume={playerState.volume}
+          onVolumeChange={onVolumeChange}
+          size="md"
+          showIcon={true}
+          showLabel={true}
+          className="w-full"
+        />
       </div>
     </div>
   );

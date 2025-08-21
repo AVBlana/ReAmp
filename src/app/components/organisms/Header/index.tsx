@@ -5,6 +5,11 @@ import { FaHome } from "react-icons/fa";
 import { ReactNode, useEffect, useState, useRef } from "react";
 import { useUnifiedContext } from "@/app/context/UnifiedContext";
 import { motion, useAnimation } from "framer-motion";
+// Import atomic design components
+import Button from "@/app/components/atoms/Button";
+import Icon from "@/app/components/atoms/Icon";
+import NotificationBadge from "@/app/components/atoms/NotificationBadge";
+import SpotifyAuthCheck from "../SpotifyAuthCheck";
 
 interface HeaderProps {
   icon?: ReactNode;
@@ -273,22 +278,26 @@ export default function Header({
                 {title}
               </motion.h1>
             </div>
-            {/* Show home and logout on mobile */}
+            {/* Show home, notifications, spotify status, and logout on mobile */}
             <div className="flex items-center space-x-2 lg:hidden">
               <Link
                 href="/"
                 className="text-gray-400 hover:text-white transition-colors p-1.5"
                 aria-label="Home"
               >
-                <FaHome size={18} />
+                <Icon icon={<FaHome size={18} />} size="lg" />
               </Link>
+              <NotificationBadge />
+              <SpotifyAuthCheck />
               {showLogout && onLogout && (
-                <button
+                <Button
                   onClick={onLogout}
-                  className="px-2 py-1 bg-red-500/90 hover:bg-red-600 text-white text-xs rounded-md transition-colors"
+                  variant="danger"
+                  size="sm"
+                  className="px-2 py-1"
                 >
                   Logout
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -298,22 +307,21 @@ export default function Header({
             {searchComponent}
           </div>
 
-          {/* Right section with home and logout - hidden on mobile */}
+          {/* Right section with home, notifications, spotify status, and logout - hidden on mobile */}
           <div className="hidden lg:flex items-center space-x-3 min-w-[120px] justify-end order-2 lg:order-3">
             <Link
               href="/"
               className="text-gray-400 hover:text-white transition-colors p-2"
               aria-label="Home"
             >
-              <FaHome size={20} />
+              <Icon icon={<FaHome size={20} />} size="xl" />
             </Link>
+            <NotificationBadge />
+            <SpotifyAuthCheck />
             {showLogout && onLogout && (
-              <button
-                onClick={onLogout}
-                className="px-3 py-1.5 bg-red-500/90 hover:bg-red-600 text-white text-sm rounded-md transition-colors"
-              >
+              <Button onClick={onLogout} variant="danger" size="md">
                 Logout
-              </button>
+              </Button>
             )}
           </div>
         </div>
