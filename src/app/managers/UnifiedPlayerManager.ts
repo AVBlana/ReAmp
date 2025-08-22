@@ -562,7 +562,30 @@ export class UnifiedPlayerManager {
     try {
       // Start the target deck if not already playing
       if (!toPlayer.isPlaying) {
-        await this.playDeck(toDeck);
+        try {
+          await this.playDeck(toDeck);
+        } catch (playError) {
+          console.error(
+            `❌ Failed to start target deck ${toDeck} during crossfade:`,
+            playError
+          );
+
+          // If it's a Spotify device issue, provide helpful error message
+          if (
+            playError instanceof Error &&
+            playError.message.includes("device not available")
+          ) {
+            throw new Error(
+              `Cannot start Spotify playback: ${playError.message}. Please ensure Spotify app is open and active.`
+            );
+          }
+
+          throw new Error(
+            `Failed to start target deck ${toDeck}: ${
+              playError instanceof Error ? playError.message : "Unknown error"
+            }`
+          );
+        }
       }
 
       // Perform crossfade
@@ -630,28 +653,47 @@ export class UnifiedPlayerManager {
     fromDeck: "A" | "B",
     toDeck: "A" | "B"
   ): Promise<void> {
-    // Stop the source deck
-    await this.stopDeck(fromDeck);
+    try {
+      // Stop the source deck
+      await this.stopDeck(fromDeck);
 
-    // Get the target deck's original volume from the player pool
-    const toPlayer = this.playerPool[toDeck];
+      // Get the target deck's original volume from the player pool
+      const toPlayer = this.playerPool[toDeck];
 
-    // Ensure target deck has a reasonable volume
-    let finalVolume = toPlayer.volume;
-    if (finalVolume <= 0) {
-      finalVolume = 75; // Use default volume if target deck has 0 volume
+      // Ensure target deck has a reasonable volume
+      let finalVolume = toPlayer.volume;
+      if (finalVolume <= 0) {
+        finalVolume = 75; // Use default volume if target deck has 0 volume
+      }
+
+      // Restore target deck to its proper volume
+      await this.setDeckVolume(toDeck, finalVolume);
+
+      // Volume restoration is handled by setDeckVolume
+
+      // Clear video container if crossfading from YouTube to another service
+      const fromPlayer = this.playerPool[fromDeck];
+      if (fromPlayer.service === ServiceType.Youtube) {
+        console.log(
+          `🧹 Clearing YouTube video container for deck ${fromDeck} after crossfade`
+        );
+        this.youtubeManager.clearVideoContainer(fromDeck);
+      }
+
+      // Reset source deck to be ready for new tracks
+      await this.resetDeckAfterCrossfade(fromDeck);
+
+      // Reset crossfade state
+      this.resetCrossfade();
+    } catch (error) {
+      console.error(`❌ Error during crossfade completion:`, error);
+
+      // Even if there's an error, try to reset the crossfade state
+      this.resetCrossfade();
+
+      // Re-throw the error so the calling code can handle it
+      throw error;
     }
-
-    // Restore target deck to its proper volume
-    await this.setDeckVolume(toDeck, finalVolume);
-
-    // Volume restoration is handled by setDeckVolume
-
-    // Reset source deck to be ready for new tracks
-    await this.resetDeckAfterCrossfade(fromDeck);
-
-    // Reset crossfade state
-    this.resetCrossfade();
   }
 
   /**
@@ -678,6 +720,11 @@ export class UnifiedPlayerManager {
     try {
       // Stop playback
       await this.stopDeck(deckId);
+
+      // Clear video container if it's a YouTube deck
+      if (player.service === ServiceType.Youtube) {
+        this.youtubeManager.clearVideoContainer(deckId);
+      }
 
       // Clear track info but keep player ready for new tracks
       this.updatePlayerState(deckId, {
@@ -706,6 +753,11 @@ export class UnifiedPlayerManager {
       // Stop any remaining playback
       if (player.isPlaying) {
         await this.stopDeck(deckId);
+      }
+
+      // Clear video container if it's a YouTube deck
+      if (player.service === ServiceType.Youtube) {
+        this.youtubeManager.clearVideoContainer(deckId);
       }
 
       // Reset to a clean state but keep volume settings
@@ -737,6 +789,48 @@ export class UnifiedPlayerManager {
    */
   getPlayerState(deckId: "A" | "B"): PlayerInstance {
     return this.playerPool[deckId];
+  }
+
+  /**
+   * Update progress for all players
+   */
+  async updateProgress(): Promise<void> {
+    for (const deckId of ["A", "B"] as const) {
+      const player = this.playerPool[deckId];
+
+      // If player is ready and has a track, get current progress from the service managers
+      if (player.isReady && player.currentTrack) {
+        try {
+          if (player.service === ServiceType.Youtube) {
+            // Get current time and duration from YouTube manager
+            const currentTime =
+              this.youtubeManager.getCurrentTime(deckId) * 1000; // Convert to milliseconds
+            const duration = this.youtubeManager.getDuration(deckId) * 1000; // Convert to milliseconds
+
+            // Update the player state with current progress
+            this.updatePlayerState(deckId, {
+              currentTime,
+              duration,
+            });
+          } else if (player.service === ServiceType.Spotify) {
+            // Update Spotify player state first to get latest progress
+            await this.spotifyManager.updatePlayerState(deckId);
+
+            // Get current time and duration from Spotify manager
+            const currentTime = this.spotifyManager.getCurrentTime(deckId);
+            const duration = this.spotifyManager.getDuration(deckId);
+
+            // Update the player state with current progress
+            this.updatePlayerState(deckId, {
+              currentTime,
+              duration,
+            });
+          }
+        } catch (error) {
+          console.warn(`⚠️ Error getting progress for deck ${deckId}:`, error);
+        }
+      }
+    }
   }
 
   /**

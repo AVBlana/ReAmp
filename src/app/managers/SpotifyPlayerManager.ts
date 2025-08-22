@@ -68,6 +68,80 @@ export class SpotifyPlayerManager {
     }
   }
 
+  private async refreshDeviceId(playerId: string): Promise<string | null> {
+    try {
+      console.log(`🔄 Refreshing device ID for player ${playerId}`);
+
+      // Get a fresh token
+      const token = await this.refreshToken();
+
+      // Get available devices from Spotify API
+      const response = await fetch(
+        "https://api.spotify.com/v1/me/player/devices",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.error("Failed to get devices:", response.status);
+        return null;
+      }
+
+      const devices = await response.json();
+      console.log("📱 Available Spotify devices:", devices);
+
+      // Look for an active device or web player
+      const activeDevice = devices.devices.find(
+        (device: {
+          is_active: boolean;
+          type: string;
+          id: string;
+          name: string;
+        }) =>
+          device.is_active ||
+          device.type === "Computer" ||
+          device.type === "Web"
+      );
+
+      if (activeDevice) {
+        console.log(
+          `✅ Found active device: ${activeDevice.name} (${activeDevice.id})`
+        );
+        this.deviceIds.set(playerId, activeDevice.id);
+        return activeDevice.id;
+      }
+
+      // If no active device, try to activate the web player
+      if (this.globalPlayerInstance) {
+        try {
+          await this.globalPlayerInstance.activateElement();
+          console.log("🔄 Activated web player element");
+
+          // Wait a moment for activation
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+
+          // Try to get the device ID again
+          const deviceId = this.deviceIds.get(playerId);
+          if (deviceId) {
+            console.log(`✅ Got device ID after activation: ${deviceId}`);
+            return deviceId;
+          }
+        } catch (activationError) {
+          console.error("Failed to activate web player:", activationError);
+        }
+      }
+
+      console.warn("⚠️ No active Spotify device found");
+      return null;
+    } catch (error) {
+      console.error("❌ Error refreshing device ID:", error);
+      return null;
+    }
+  }
+
   private async createSpotifyPlayer(playerId: string): Promise<SpotifyPlayer> {
     if (this.globalPlayerInstance) {
       return this.globalPlayerInstance;
@@ -241,17 +315,10 @@ export class SpotifyPlayerManager {
 
       console.log(`✅ Spotify player ${playerId} created successfully`);
 
-      // Automatically start playing the track
+      // Load track without auto-playing - user must manually start playback
       console.log(
-        `🎵 Starting playback for track ${trackId} on player ${playerId}`
+        `🎵 Track ${trackId} loaded into player ${playerId} (ready for manual playback)`
       );
-      try {
-        await this.playTrack(playerId, trackId);
-        console.log(`✅ playTrack completed successfully for ${playerId}`);
-      } catch (playError) {
-        console.error(`❌ playTrack failed for ${playerId}:`, playError);
-        throw playError;
-      }
     } catch (error) {
       console.error(`❌ Error creating Spotify player for ${playerId}:`, error);
       throw error;
@@ -348,6 +415,30 @@ export class SpotifyPlayerManager {
           console.error("Spotify authentication failed, redirecting to login");
           window.location.href = "/api/spotify/login?origin=/reamp";
           return;
+        }
+
+        // Handle 404 error (device not found or inactive)
+        if (response.status === 404) {
+          console.error(
+            "Spotify device not found or inactive. Please ensure Spotify app is open and active."
+          );
+
+          // Try to refresh the device ID
+          try {
+            console.log("🔄 Attempting to refresh device ID...");
+            const newDeviceId = await this.refreshDeviceId(playerId);
+            if (newDeviceId) {
+              console.log(`🔄 Retrying with new device ID: ${newDeviceId}`);
+              // Retry the play request with the new device ID
+              return await this.playTrack(playerId, trackId);
+            }
+          } catch (refreshError) {
+            console.error("Failed to refresh device ID:", refreshError);
+          }
+
+          throw new Error(
+            "Spotify device not available. Please ensure Spotify app is open and active."
+          );
         }
 
         throw new Error(`Spotify play failed: ${response.status}`);

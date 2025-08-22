@@ -6,8 +6,6 @@ import {
   PlayerInstance,
   CrossfadeState,
 } from "@/app/managers/UnifiedPlayerManager";
-import { YouTubePlayerManager } from "@/app/managers/YouTubePlayerManager";
-import { SpotifyPlayerManager } from "@/app/managers/SpotifyPlayerManager";
 
 interface UseUnifiedPlayerProps {
   onPlayerStateChange?: (deckId: "A" | "B", state: PlayerInstance) => void;
@@ -132,86 +130,8 @@ export function useUnifiedPlayer({
           B: managerRef.current.getPlayerState("B"),
         };
 
-        // Update progress for playing decks
-        if (currentStates.A.isPlaying && currentStates.A.currentTrack) {
-          try {
-            if (currentStates.A.service === ServiceType.Youtube) {
-              const youtubeManager = managerRef.current!.youtubeManager;
-              const currentTime = youtubeManager.getCurrentTime("A") * 1000;
-              const duration = youtubeManager.getDuration("A") * 1000;
-
-              if (currentTime > 0 && duration > 0) {
-                managerRef.current!.updatePlayerState("A", {
-                  currentTime,
-                  duration,
-                });
-              }
-            } else if (currentStates.A.service === ServiceType.Spotify) {
-              const spotifyManager = managerRef.current!.spotifyManager;
-              const player = spotifyManager.getPlayer("A");
-              if (player) {
-                try {
-                  const state = await player.getCurrentState();
-                  if (state) {
-                    const currentTime = state.position;
-                    const duration = state.duration;
-
-                    if (currentTime > 0 && duration > 0) {
-                      managerRef.current!.updatePlayerState("A", {
-                        currentTime,
-                        duration,
-                      });
-                    }
-                  }
-                } catch (error) {
-                  // Ignore errors during progress updates
-                }
-              }
-            }
-          } catch (error) {
-            // Ignore errors during progress updates
-          }
-        }
-
-        if (currentStates.B.isPlaying && currentStates.B.currentTrack) {
-          try {
-            if (currentStates.B.service === ServiceType.Youtube) {
-              const youtubeManager = managerRef.current!.youtubeManager;
-              const currentTime = youtubeManager.getCurrentTime("B") * 1000;
-              const duration = youtubeManager.getDuration("B") * 1000;
-
-              if (currentTime > 0 && duration > 0) {
-                managerRef.current!.updatePlayerState("B", {
-                  currentTime,
-                  duration,
-                });
-              }
-            } else if (currentStates.B.service === ServiceType.Spotify) {
-              const spotifyManager = managerRef.current!.spotifyManager;
-              const player = spotifyManager.getPlayer("B");
-              if (player) {
-                try {
-                  const state = await player.getCurrentState();
-                  if (state) {
-                    const currentTime = state.position;
-                    const duration = state.duration;
-
-                    if (currentTime > 0 && duration > 0) {
-                      managerRef.current!.updatePlayerState("B", {
-                        currentTime,
-                        duration,
-                      });
-                    }
-                  }
-                } catch (error) {
-                  // Ignore errors during progress updates
-                }
-              }
-            }
-          } catch (error) {
-            // Ignore errors during progress updates
-          }
-        }
+        // Update progress from service managers
+        await managerRef.current.updateProgress();
 
         // Update UI states
         updatePlayerStates();
@@ -357,6 +277,9 @@ export function useUnifiedPlayer({
         if (player.service === ServiceType.Youtube) {
           const youtubeManager = managerRef.current!.youtubeManager;
           youtubeManager.stopPlayer(deckId);
+          // Clear video container to remove the video display
+          youtubeManager.clearVideoContainer(deckId);
+          console.log(`🧹 Cleared YouTube video container for deck ${deckId}`);
         } else if (player.service === ServiceType.Spotify) {
           const spotifyManager = managerRef.current!.spotifyManager;
           await spotifyManager.pausePlayer(deckId);

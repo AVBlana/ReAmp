@@ -24,7 +24,6 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
   const {
     isInitialized,
     playerStates,
-    crossfadeState,
     loadTrack,
     playDeck,
     pauseDeck,
@@ -32,17 +31,16 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
     setDeckVolume,
     seekDeck,
     startCrossfade,
-    clearDeck,
     isCrossfadeActive,
     getDeckState,
     isDeckReady,
     isDeckPlaying,
     hasTrack,
   } = useUnifiedPlayer({
-    onPlayerStateChange: (deckId, state) => {
+    onPlayerStateChange: () => {
       // State change callback - no logging to reduce console spam
     },
-    onCrossfadeStateChange: (state) => {
+    onCrossfadeStateChange: () => {
       // Crossfade state change callback - no logging to reduce console spam
     },
   });
@@ -65,6 +63,92 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
     startCrossfade,
     isCrossfadeActive,
   });
+
+  // Monitor playlist changes and clear video containers when tracks are removed
+  useEffect(() => {
+    // Get current tracks in decks
+    const deckAState = getDeckState("A");
+    const deckBState = getDeckState("B");
+    const deckATrack = deckAState.currentTrack;
+    const deckBTrack = deckBState.currentTrack;
+
+    // Check if any deck tracks are no longer in the playlist
+    if (deckATrack && deckAState.service === ServiceType.Youtube) {
+      const isInPlaylist = unified.playlist.some((item) => {
+        if (item.type === ServiceType.Youtube) {
+          const youtubeItem = item.data as YoutubeVideo;
+          return (
+            youtubeItem.id.videoId === (deckATrack as YoutubeVideo).id.videoId
+          );
+        }
+        return false;
+      });
+
+      if (!isInPlaylist) {
+        console.log(
+          "🧹 YouTube track removed from playlist, clearing deck A video container"
+        );
+        clearVideoContainer("A");
+      }
+    }
+
+    if (deckBTrack && deckBState.service === ServiceType.Youtube) {
+      const isInPlaylist = unified.playlist.some((item) => {
+        if (item.type === ServiceType.Youtube) {
+          const youtubeItem = item.data as YoutubeVideo;
+          return (
+            youtubeItem.id.videoId === (deckBTrack as YoutubeVideo).id.videoId
+          );
+        }
+        return false;
+      });
+
+      if (!isInPlaylist) {
+        console.log(
+          "🧹 YouTube track removed from playlist, clearing deck B video container"
+        );
+        clearVideoContainer("B");
+      }
+    }
+  }, [unified.playlist, getDeckState]);
+
+  // Monitor deck state changes to clear video containers when YouTube tracks stop playing
+  useEffect(() => {
+    const deckAState = getDeckState("A");
+    const deckBState = getDeckState("B");
+
+    // Clear video container if YouTube track stops playing
+    if (
+      deckAState.service === ServiceType.Youtube &&
+      !deckAState.isPlaying &&
+      hasTrack("A")
+    ) {
+      clearVideoContainer("A");
+    }
+
+    if (
+      deckBState.service === ServiceType.Youtube &&
+      !deckBState.isPlaying &&
+      hasTrack("B")
+    ) {
+      clearVideoContainer("B");
+    }
+  }, [getDeckState, hasTrack]);
+
+  // Helper function to clear video container for a specific deck
+  const clearVideoContainer = (deckId: "A" | "B") => {
+    const container =
+      deckId === "A"
+        ? playerAContainerRef.current
+        : playerBContainerRef.current;
+    if (container) {
+      const iframes = container.querySelectorAll('iframe[src*="youtube"]');
+      if (iframes.length > 0) {
+        console.log(`🧹 Clearing video container for deck ${deckId}`);
+        iframes.forEach((iframe) => iframe.remove());
+      }
+    }
+  };
 
   // Get the currently playing YouTube videos for display
   const getCurrentYouTubeVideos = () => {
@@ -131,11 +215,22 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
               `❌ Failed to load track into deck ${playerId}:`,
               error
             );
-            alert(
-              `Failed to load track: ${
-                error instanceof Error ? error.message : "Unknown error"
-              }`
-            );
+
+            // Provide user-friendly error messages for common issues
+            let userMessage = "Failed to load track";
+            if (error instanceof Error) {
+              if (error.message.includes("device not available")) {
+                userMessage =
+                  "Spotify device not available. Please ensure Spotify app is open and active.";
+              } else if (error.message.includes("authentication")) {
+                userMessage =
+                  "Spotify authentication failed. Please log in again.";
+              } else {
+                userMessage = error.message;
+              }
+            }
+
+            alert(userMessage);
           }
         } else {
           console.error(`❌ Could not find ${service} item with id: ${id}`);
@@ -167,7 +262,6 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
   const renderPlayerDropZone = (playerId: "A" | "B") => {
     const playerState = getDeckState(playerId);
     const isReady = isDeckReady(playerId);
-    const isPlaying = isDeckPlaying(playerId);
     const hasTrackLoaded = hasTrack(playerId);
 
     return (
@@ -304,18 +398,45 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
         </div>
       </div>
 
-      {/* YouTube Video Display */}
+      {/* YouTube Video Display - Dynamic sizing based on video state */}
       <div className="mb-4 flex-shrink-0">
-        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-          {["A", "B"].map((playerId) => {
+        <div className="flex justify-center gap-4 w-full">
+          {(["A", "B"] as const).map((playerId) => {
             const currentVideo = getCurrentYouTubeVideos().find(
               (v) => v.playerId === playerId
             );
+            const isPlaying = isDeckPlaying(playerId);
+            const hasYouTubeTrack =
+              hasTrack(playerId) &&
+              getDeckState(playerId).service === ServiceType.Youtube;
+
+            // Always render the container for the player manager, but conditionally show content
+            const shouldShowVideo = hasYouTubeTrack && isPlaying;
+
+            // Check if only one video is playing to make it bigger
+            const playingVideos = getCurrentYouTubeVideos().filter((v) =>
+              isDeckPlaying(v.playerId)
+            );
+            const isOnlyVideoPlaying =
+              playingVideos.length === 1 && shouldShowVideo;
 
             return (
-              <div key={playerId} className="flex justify-center">
-                <div className="relative w-full max-w-xl max-h-48 aspect-video bg-black rounded-lg overflow-hidden shadow-2xl">
-                  {/* YouTube API Player Container */}
+              <div
+                key={playerId}
+                className={`flex justify-center ${
+                  isOnlyVideoPlaying ? "flex-1" : ""
+                }`}
+              >
+                <div
+                  className={`relative bg-black rounded-lg overflow-hidden shadow-2xl transition-all duration-500 ease-in-out ${
+                    shouldShowVideo
+                      ? isOnlyVideoPlaying
+                        ? "w-full h-80 aspect-video opacity-100"
+                        : "w-full h-64 aspect-video opacity-100"
+                      : "w-16 h-16 opacity-60"
+                  }`}
+                >
+                  {/* YouTube API Player Container - Always present for player manager */}
                   <div
                     id={`youtube-player-${playerId}`}
                     className="w-full h-full"
@@ -327,28 +448,14 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
                   />
 
                   {/* Deck label */}
-                  <div className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-                    DECK {playerId}
+                  <div className="absolute top-1 left-1 z-30">
+                    <div className="bg-black/90 text-white text-xs font-mono px-2 py-1 rounded">
+                      DECK {playerId}
+                    </div>
                   </div>
 
                   {/* Video info */}
-                  {currentVideo ? (
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
-                      <h3 className="text-white font-semibold text-xs truncate">
-                        {currentVideo.video.snippet.title}
-                      </h3>
-                      <p className="text-gray-300 text-xs truncate">
-                        {currentVideo.video.snippet.channelTitle}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-center text-gray-500">
-                        <div className="text-sm font-mono">NO VIDEO</div>
-                        <div className="text-xs">Drop a YouTube track here</div>
-                      </div>
-                    </div>
-                  )}
+                  {currentVideo ? null : null}
                 </div>
               </div>
             );
@@ -375,7 +482,7 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
         </div>
       </div>
 
-      {/* Debug Info (can be removed in production) */}
+      {/* Debug Info (can be removed in production)
       {process.env.NODE_ENV === "development" && (
         <div className="mt-4 p-3 bg-black/50 rounded text-xs font-mono text-gray-400">
           <div>
@@ -393,7 +500,7 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
             {isCrossfadeActive() ? "Active" : "Inactive"}
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 }

@@ -296,6 +296,24 @@ export class YouTubePlayerManager {
     }
   }
 
+  /**
+   * Clear the video container without destroying the player
+   * This is useful during crossfade to remove the video display
+   */
+  clearVideoContainer(playerId: string) {
+    const container = this.containers.get(playerId);
+    if (container) {
+      // Remove YouTube iframes but keep the container
+      const iframes = container.querySelectorAll('iframe[src*="youtube"]');
+      iframes.forEach((iframe) => iframe.remove());
+      console.log(`🧹 Cleared video container for player ${playerId}`);
+    } else {
+      console.warn(
+        `⚠️ Container for player ${playerId} not found for clearing`
+      );
+    }
+  }
+
   seekPlayer(playerId: string, seconds: number) {
     const player = this.players.get(playerId);
     if (player) {

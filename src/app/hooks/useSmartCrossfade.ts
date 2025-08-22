@@ -153,6 +153,27 @@ export function useSmartCrossfade({
       );
     } catch (error) {
       console.error(`❌ Manual crossfade failed:`, error);
+
+      // Provide user-friendly error message for Spotify device issues
+      if (
+        error instanceof Error &&
+        error.message.includes("device not available")
+      ) {
+        alert(
+          "Crossfade failed: Spotify device not available. Please ensure Spotify app is open and active."
+        );
+      } else if (
+        error instanceof Error &&
+        error.message.includes("Cannot start Spotify playback")
+      ) {
+        alert(error.message);
+      } else {
+        alert(
+          `Crossfade failed: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        );
+      }
     }
   }, [playerStates, startCrossfade, crossfadeDuration, isCrossfadeActive]);
 
