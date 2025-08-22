@@ -6,6 +6,8 @@ import {
   PlayerInstance,
   CrossfadeState,
 } from "@/app/managers/UnifiedPlayerManager";
+import { YouTubePlayerManager } from "@/app/managers/YouTubePlayerManager";
+import { SpotifyPlayerManager } from "@/app/managers/SpotifyPlayerManager";
 
 interface UseUnifiedPlayerProps {
   onPlayerStateChange?: (deckId: "A" | "B", state: PlayerInstance) => void;
@@ -98,8 +100,10 @@ export function useUnifiedPlayer({
     setPlayerStates(newStates);
 
     // Notify parent components
-    onPlayerStateChange?.("A", newStates.A);
-    onPlayerStateChange?.("B", newStates.B);
+    if (onPlayerStateChange) {
+      onPlayerStateChange("A", newStates.A);
+      onPlayerStateChange("B", newStates.B);
+    }
   }, [onPlayerStateChange]);
 
   // Update crossfade state from manager
@@ -108,204 +112,126 @@ export function useUnifiedPlayer({
 
     const newCrossfadeState = managerRef.current.getCrossfadeState();
     setCrossfadeState(newCrossfadeState);
-    onCrossfadeStateChange?.(newCrossfadeState);
+
+    // Notify parent components
+    if (onCrossfadeStateChange) {
+      onCrossfadeStateChange(newCrossfadeState);
+    }
   }, [onCrossfadeStateChange]);
 
   // Start progress tracking
   useEffect(() => {
-    if (!isInitialized || !managerRef.current) return;
+    if (!isInitialized) return;
 
     const startProgressTracking = () => {
       progressIntervalRef.current = setInterval(async () => {
         if (!managerRef.current) return;
 
-        // Update player states
-        updatePlayerStates();
-        updateCrossfadeState();
-
-        // Update progress for active players
         const currentStates = {
           A: managerRef.current.getPlayerState("A"),
           B: managerRef.current.getPlayerState("B"),
         };
 
-        let hasChanges = false;
-
-        // Update YouTube progress for deck A
-        if (
-          currentStates.A.isReady &&
-          currentStates.A.service === ServiceType.Youtube
-        ) {
+        // Update progress for playing decks
+        if (currentStates.A.isPlaying && currentStates.A.currentTrack) {
           try {
-            // Check if player is actually ready before trying to access it
-            const isActuallyReady = await managerRef.current[
-              "isPlayerActuallyReady"
-            ]("A");
-            if (!isActuallyReady) {
-              // Player is not actually ready, update state to reflect this
-              hasChanges = true;
-              managerRef.current["updatePlayerState"]("A", {
-                isReady: false,
-                isPlaying: false,
-              });
-            } else {
-              const currentTime =
-                managerRef.current["youtubeManager"].getCurrentTime("A") * 1000;
-              const duration =
-                managerRef.current["youtubeManager"].getDuration("A") * 1000;
-              const isPlaying =
-                managerRef.current["youtubeManager"].getPlayerState("A") === 1;
+            if (currentStates.A.service === ServiceType.Youtube) {
+              const youtubeManager = managerRef.current!.youtubeManager;
+              const currentTime = youtubeManager.getCurrentTime("A") * 1000;
+              const duration = youtubeManager.getDuration("A") * 1000;
 
-              if (
-                currentTime !== currentStates.A.currentTime ||
-                duration !== currentStates.A.duration ||
-                isPlaying !== currentStates.A.isPlaying
-              ) {
-                hasChanges = true;
-                managerRef.current["updatePlayerState"]("A", {
+              if (currentTime > 0 && duration > 0) {
+                managerRef.current!.updatePlayerState("A", {
                   currentTime,
                   duration,
-                  isPlaying,
                 });
+              }
+            } else if (currentStates.A.service === ServiceType.Spotify) {
+              const spotifyManager = managerRef.current!.spotifyManager;
+              const player = spotifyManager.getPlayer("A");
+              if (player) {
+                try {
+                  const state = await player.getCurrentState();
+                  if (state) {
+                    const currentTime = state.position;
+                    const duration = state.duration;
+
+                    if (currentTime > 0 && duration > 0) {
+                      managerRef.current!.updatePlayerState("A", {
+                        currentTime,
+                        duration,
+                      });
+                    }
+                  }
+                } catch (error) {
+                  // Ignore errors during progress updates
+                }
               }
             }
           } catch (error) {
-            console.warn("Error updating YouTube progress for deck A:", error);
-            // Mark player as not ready if we can't access it
-            hasChanges = true;
-            managerRef.current["updatePlayerState"]("A", {
-              isReady: false,
-              isPlaying: false,
-            });
+            // Ignore errors during progress updates
           }
         }
 
-        // Update YouTube progress for deck B
-        if (
-          currentStates.B.isReady &&
-          currentStates.B.service === ServiceType.Youtube
-        ) {
+        if (currentStates.B.isPlaying && currentStates.B.currentTrack) {
           try {
-            // Check if player is actually ready before trying to access it
-            const isActuallyReady = await managerRef.current[
-              "isPlayerActuallyReady"
-            ]("B");
-            if (!isActuallyReady) {
-              // Player is not actually ready, update state to reflect this
-              hasChanges = true;
-              managerRef.current["updatePlayerState"]("B", {
-                isReady: false,
-                isPlaying: false,
-              });
-            } else {
-              const currentTime =
-                managerRef.current["youtubeManager"].getCurrentTime("B") * 1000;
-              const duration =
-                managerRef.current["youtubeManager"].getDuration("B") * 1000;
-              const isPlaying =
-                managerRef.current["youtubeManager"].getPlayerState("B") === 1;
+            if (currentStates.B.service === ServiceType.Youtube) {
+              const youtubeManager = managerRef.current!.youtubeManager;
+              const currentTime = youtubeManager.getCurrentTime("B") * 1000;
+              const duration = youtubeManager.getDuration("B") * 1000;
 
-              if (
-                currentTime !== currentStates.B.currentTime ||
-                duration !== currentStates.B.duration ||
-                isPlaying !== currentStates.B.isPlaying
-              ) {
-                hasChanges = true;
-                managerRef.current["updatePlayerState"]("B", {
+              if (currentTime > 0 && duration > 0) {
+                managerRef.current!.updatePlayerState("B", {
                   currentTime,
                   duration,
-                  isPlaying,
                 });
+              }
+            } else if (currentStates.B.service === ServiceType.Spotify) {
+              const spotifyManager = managerRef.current!.spotifyManager;
+              const player = spotifyManager.getPlayer("B");
+              if (player) {
+                try {
+                  const state = await player.getCurrentState();
+                  if (state) {
+                    const currentTime = state.position;
+                    const duration = state.duration;
+
+                    if (currentTime > 0 && duration > 0) {
+                      managerRef.current!.updatePlayerState("B", {
+                        currentTime,
+                        duration,
+                      });
+                    }
+                  }
+                } catch (error) {
+                  // Ignore errors during progress updates
+                }
               }
             }
           } catch (error) {
-            console.warn("Error updating YouTube progress for deck B:", error);
-            // Mark player as not ready if we can't access it
-            hasChanges = true;
-            managerRef.current["updatePlayerState"]("B", {
-              isReady: false,
-              isPlaying: false,
-            });
+            // Ignore errors during progress updates
           }
         }
 
-        // Update Spotify progress
-        if (
-          currentStates.A.isReady &&
-          currentStates.A.service === ServiceType.Spotify
-        ) {
-          try {
-            await managerRef.current["spotifyManager"].updatePlayerState("A");
-            const state =
-              managerRef.current["spotifyManager"].playerStates.get("A");
-            if (state) {
-              const currentTime = state.currentTime;
-              const duration = state.duration;
-              const isPlaying = state.isPlaying;
+        // Update UI states
+        updatePlayerStates();
 
-              if (
-                currentTime !== currentStates.A.currentTime ||
-                duration !== currentStates.A.duration ||
-                isPlaying !== currentStates.A.isPlaying
-              ) {
-                hasChanges = true;
-                managerRef.current["updatePlayerState"]("A", {
-                  currentTime,
-                  duration,
-                  isPlaying,
-                });
-              }
-            }
-          } catch (error) {
-            console.warn("Error updating Spotify progress for deck A:", error);
-          }
-        }
-
-        if (
-          currentStates.B.isReady &&
-          currentStates.B.service === ServiceType.Spotify
-        ) {
-          try {
-            await managerRef.current["spotifyManager"].updatePlayerState("B");
-            const state =
-              managerRef.current["spotifyManager"].playerStates.get("B");
-            if (state) {
-              const currentTime = state.currentTime;
-              const duration = state.duration;
-              const isPlaying = state.isPlaying;
-
-              if (
-                currentTime !== currentStates.B.currentTime ||
-                duration !== currentStates.B.duration ||
-                isPlaying !== currentStates.B.isPlaying
-              ) {
-                hasChanges = true;
-                managerRef.current["updatePlayerState"]("B", {
-                  currentTime,
-                  duration,
-                  isPlaying,
-                });
-              }
-            }
-          } catch (error) {
-            console.warn("Error updating Spotify progress for deck B:", error);
-          }
-        }
-
-        if (hasChanges) {
-          updatePlayerStates();
-        }
-
-        // Check for auto-crossfade opportunities
+        // Check for auto-crossfade (less frequently to avoid conflicts)
         try {
-          // Check if deck A should auto-crossfade
-          if (currentStates.A.isPlaying && currentStates.A.isReady) {
-            await managerRef.current["triggerAutoCrossfadeIfNeeded"]("A");
-          }
+          // Only check auto-crossfade every few seconds to avoid excessive checking
+          const now = Date.now();
+          const shouldCheckCrossfade = now % 2000 < 250; // Check roughly every 2 seconds
 
-          // Check if deck B should auto-crossfade
-          if (currentStates.B.isPlaying && currentStates.B.isReady) {
-            await managerRef.current["triggerAutoCrossfadeIfNeeded"]("B");
+          if (shouldCheckCrossfade) {
+            // Check if deck A should auto-crossfade
+            if (currentStates.A.isPlaying && currentStates.A.isReady) {
+              await managerRef.current!.triggerAutoCrossfadeIfNeeded("A");
+            }
+
+            // Check if deck B should auto-crossfade
+            if (currentStates.B.isPlaying && currentStates.B.isReady) {
+              await managerRef.current!.triggerAutoCrossfadeIfNeeded("B");
+            }
           }
         } catch (error) {
           console.warn("Error checking auto-crossfade:", error);
@@ -341,7 +267,7 @@ export function useUnifiedPlayer({
     [updatePlayerStates]
   );
 
-  // Play a deck
+  // Play a deck - now calls service managers directly
   const playDeck = useCallback(
     async (deckId: "A" | "B") => {
       if (!managerRef.current) {
@@ -349,7 +275,27 @@ export function useUnifiedPlayer({
       }
 
       try {
-        await managerRef.current.playDeck(deckId);
+        const player = managerRef.current.getPlayerState(deckId);
+
+        if (!player.isReady || !player.currentTrack) {
+          throw new Error(`Deck ${deckId} is not ready to play`);
+        }
+
+        if (player.service === ServiceType.Youtube) {
+          const youtubeManager = managerRef.current!.youtubeManager;
+          youtubeManager.playPlayer(deckId);
+        } else if (player.service === ServiceType.Spotify) {
+          const spotifyManager = managerRef.current!.spotifyManager;
+          const trackId = (player.currentTrack as Song).id;
+          await spotifyManager.playTrack(deckId, trackId);
+        }
+
+        // Update player state
+        managerRef.current!.updatePlayerState(deckId, {
+          isPlaying: true,
+          lastActivity: Date.now(),
+        });
+
         updatePlayerStates();
         console.log(`▶️ Started playing deck ${deckId}`);
       } catch (error) {
@@ -360,7 +306,7 @@ export function useUnifiedPlayer({
     [updatePlayerStates]
   );
 
-  // Pause a deck
+  // Pause a deck - now calls service managers directly
   const pauseDeck = useCallback(
     async (deckId: "A" | "B") => {
       if (!managerRef.current) {
@@ -368,7 +314,24 @@ export function useUnifiedPlayer({
       }
 
       try {
-        await managerRef.current.pauseDeck(deckId);
+        const player = managerRef.current.getPlayerState(deckId);
+
+        if (!player.isReady) return;
+
+        if (player.service === ServiceType.Youtube) {
+          const youtubeManager = managerRef.current!.youtubeManager;
+          youtubeManager.pausePlayer(deckId);
+        } else if (player.service === ServiceType.Spotify) {
+          const spotifyManager = managerRef.current!.spotifyManager;
+          await spotifyManager.pausePlayer(deckId);
+        }
+
+        // Update player state
+        managerRef.current!.updatePlayerState(deckId, {
+          isPlaying: false,
+          lastActivity: Date.now(),
+        });
+
         updatePlayerStates();
         console.log(`⏸️ Paused deck ${deckId}`);
       } catch (error) {
@@ -379,7 +342,7 @@ export function useUnifiedPlayer({
     [updatePlayerStates]
   );
 
-  // Stop a deck
+  // Stop a deck - now calls service managers directly
   const stopDeck = useCallback(
     async (deckId: "A" | "B") => {
       if (!managerRef.current) {
@@ -387,7 +350,25 @@ export function useUnifiedPlayer({
       }
 
       try {
-        await managerRef.current.stopDeck(deckId);
+        const player = managerRef.current.getPlayerState(deckId);
+
+        if (!player.isReady) return;
+
+        if (player.service === ServiceType.Youtube) {
+          const youtubeManager = managerRef.current!.youtubeManager;
+          youtubeManager.stopPlayer(deckId);
+        } else if (player.service === ServiceType.Spotify) {
+          const spotifyManager = managerRef.current!.spotifyManager;
+          await spotifyManager.pausePlayer(deckId);
+        }
+
+        // Update player state
+        managerRef.current!.updatePlayerState(deckId, {
+          isPlaying: false,
+          currentTime: 0,
+          lastActivity: Date.now(),
+        });
+
         updatePlayerStates();
         console.log(`⏹️ Stopped deck ${deckId}`);
       } catch (error) {
@@ -398,7 +379,7 @@ export function useUnifiedPlayer({
     [updatePlayerStates]
   );
 
-  // Set volume for a deck
+  // Set volume for a deck - now calls service managers directly
   const setDeckVolume = useCallback(
     async (deckId: "A" | "B", volume: number) => {
       if (!managerRef.current) {
@@ -406,7 +387,24 @@ export function useUnifiedPlayer({
       }
 
       try {
-        await managerRef.current.setDeckVolume(deckId, volume);
+        const player = managerRef.current.getPlayerState(deckId);
+
+        if (!player.isReady) return;
+
+        if (player.service === ServiceType.Youtube) {
+          const youtubeManager = managerRef.current!.youtubeManager;
+          youtubeManager.setVolume(deckId, volume);
+        } else if (player.service === ServiceType.Spotify) {
+          const spotifyManager = managerRef.current!.spotifyManager;
+          await spotifyManager.setVolume(deckId, volume);
+        }
+
+        // Update player state
+        managerRef.current!.updatePlayerState(deckId, {
+          volume,
+          lastActivity: Date.now(),
+        });
+
         updatePlayerStates();
         console.log(`🔊 Set deck ${deckId} volume to ${volume}`);
       } catch (error) {
@@ -417,7 +415,7 @@ export function useUnifiedPlayer({
     [updatePlayerStates]
   );
 
-  // Seek in a deck
+  // Seek in a deck - now calls service managers directly
   const seekDeck = useCallback(
     async (deckId: "A" | "B", position: number) => {
       if (!managerRef.current) {
@@ -425,7 +423,27 @@ export function useUnifiedPlayer({
       }
 
       try {
-        await managerRef.current.seekDeck(deckId, position);
+        const player = managerRef.current.getPlayerState(deckId);
+
+        if (!player.isReady) return;
+
+        if (player.service === ServiceType.Youtube) {
+          const youtubeManager = managerRef.current!.youtubeManager;
+          youtubeManager.seekPlayer(deckId, position / 1000);
+        } else if (player.service === ServiceType.Spotify) {
+          const spotifyManager = managerRef.current!.spotifyManager;
+          const spotifyPlayer = spotifyManager.getPlayer(deckId);
+          if (spotifyPlayer && typeof spotifyPlayer.seek === "function") {
+            await spotifyPlayer.seek(position);
+          }
+        }
+
+        // Update player state
+        managerRef.current!.updatePlayerState(deckId, {
+          currentTime: position,
+          lastActivity: Date.now(),
+        });
+
         updatePlayerStates();
         console.log(
           `⏩ Seeked deck ${deckId} to ${Math.round(position / 1000)}s`
@@ -466,7 +484,7 @@ export function useUnifiedPlayer({
       }
 
       try {
-        await managerRef.current["triggerAutoCrossfadeIfNeeded"](deckId);
+        await managerRef.current!.triggerAutoCrossfadeIfNeeded(deckId);
         updatePlayerStates();
         updateCrossfadeState();
         console.log(`🔄 Auto-crossfade triggered for deck ${deckId}`);

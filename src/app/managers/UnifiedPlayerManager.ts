@@ -31,13 +31,15 @@ export interface CrossfadeState {
 }
 
 export class UnifiedPlayerManager {
-  private youtubeManager: YouTubePlayerManager;
-  private spotifyManager: SpotifyPlayerManager;
+  public youtubeManager: YouTubePlayerManager;
+  public spotifyManager: SpotifyPlayerManager;
   private playerPool: PlayerPool;
   private crossfadeState: CrossfadeState;
   private isInitialized: boolean = false;
   private lastRecreationTime: { [key: string]: number } = { A: 0, B: 0 };
   private readonly RECREATION_COOLDOWN = 5000; // 5 seconds cooldown between recreations
+  private lastAutoCrossfadeTime: { [key: string]: number } = { A: 0, B: 0 };
+  private readonly AUTO_CROSSFADE_COOLDOWN = 10000; // 10 seconds cooldown between auto-crossfades
 
   constructor() {
     this.youtubeManager = new YouTubePlayerManager();
@@ -368,8 +370,14 @@ export class UnifiedPlayerManager {
 
   /**
    * Play a track on a specific deck
+   * @deprecated Use the hook's playDeck method instead
    */
   async playDeck(deckId: "A" | "B"): Promise<void> {
+    console.warn(
+      "playDeck is deprecated. Use the hook's playDeck method instead."
+    );
+
+    // For internal crossfade usage, we still need to implement the logic
     const player = this.playerPool[deckId];
 
     if (!player.isReady || !player.currentTrack) {
@@ -379,16 +387,6 @@ export class UnifiedPlayerManager {
     try {
       if (player.service === ServiceType.Youtube) {
         this.youtubeManager.playPlayer(deckId);
-
-        // Ensure volume is maintained after starting playback
-        let targetVolume = player.volume;
-        if (targetVolume <= 0) {
-          targetVolume = 75; // Use default volume if player has 0 volume
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        await this.youtubeManager.setVolume(deckId, targetVolume);
-        // Volume maintenance is handled automatically
       } else if (player.service === ServiceType.Spotify) {
         const trackId = (player.currentTrack as Song).id;
         await this.spotifyManager.playTrack(deckId, trackId);
@@ -398,8 +396,6 @@ export class UnifiedPlayerManager {
         isPlaying: true,
         lastActivity: Date.now(),
       });
-
-      console.log(`▶️ Started playing deck ${deckId}`);
     } catch (error) {
       console.error(`❌ Failed to play deck ${deckId}:`, error);
       throw error;
@@ -408,8 +404,14 @@ export class UnifiedPlayerManager {
 
   /**
    * Pause a deck
+   * @deprecated Use the hook's pauseDeck method instead
    */
   async pauseDeck(deckId: "A" | "B"): Promise<void> {
+    console.warn(
+      "pauseDeck is deprecated. Use the hook's pauseDeck method instead."
+    );
+
+    // For internal usage, we still need to implement the logic
     const player = this.playerPool[deckId];
 
     if (!player.isReady) return;
@@ -425,8 +427,6 @@ export class UnifiedPlayerManager {
         isPlaying: false,
         lastActivity: Date.now(),
       });
-
-      console.log(`⏸️ Paused deck ${deckId}`);
     } catch (error) {
       console.error(`❌ Failed to pause deck ${deckId}:`, error);
       throw error;
@@ -435,8 +435,14 @@ export class UnifiedPlayerManager {
 
   /**
    * Stop a deck
+   * @deprecated Use the hook's stopDeck method instead
    */
   async stopDeck(deckId: "A" | "B"): Promise<void> {
+    console.warn(
+      "stopDeck is deprecated. Use the hook's stopDeck method instead."
+    );
+
+    // For internal usage, we still need to implement the logic
     const player = this.playerPool[deckId];
 
     if (!player.isReady) return;
@@ -453,8 +459,6 @@ export class UnifiedPlayerManager {
         currentTime: 0,
         lastActivity: Date.now(),
       });
-
-      console.log(`⏹️ Stopped deck ${deckId}`);
     } catch (error) {
       console.error(`❌ Failed to stop deck ${deckId}:`, error);
       throw error;
@@ -463,8 +467,14 @@ export class UnifiedPlayerManager {
 
   /**
    * Set volume for a deck
+   * @deprecated Use the hook's setDeckVolume method instead
    */
   async setDeckVolume(deckId: "A" | "B", volume: number): Promise<void> {
+    console.warn(
+      "setDeckVolume is deprecated. Use the hook's setDeckVolume method instead."
+    );
+
+    // For internal usage, we still need to implement the logic
     const player = this.playerPool[deckId];
 
     if (!player.isReady) return;
@@ -480,8 +490,6 @@ export class UnifiedPlayerManager {
         volume,
         lastActivity: Date.now(),
       });
-
-      console.log(`🔊 Set deck ${deckId} volume to ${volume}`);
     } catch (error) {
       console.error(`❌ Failed to set volume for deck ${deckId}:`, error);
       throw error;
@@ -490,8 +498,14 @@ export class UnifiedPlayerManager {
 
   /**
    * Seek to position in a deck
+   * @deprecated Use the hook's seekDeck method instead
    */
   async seekDeck(deckId: "A" | "B", position: number): Promise<void> {
+    console.warn(
+      "seekDeck is deprecated. Use the hook's seekDeck method instead."
+    );
+
+    // For internal usage, we still need to implement the logic
     const player = this.playerPool[deckId];
 
     if (!player.isReady) return;
@@ -510,10 +524,6 @@ export class UnifiedPlayerManager {
         currentTime: position,
         lastActivity: Date.now(),
       });
-
-      console.log(
-        `⏩ Seeked deck ${deckId} to ${Math.round(position / 1000)}s`
-      );
     } catch (error) {
       console.error(`❌ Failed to seek deck ${deckId}:`, error);
       throw error;
@@ -846,7 +856,10 @@ export class UnifiedPlayerManager {
   /**
    * Update player state
    */
-  updatePlayerState(deckId: "A" | "B", updates: Partial<PlayerInstance>): void {
+  public updatePlayerState(
+    deckId: "A" | "B",
+    updates: Partial<PlayerInstance>
+  ): void {
     const oldState = { ...this.playerPool[deckId] };
     this.playerPool[deckId] = {
       ...this.playerPool[deckId],
@@ -871,8 +884,21 @@ export class UnifiedPlayerManager {
       return false;
     }
 
+    // Don't trigger crossfade if we don't have valid duration/time data
+    if (player.duration <= 0 || player.currentTime <= 0) {
+      return false;
+    }
+
+    // Ensure we have a reasonable duration (at least 30 seconds) before considering crossfade
+    if (player.duration < 30000) {
+      // 30 seconds in milliseconds
+      return false;
+    }
+
     const remainingTime = (player.duration - player.currentTime) / 1000;
-    return remainingTime <= thresholdSeconds;
+
+    // Only trigger crossfade if track is actually ending soon
+    return remainingTime <= thresholdSeconds && remainingTime > 0;
   }
 
   /**
@@ -890,25 +916,75 @@ export class UnifiedPlayerManager {
       return false; // Already crossfading
     }
 
+    const currentPlayer = this.playerPool[deckId];
     const otherDeck = this.getOtherDeck(deckId);
     const otherDeckPlayer = this.playerPool[otherDeck];
 
-    // Check if current deck is ending soon and other deck is ready
-    return (
+    // Check cooldown to prevent excessive auto-crossfade attempts
+    const now = Date.now();
+    if (
+      now - this.lastAutoCrossfadeTime[deckId] <
+      this.AUTO_CROSSFADE_COOLDOWN
+    ) {
+      return false; // Still in cooldown
+    }
+
+    // Only auto-crossfade if:
+    // 1. Current deck is actually playing
+    // 2. Current deck is ending soon (within threshold)
+    // 3. Other deck is ready and has a track
+    // 4. Other deck is NOT already playing
+    // 5. Current deck has been playing for at least a few seconds (to avoid immediate crossfade)
+    const hasBeenPlayingLongEnough =
+      currentPlayer.lastActivity < Date.now() - 5000; // At least 5 seconds
+
+    const shouldCrossfade =
+      currentPlayer.isPlaying && // Must be actively playing
+      hasBeenPlayingLongEnough && // Must have been playing for a while
       this.isTrackEndingSoon(deckId, 10) && // Track ending within 10 seconds
       otherDeckPlayer.isReady && // Other deck has a track
       !!otherDeckPlayer.currentTrack && // Other deck has a track loaded
-      !otherDeckPlayer.isPlaying // Other deck is not already playing
-    );
+      !otherDeckPlayer.isPlaying; // Other deck is not already playing
+
+    // Debug logging for auto-crossfade decisions
+    if (
+      currentPlayer.isPlaying &&
+      otherDeckPlayer.isReady &&
+      !!otherDeckPlayer.currentTrack
+    ) {
+      console.log(`🔍 Auto-crossfade check for ${deckId}:`, {
+        isPlaying: currentPlayer.isPlaying,
+        hasBeenPlayingLongEnough,
+        isTrackEndingSoon: this.isTrackEndingSoon(deckId, 10),
+        otherDeckReady: otherDeckPlayer.isReady,
+        otherDeckHasTrack: !!otherDeckPlayer.currentTrack,
+        otherDeckNotPlaying: !otherDeckPlayer.isPlaying,
+        shouldCrossfade,
+        currentTime: currentPlayer.currentTime,
+        duration: currentPlayer.duration,
+        lastActivity: currentPlayer.lastActivity,
+        timeSinceLastActivity: Date.now() - currentPlayer.lastActivity,
+        cooldownRemaining: Math.max(
+          0,
+          this.AUTO_CROSSFADE_COOLDOWN -
+            (now - this.lastAutoCrossfadeTime[deckId])
+        ),
+      });
+    }
+
+    return shouldCrossfade;
   }
 
   /**
    * Trigger auto-crossfade if conditions are met
    */
-  async triggerAutoCrossfadeIfNeeded(deckId: "A" | "B"): Promise<void> {
+  public async triggerAutoCrossfadeIfNeeded(deckId: "A" | "B"): Promise<void> {
     if (this.shouldAutoCrossfade(deckId)) {
       const otherDeck = this.getOtherDeck(deckId);
       console.log(`🔄 Auto-crossfade triggered from ${deckId} to ${otherDeck}`);
+
+      // Set cooldown to prevent immediate re-triggering
+      this.lastAutoCrossfadeTime[deckId] = Date.now();
 
       try {
         await this.startCrossfade(deckId, otherDeck, 3000); // 3 second auto-crossfade
