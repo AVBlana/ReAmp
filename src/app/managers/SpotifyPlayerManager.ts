@@ -12,7 +12,7 @@ export class SpotifyPlayerManager {
   private globalPlayerInstance: SpotifyPlayer | null = null;
   private globalPlayerInitializing = false;
 
-  private async loadSpotifySDK(): Promise<void> {
+  public async loadSpotifySDK(): Promise<void> {
     if (this.isApiReady) {
       return;
     }

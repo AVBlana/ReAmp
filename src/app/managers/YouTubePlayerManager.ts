@@ -11,6 +11,7 @@ export interface YTPlayer {
   getPlayerState: () => number;
   getCurrentTime: () => number;
   getDuration: () => number;
+  loadVideoById: (videoId: string) => void;
   destroy: () => void;
 }
 
@@ -32,17 +33,22 @@ export class YouTubePlayerManager {
     console.log(`🎯 YouTubeManager.createPlayer called for ${playerId}:`, {
       videoId,
       containerExists: !!container,
+      containerId: container?.id,
+      containerChildren: container?.children?.length,
       apiReady: this.isApiReady,
       windowYT: !!window.YT,
       windowYTPlayer: !!(window.YT && window.YT.Player),
+      existingPlayers: Array.from(this.players.keys()),
+      playingPlayers: this.getPlayingPlayers(),
     });
 
-    // Don't destroy existing player immediately - check if it's the same video
+    // Always destroy existing player for this ID to prevent conflicts
     const existingPlayer = this.players.get(playerId);
     if (existingPlayer) {
-      // If we're trying to create the same player with the same video, don't recreate
-      console.log(` Player ${playerId} already exists, checking if recreation is needed`);
-      // Only destroy if we need to change the video or if there's an error
+      console.log(`🗑️ Destroying existing YouTube player ${playerId}`);
+      await this.destroyPlayer(playerId);
+      // Brief delay after destruction
+      await new Promise((resolve) => setTimeout(resolve, 200));
     }
 
     // Store container reference
@@ -66,58 +72,136 @@ export class YouTubePlayerManager {
     return new Promise<void>((resolve, reject) => {
       try {
         console.log(`🎯 Creating YouTube player instance for ${playerId}`);
-        
-        // Add a small delay to prevent race conditions
-        setTimeout(() => {
-          new window.YT.Player(container, {
-            videoId: videoId,
-            playerVars: {
-              autoplay: 0,
-              modestbranding: 1,
-              rel: 0,
-              enablejsapi: 1,
-              playsinline: 1,
-              controls: 1,
-            },
-            events: {
-              onReady: (event: { target: YouTubePlayer }) => {
-                console.log(`✅ YouTube player ${playerId} ready:`, {
-                  player: event.target,
+
+        // Add timeout to prevent hanging - increased for better reliability
+        const playerCreationTimeout = setTimeout(async () => {
+          console.error(`⏰ YouTube player creation timeout for ${playerId}`);
+          try {
+            await this.destroyPlayer(playerId);
+          } catch (destroyError) {
+            console.warn(
+              `⚠️ Error during timeout cleanup for ${playerId}:`,
+              destroyError
+            );
+          }
+          reject(new Error(`YouTube player creation timeout for ${playerId}`));
+        }, 20000); // 20 second timeout for better reliability
+
+        // Create player immediately without delays
+        new window.YT.Player(container, {
+          videoId: videoId,
+          playerVars: {
+            autoplay: 0,
+            modestbranding: 1,
+            rel: 0,
+            enablejsapi: 1,
+            playsinline: 1,
+            controls: 1,
+          },
+          events: {
+            onReady: (event: { target: YouTubePlayer }) => {
+              console.log(`✅ YouTube player ${playerId} ready`);
+
+              // Clear timeout since player is ready
+              clearTimeout(playerCreationTimeout);
+
+              // Verify the player has required methods
+              if (
+                typeof event.target.getCurrentTime === "function" &&
+                typeof event.target.getDuration === "function" &&
+                typeof event.target.getPlayerState === "function"
+              ) {
+                this.players.set(playerId, event.target);
+                console.log(`✅ Player ${playerId} stored successfully`);
+                console.log(`🔍 Player ${playerId} details:`, {
                   hasGetCurrentTime:
                     typeof event.target.getCurrentTime === "function",
-                  hasGetDuration: typeof event.target.getDuration === "function",
+                  hasGetDuration:
+                    typeof event.target.getDuration === "function",
                   hasGetPlayerState:
                     typeof event.target.getPlayerState === "function",
+                  playerObject: event.target,
                 });
-                this.players.set(playerId, event.target);
                 resolve();
-              },
-              onStateChange: (event: { data: number; target: YouTubePlayer }) => {
-                const state = event.data;
-                const currentTime = event.target.getCurrentTime();
-                const duration = event.target.getDuration();
-
-                console.log(`🔄 YouTube player ${playerId} state changed:`, {
-                  state,
-                  currentTime,
-                  duration,
-                  isPlaying: state === window.YT.PlayerState.PLAYING,
-                  playerState: window.YT.PlayerState.PLAYING,
-                });
-
-                this.setPlayerState(playerId, {
-                  currentTime,
-                  duration,
-                  isPlaying: state === window.YT.PlayerState.PLAYING,
-                });
-              },
-              onError: (event: { data: number }) => {
-                console.error(`❌ YouTube player ${playerId} error:`, event.data);
-                reject(new Error(`YouTube player error: ${event.data}`));
-              },
+              } else {
+                console.error(
+                  `❌ YouTube player ${playerId} missing required methods`
+                );
+                this.destroyPlayer(playerId);
+                reject(
+                  new Error(
+                    `YouTube player ${playerId} missing required methods`
+                  )
+                );
+              }
             },
-          });
-        }, 100); // Small delay to prevent race conditions
+            onStateChange: (event: { data: number; target: YouTubePlayer }) => {
+              // Only process state changes for registered players
+              if (!this.players.has(playerId)) {
+                console.log(
+                  `⚠️ State change for unregistered player ${playerId}, ignoring`
+                );
+                return;
+              }
+
+              const state = event.data;
+              console.log(`🔄 Player ${playerId} state change:`, {
+                state,
+                stateName: this.getStateName(state),
+                playerId,
+                isRegistered: this.players.has(playerId),
+              });
+
+              // Skip unstarted state
+              if (state === window.YT.PlayerState.UNSTARTED) {
+                console.log(
+                  `⏸️ Player ${playerId} in unstarted state, skipping`
+                );
+                return;
+              }
+
+              // Get time and duration safely
+              let currentTime = 0;
+              let duration = 0;
+
+              try {
+                if (typeof event.target.getCurrentTime === "function") {
+                  currentTime = event.target.getCurrentTime();
+                }
+                if (typeof event.target.getDuration === "function") {
+                  duration = event.target.getDuration();
+                }
+              } catch (error) {
+                console.warn(
+                  `⚠️ Error getting time/duration from player ${playerId}:`,
+                  error
+                );
+              }
+
+              // Update player state
+              this.setPlayerState(playerId, {
+                currentTime,
+                duration,
+                isPlaying: state === window.YT.PlayerState.PLAYING,
+              });
+
+              console.log(`✅ Player ${playerId} state updated:`, {
+                currentTime,
+                duration,
+                isPlaying: state === window.YT.PlayerState.PLAYING,
+              });
+            },
+            onError: (event: { data: number }) => {
+              console.error(`❌ YouTube player ${playerId} error:`, event.data);
+
+              // Clear timeout since we're handling the error
+              clearTimeout(playerCreationTimeout);
+
+              this.destroyPlayer(playerId).catch(console.error);
+              reject(new Error(`YouTube player error: ${event.data}`));
+            },
+          },
+        });
       } catch (error) {
         console.error(`❌ Error creating YouTube player ${playerId}:`, error);
         reject(error);
@@ -125,7 +209,7 @@ export class YouTubePlayerManager {
     });
   }
 
-  private loadYouTubeAPI(): Promise<void> {
+  public loadYouTubeAPI(): Promise<void> {
     return new Promise((resolve) => {
       if (this.isApiReady) {
         resolve();
@@ -287,27 +371,63 @@ export class YouTubePlayerManager {
     return 0;
   }
 
-  destroyPlayer(playerId: string) {
+  getPlayer(playerId: string): YTPlayer | undefined {
+    return this.players.get(playerId);
+  }
+
+  async destroyPlayer(playerId: string) {
     const player = this.players.get(playerId);
     if (player) {
       try {
         console.log(`🗑️ Destroying YouTube player ${playerId}`);
+
+        // First pause the player to reduce interference
+        try {
+          player.pauseVideo();
+        } catch (pauseError) {
+          console.warn(
+            `⚠️ Could not pause player ${playerId} before destruction:`,
+            pauseError
+          );
+        }
+
+        // Longer delay to let the pause take effect and reduce interference
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        // Destroy the player
         player.destroy();
+        console.log(`✅ Player ${playerId} destroyed successfully`);
       } catch (error) {
         console.error(`❌ Error destroying YouTube player ${playerId}:`, error);
       }
     }
+
+    // Clear the container to remove any remaining iframe elements
+    // But be more careful to only remove YouTube iframes, not other content
+    const container = this.containers.get(playerId);
+    if (container) {
+      // Only remove YouTube iframes, not other content that might be important
+      const iframes = container.querySelectorAll('iframe[src*="youtube"]');
+      iframes.forEach((iframe) => iframe.remove());
+      console.log(`🧹 Cleaned up YouTube iframes for player ${playerId}`);
+    }
+
+    // Remove from tracking maps
     this.players.delete(playerId);
     this.containers.delete(playerId);
     this.playerStates.delete(playerId);
+
+    // Additional delay to ensure cleanup is complete before allowing new operations
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    console.log(
+      `🗑️ Player ${playerId} cleanup completed. Remaining players:`,
+      Array.from(this.players.keys())
+    );
   }
 
   getContainer(playerId: string): HTMLDivElement | undefined {
     return this.containers.get(playerId);
-  }
-
-  getPlayer(playerId: string): YTPlayer | undefined {
-    return this.players.get(playerId);
   }
 
   // Debug method to list all available players
@@ -315,10 +435,43 @@ export class YouTubePlayerManager {
     return Array.from(this.players.keys());
   }
 
-  destroyAll() {
+  // Check if a specific player is currently playing
+  isPlayerPlaying(playerId: string): boolean {
+    const state = this.playerStates.get(playerId);
+    return state ? state.isPlaying : false;
+  }
+
+  // Get all currently playing players
+  getPlayingPlayers(): string[] {
+    return Array.from(this.playerStates.entries())
+      .filter(([, state]) => state.isPlaying)
+      .map(([playerId]) => playerId);
+  }
+
+  // Helper method to get state name for logging
+  private getStateName(state: number): string {
+    switch (state) {
+      case window.YT.PlayerState.UNSTARTED:
+        return "UNSTARTED";
+      case window.YT.PlayerState.ENDED:
+        return "ENDED";
+      case window.YT.PlayerState.PLAYING:
+        return "PLAYING";
+      case window.YT.PlayerState.PAUSED:
+        return "PAUSED";
+      case window.YT.PlayerState.BUFFERING:
+        return "BUFFERING";
+      case window.YT.PlayerState.CUED:
+        return "CUED";
+      default:
+        return `UNKNOWN(${state})`;
+    }
+  }
+
+  async destroyAll() {
     console.log("🗑️ Destroying all YouTube players");
     for (const [playerId] of this.players) {
-      this.destroyPlayer(playerId);
+      await this.destroyPlayer(playerId);
     }
   }
 }

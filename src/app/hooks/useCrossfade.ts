@@ -26,13 +26,6 @@ interface UseCrossfadeProps {
       B: DJPlayerState;
     }>
   >;
-  youtubeManager: {
-    getCurrentTime: (playerId: string) => number;
-    getDuration: (playerId: string) => number;
-    getPlayerState: (playerId: string) => number;
-    getPlayer: (playerId: string) => unknown;
-    listPlayers: () => string[];
-  };
   handlePlay: (playerId: "A" | "B") => Promise<void>;
   handlePause: (playerId: "A" | "B") => Promise<void>;
   handleVolumeChange: (playerId: "A" | "B", volume: number) => void;
@@ -41,7 +34,6 @@ interface UseCrossfadeProps {
 export function useCrossfade({
   players,
   setPlayers,
-  youtubeManager,
   handlePlay,
   handlePause,
   handleVolumeChange,
@@ -57,6 +49,15 @@ export function useCrossfade({
   }>({
     A: false,
     B: false,
+  });
+
+  // Track when players were last destroyed to prevent crossfade during recreation
+  const playerDestroyedTime = useRef<{
+    A: number;
+    B: number;
+  }>({
+    A: 0,
+    B: 0,
   });
 
   // Global crossfade lock to prevent any crossfade from starting while one is in progress
@@ -140,9 +141,36 @@ export function useCrossfade({
           player.song &&
           player.duration > 0 &&
           otherPlayer.song && // Ensure other player also has a song
+          otherPlayer.isActive && // Ensure other player is also active
+          otherPlayer.duration > 0 && // Ensure other player has valid duration
           !crossfadeTriggered.current[playerId as "A" | "B"] &&
           !crossfadeInProgressRef.current
         ) {
+          // Additional checks for auto-crossfade
+          const now = Date.now();
+          const recentlyDestroyed = 20000; // 20 seconds
+
+          // Check if either player was recently destroyed
+          if (
+            now - playerDestroyedTime.current[playerId as "A" | "B"] <
+            recentlyDestroyed
+          ) {
+            console.log(
+              `🚫 Auto-crossfade blocked - player ${playerId} was recently destroyed`
+            );
+            return;
+          }
+
+          if (
+            now - playerDestroyedTime.current[otherPlayerId as "A" | "B"] <
+            recentlyDestroyed
+          ) {
+            console.log(
+              `🚫 Auto-crossfade blocked - player ${otherPlayerId} was recently destroyed`
+            );
+            return;
+          }
+
           const timeRemaining = player.duration - player.currentTime;
 
           if (
@@ -154,7 +182,7 @@ export function useCrossfade({
                 timeRemaining / 1000
               )}s remaining) - Other player: ${otherPlayerId} has song: ${!!otherPlayer.song}`
             );
-            triggerCrossfade(playerId as "A" | "B");
+            triggerCrossfade(playerId as "A" | "B", false); // Auto-crossfade
           }
         }
       });
@@ -175,7 +203,7 @@ export function useCrossfade({
   }, [checkCrossfadeCompletion]);
 
   const triggerCrossfade = useCallback(
-    async (endingPlayerId: "A" | "B") => {
+    async (endingPlayerId: "A" | "B", isManualCrossfade: boolean = false) => {
       if (globalCrossfadeLock.current || crossfadeInProgressRef.current) {
         console.log("🚫 Crossfade blocked - already in progress");
         return;
@@ -185,517 +213,95 @@ export function useCrossfade({
       const endingPlayer = playersRef.current[endingPlayerId];
       const startingPlayer = playersRef.current[startingPlayerId];
 
-      // Early check: Both players must have songs before proceeding
+      // Enhanced validation - check if both players are actually ready
       if (!endingPlayer.song || !startingPlayer.song) {
-        console.log("🚫 Crossfade blocked - both players must have songs:", {
-          endingPlayerSong: !!endingPlayer.song,
-          startingPlayerSong: !!startingPlayer.song,
-          endingPlayerId,
-          startingPlayerId,
+        console.log("🚫 Crossfade blocked - both players must have songs");
+        return;
+      }
+
+      if (!isCrossfadeEnabledRef.current) {
+        console.log("🚫 Crossfade blocked - not enabled");
+        return;
+      }
+
+      // Check if both players are actually active and ready for crossfade
+      if (!endingPlayer.isActive || !startingPlayer.isActive) {
+        console.log("🚫 Crossfade blocked - both players must be active", {
+          endingPlayerActive: endingPlayer.isActive,
+          startingPlayerActive: startingPlayer.isActive,
         });
         return;
       }
 
-      // Check if crossfade is enabled and both players have songs
-      if (
-        !isCrossfadeEnabledRef.current ||
-        crossfadeTriggered.current[endingPlayerId]
-      ) {
-        console.log("🚫 Crossfade conditions not met:", {
-          crossfadeEnabled: isCrossfadeEnabledRef.current,
-          endingPlayerSong: !!endingPlayer.song,
-          startingPlayerSong: !!startingPlayer.song,
-          alreadyTriggered: crossfadeTriggered.current[endingPlayerId],
-          endingPlayer: {
-            id: endingPlayerId,
-            service: endingPlayer.service,
-            isActive: endingPlayer.isActive,
-            isPlaying: endingPlayer.isPlaying,
-            song: endingPlayer.song ? "Has song" : "No song",
-          },
-          startingPlayer: {
-            id: startingPlayerId,
-            service: startingPlayer.service,
-            isActive: startingPlayer.isActive,
-            isPlaying: startingPlayer.isPlaying,
-            song: startingPlayer.song ? "Has song" : "No song",
-          },
-        });
+      // Additional check: ensure both players have valid duration and current time
+      if (endingPlayer.duration <= 0 || startingPlayer.duration <= 0) {
+        console.log(
+          "🚫 Crossfade blocked - both players must have valid duration",
+          {
+            endingPlayerDuration: endingPlayer.duration,
+            startingPlayerDuration: startingPlayer.duration,
+          }
+        );
         return;
       }
 
-      // Additional check: Ensure YouTube players are fully initialized
+      // Check if either player is currently loading or initializing
+      // Only block if the player has been at 0 time for too long (indicating loading)
+
+      // Check if ending player is stuck at 0 time for too long
+      if (endingPlayer.currentTime === 0 && endingPlayer.duration > 0) {
+        // Simple check: if duration is valid and player is active, it's probably ready
+        if (endingPlayer.duration > 1000 && endingPlayer.isActive) {
+          // Player seems ready, allow crossfade
+        } else {
+          console.log(
+            "🚫 Crossfade blocked - ending player is still loading/initializing"
+          );
+          return;
+        }
+      }
+
+      if (startingPlayer.currentTime === 0 && startingPlayer.duration > 0) {
+        // Simple check: if duration is valid and player is active, it's probably ready
+        if (startingPlayer.duration > 1000 && startingPlayer.isActive) {
+          // Player seems ready, allow crossfade
+        } else {
+          console.log(
+            "🚫 Crossfade blocked - starting player is still loading/initializing"
+          );
+          return;
+        }
+      }
+
+      // Check if either player was recently destroyed (within last 20 seconds)
+      const now = Date.now();
+      const recentlyDestroyed = 20000; // 20 seconds
+
       if (
-        endingPlayer.service === ServiceType.Youtube ||
-        startingPlayer.service === ServiceType.Youtube
+        now - playerDestroyedTime.current[endingPlayerId] <
+        recentlyDestroyed
       ) {
-        console.log(`🔍 Checking YouTube player readiness:`, {
-          endingPlayer: {
-            id: endingPlayerId,
-            service: endingPlayer.service,
-            hasSong: !!endingPlayer.song,
-          },
-          startingPlayer: {
-            id: startingPlayerId,
-            service: startingPlayer.service,
-            hasSong: !!startingPlayer.song,
-          },
-          availablePlayers: youtubeManager.listPlayers
-            ? youtubeManager.listPlayers()
-            : [],
-        });
+        console.log(
+          "🚫 Crossfade blocked - ending player was recently destroyed"
+        );
+        return;
+      }
 
-        // Debug: Show what services each player is using
-        console.log("🔍 Player service analysis:", {
-          endingPlayer: {
-            id: endingPlayerId,
-            service: endingPlayer.service,
-            needsYouTube: endingPlayer.service === ServiceType.Youtube,
-          },
-          startingPlayer: {
-            id: startingPlayerId,
-            service: startingPlayer.service,
-            needsYouTube: startingPlayer.service === ServiceType.Youtube,
-          },
-          availableYouTubePlayers: youtubeManager.listPlayers
-            ? youtubeManager.listPlayers()
-            : [],
-        });
-
-        // Simple check: Do the players exist at all?
-        const endingPlayerExists =
-          endingPlayer.service === ServiceType.Youtube
-            ? youtubeManager.getPlayer &&
-              youtubeManager.getPlayer(endingPlayerId)
-            : true;
-        const startingPlayerExists =
-          startingPlayer.service === ServiceType.Youtube
-            ? youtubeManager.getPlayer &&
-              youtubeManager.getPlayer(startingPlayerId)
-            : true;
-
-        console.log("🔍 Simple player existence check:", {
-          endingPlayerExists: endingPlayerExists ? "Exists" : "Missing",
-          startingPlayerExists: startingPlayerExists ? "Exists" : "Missing",
-          endingPlayerId,
-          startingPlayerId,
-        });
-
-        // Check if we can handle mixed service types
-        const canCrossfadeMixedServices =
-          endingPlayer.service !== startingPlayer.service &&
-          (endingPlayer.service === ServiceType.Spotify ||
-            startingPlayer.service === ServiceType.Spotify);
-
-        if (canCrossfadeMixedServices) {
-          console.log("🔄 Crossfade between different services detected:", {
-            endingPlayerService: endingPlayer.service,
-            startingPlayerService: startingPlayer.service,
-            note: "This should work with proper volume control",
-          });
-        }
-
-        if (!endingPlayerExists || !startingPlayerExists) {
-          console.log(
-            "🚫 Crossfade blocked - one or both YouTube players don't exist:",
-            {
-              endingPlayerExists,
-              startingPlayerExists,
-              endingPlayerId,
-              startingPlayerId,
-              endingPlayerService: endingPlayer.service,
-              startingPlayerService: startingPlayer.service,
-              availablePlayers: youtubeManager.listPlayers
-                ? youtubeManager.listPlayers()
-                : [],
-            }
-          );
-
-          // Additional debugging: Show what's in the players map
-          if (youtubeManager.listPlayers) {
-            const available = youtubeManager.listPlayers();
-            console.log("🔍 Available YouTube players:", available);
-            console.log("🔍 Missing players:", {
-              endingPlayer:
-                endingPlayer.service === ServiceType.Youtube &&
-                !endingPlayerExists
-                  ? endingPlayerId
-                  : "N/A",
-              startingPlayer:
-                startingPlayer.service === ServiceType.Youtube &&
-                !startingPlayerExists
-                  ? startingPlayerId
-                  : "N/A",
-            });
-
-            // Check if the missing player should be YouTube
-            if (
-              startingPlayer.service === ServiceType.Youtube &&
-              !startingPlayerExists
-            ) {
-              console.log(
-                "⚠️ Player A needs YouTube player but doesn't have one. This usually means:"
-              );
-              console.log(
-                "   1. Player A was loaded as a different service type initially"
-              );
-              console.log("   2. Player A's YouTube player was never created");
-              console.log("   3. Player A's YouTube player was destroyed");
-              console.log(
-                "   Solution: Try reloading the track on player A or ensure it's a YouTube track"
-              );
-            }
-
-            // Check if ending player (A) is missing YouTube player
-            if (
-              endingPlayer.service === ServiceType.Youtube &&
-              !endingPlayerExists
-            ) {
-              console.log(
-                "⚠️ Player A (ending player) needs YouTube player but doesn't have one:"
-              );
-              console.log(
-                "   This means the crossfade cannot proceed because:"
-              );
-              console.log(
-                "   1. Player A is supposed to fade out (decrease volume)"
-              );
-              console.log(
-                "   2. But there's no YouTube player to control its volume"
-              );
-              console.log(
-                "   3. The crossfade would fail during volume changes"
-              );
-              console.log("");
-              console.log("   Player A current state:", {
-                id: endingPlayerId,
-                service: endingPlayer.service,
-                isActive: endingPlayer.isActive,
-                isPlaying: endingPlayer.isPlaying,
-                hasSong: !!endingPlayer.song,
-                songType: endingPlayer.song
-                  ? endingPlayer.song.constructor.name
-                  : "None",
-                duration: endingPlayer.duration,
-                currentTime: endingPlayer.currentTime,
-              });
-              console.log("");
-              console.log("   Solutions:");
-              console.log("   1. Reload the track on player A");
-              console.log("   2. Wait for player A to finish naturally");
-              console.log("   3. Manually stop player A and start player B");
-              console.log(
-                "   4. Check if player A was loaded before YouTube API was ready"
-              );
-              console.log("");
-              console.log(
-                "   Alternative: We could do a 'hard cut' instead of crossfade:"
-              );
-              console.log("   1. Start player B immediately");
-              console.log(
-                "   2. Try to stop player A (may not work without player)"
-              );
-              console.log("   3. This will be abrupt but functional");
-            }
-          }
-
-          // Offer alternative crossfade strategy
-          if (
-            endingPlayer.service === ServiceType.Youtube &&
-            !endingPlayerExists
-          ) {
-            console.log("🔄 Alternative crossfade strategy available:");
-            console.log(
-              "   Since player A has no YouTube player, we can do a 'hard cut':"
-            );
-            console.log("   1. Start player B immediately");
-            console.log(
-              "   2. Try to stop player A (may not work without player)"
-            );
-            console.log("   3. This will be abrupt but functional");
-            console.log("");
-            console.log(
-              "   Would you like to try this? (You can implement this logic)"
-            );
-
-            // Implement the hard cut strategy
-            console.log("🔄 Implementing hard cut crossfade strategy...");
-            console.log(
-              "   Reason: Player A's YouTube player was destroyed immediately after creation"
-            );
-            console.log(
-              "   This suggests a race condition or conflict in player initialization"
-            );
-            console.log(
-              "   The hard cut strategy allows crossfade to work despite this issue"
-            );
-            console.log(
-              "   TODO: Investigate why YouTube players are being destroyed immediately"
-            );
-            console.log(
-              "   Possible causes: Multiple initialization calls, container conflicts, API state issues"
-            );
-
-            // Set global lock
-            globalCrossfadeLock.current = true;
-            setCrossfadeInProgress(true);
-            crossfadeTriggered.current[endingPlayerId] = true;
-
-            try {
-              // Store intended volumes
-              intendedVolumes.current[endingPlayerId] = endingPlayer.volume;
-              intendedVolumes.current[startingPlayerId] = startingPlayer.volume;
-
-              // Start the starting player if not already playing
-              if (!startingPlayer.isPlaying) {
-                console.log("▶️ Starting player B for hard cut crossfade");
-                await handlePlay(startingPlayerId);
-              }
-
-              // For hard cut, we can't fade volume on player A (no YouTube player)
-              // So we just mark the crossfade as complete immediately
-              console.log(
-                "🔄 Hard cut crossfade - skipping volume fade (player A has no YouTube player)"
-              );
-
-              // Update player states immediately
-              setPlayers((prev) => ({
-                ...prev,
-                [endingPlayerId]: {
-                  ...prev[endingPlayerId],
-                  isActive: false,
-                  isPlaying: false,
-                  volume: intendedVolumes.current[endingPlayerId],
-                },
-                [startingPlayerId]: {
-                  ...prev[startingPlayerId],
-                  isActive: true,
-                  volume: intendedVolumes.current[startingPlayerId],
-                },
-              }));
-
-              console.log(
-                `✅ Hard cut crossfade completed: ${endingPlayerId} → ${startingPlayerId}`
-              );
-              console.log(
-                "   Note: This was abrupt due to missing YouTube player on ending player"
-              );
-            } catch (error) {
-              console.error("❌ Hard cut crossfade error:", error);
-            } finally {
-              // Reset locks and state
-              globalCrossfadeLock.current = false;
-              setCrossfadeInProgress(false);
-              setCrossfade(0);
-
-              // Reset crossfade triggers after a delay
-              setTimeout(() => {
-                crossfadeTriggered.current[endingPlayerId] = false;
-              }, 5000);
-            }
-
-            return; // Exit early since we handled the crossfade
-          }
-
-          // Handle case where starting player (B) is missing YouTube player
-          if (
-            startingPlayer.service === ServiceType.Youtube &&
-            !startingPlayerExists
-          ) {
-            console.log("🔄 Alternative crossfade strategy available:");
-            console.log(
-              "   Since player B has no YouTube player, we can do a 'hard cut':"
-            );
-            console.log("   1. Fade out player A (we can do this)");
-            console.log(
-              "   2. Try to start player B (may not work without YouTube player)"
-            );
-            console.log("   3. This will be abrupt but functional");
-            console.log("");
-            console.log(
-              "   Would you like to try this? (You can implement this logic)"
-            );
-
-            // Implement the hard cut strategy for missing starting player
-            console.log("🔄 Implementing hard cut crossfade strategy...");
-            console.log(
-              "   Reason: Player B's YouTube player was destroyed immediately after creation"
-            );
-            console.log(
-              "   This suggests a race condition or conflict in player initialization"
-            );
-            console.log(
-              "   The hard cut strategy allows crossfade to work despite this issue"
-            );
-            console.log(
-              "   TODO: Investigate why YouTube players are being destroyed immediately"
-            );
-            console.log(
-              "   Possible causes: Multiple initialization calls, container conflicts, API state issues"
-            );
-
-            // Set global lock
-            globalCrossfadeLock.current = true;
-            setCrossfadeInProgress(true);
-            crossfadeTriggered.current[endingPlayerId] = true;
-
-            try {
-              // Store intended volumes
-              intendedVolumes.current[endingPlayerId] = endingPlayer.volume;
-              intendedVolumes.current[startingPlayerId] = startingPlayer.volume;
-
-              // We can fade out player A since it has a YouTube player
-              console.log(
-                "🔄 Hard cut crossfade - fading out player A (has YouTube player)"
-              );
-
-              // Fade out player A over 1 second
-              const fadeSteps = 10;
-              const fadeDuration = 1000;
-              const stepDuration = fadeDuration / fadeSteps;
-
-              for (let step = 0; step <= fadeSteps; step++) {
-                const progress = step / fadeSteps;
-                const endingVolume = Math.max(
-                  0,
-                  intendedVolumes.current[endingPlayerId] * (1 - progress)
-                );
-
-                handleVolumeChange(endingPlayerId, Math.round(endingVolume));
-                await new Promise((resolve) =>
-                  setTimeout(resolve, stepDuration)
-                );
-              }
-
-              // Try to start player B (may fail without YouTube player)
-              if (!startingPlayer.isPlaying) {
-                console.log(
-                  "▶️ Attempting to start player B for hard cut crossfade"
-                );
-                try {
-                  await handlePlay(startingPlayerId);
-                  console.log("✅ Player B started successfully");
-                } catch (error) {
-                  console.log(
-                    "⚠️ Failed to start player B (no YouTube player):",
-                    error
-                  );
-                  console.log(
-                    "   This is expected since player B has no YouTube player"
-                  );
-                }
-              }
-
-              // Update player states
-              setPlayers((prev) => ({
-                ...prev,
-                [endingPlayerId]: {
-                  ...prev[endingPlayerId],
-                  isActive: false,
-                  isPlaying: false,
-                  volume: intendedVolumes.current[endingPlayerId],
-                },
-                [startingPlayerId]: {
-                  ...prev[startingPlayerId],
-                  isActive: true,
-                  volume: intendedVolumes.current[startingPlayerId],
-                },
-              }));
-
-              console.log(
-                `✅ Hard cut crossfade completed: ${endingPlayerId} → ${startingPlayerId}`
-              );
-              console.log(
-                "   Note: This was abrupt due to missing YouTube player on starting player"
-              );
-            } catch (error) {
-              console.error("❌ Hard cut crossfade error:", error);
-            } finally {
-              // Reset locks and state
-              globalCrossfadeLock.current = false;
-              setCrossfadeInProgress(false);
-              setCrossfade(0);
-
-              // Reset crossfade triggers after a delay
-              setTimeout(() => {
-                crossfadeTriggered.current[endingPlayerId] = false;
-              }, 5000);
-            }
-
-            return; // Exit early since we handled the crossfade
-          }
-
-          return;
-        }
-
-        // Wait for YouTube players to be ready with retries
-        let attempts = 0;
-        const maxAttempts = 10; // Try for up to 5 seconds
-
-        while (attempts < maxAttempts) {
-          const endingPlayerReady =
-            endingPlayer.service === ServiceType.Youtube
-              ? youtubeManager.getPlayer &&
-                youtubeManager.getPlayer(endingPlayerId)
-              : true;
-          const startingPlayerReady =
-            startingPlayer.service === ServiceType.Youtube
-              ? youtubeManager.getPlayer &&
-                youtubeManager.getPlayer(startingPlayerId)
-              : true;
-
-          console.log(`🔍 Player readiness check attempt ${attempts + 1}:`, {
-            endingPlayerReady: endingPlayerReady ? "Ready" : "Not ready",
-            startingPlayerReady: startingPlayerReady ? "Ready" : "Not ready",
-            endingPlayerId,
-            startingPlayerId,
-          });
-
-          if (endingPlayerReady && startingPlayerReady) {
-            console.log(`✅ YouTube players ready after ${attempts * 0.5}s`);
-            break;
-          }
-
-          console.log(
-            `⏳ Waiting for YouTube players... attempt ${
-              attempts + 1
-            }/${maxAttempts}`
-          );
-          await new Promise((resolve) => setTimeout(resolve, 500)); // Wait 500ms between attempts
-          attempts++;
-        }
-
-        // Final check after all attempts
-        const endingPlayerReady =
-          endingPlayer.service === ServiceType.Youtube
-            ? youtubeManager.getPlayer &&
-              youtubeManager.getPlayer(endingPlayerId)
-            : true;
-        const startingPlayerReady =
-          startingPlayer.service === ServiceType.Youtube
-            ? youtubeManager.getPlayer &&
-              youtubeManager.getPlayer(startingPlayerId)
-            : true;
-
-        if (!endingPlayerReady || !startingPlayerReady) {
-          console.log(
-            "🚫 Crossfade blocked - YouTube players not ready after timeout:",
-            {
-              endingPlayerReady,
-              startingPlayerReady,
-              endingPlayerId,
-              startingPlayerId,
-              attempts,
-            }
-          );
-          return;
-        }
+      if (
+        now - playerDestroyedTime.current[startingPlayerId] <
+        recentlyDestroyed
+      ) {
+        console.log(
+          "🚫 Crossfade blocked - starting player was recently destroyed"
+        );
+        return;
       }
 
       console.log(
-        `🔄 Starting crossfade from ${endingPlayerId} to ${startingPlayerId}`
+        `🔄 Starting ${
+          isManualCrossfade ? "MANUAL" : "AUTO"
+        }-crossfade from ${endingPlayerId} to ${startingPlayerId}`
       );
-
       console.log("🎯 Crossfade details:", {
         endingPlayer: {
           id: endingPlayerId,
@@ -711,12 +317,9 @@ export function useCrossfade({
           isPlaying: startingPlayer.isPlaying,
           volume: startingPlayer.volume,
         },
-        availableYouTubePlayers: youtubeManager.listPlayers
-          ? youtubeManager.listPlayers()
-          : [],
       });
 
-      // Set global lock
+      // Set crossfade state
       globalCrossfadeLock.current = true;
       setCrossfadeInProgress(true);
       crossfadeTriggered.current[endingPlayerId] = true;
@@ -731,9 +334,9 @@ export function useCrossfade({
           await handlePlay(startingPlayerId);
         }
 
-        // Gradually decrease ending player volume and increase starting player volume
-        const crossfadeSteps = 20; // 20 steps for smooth transition
-        const crossfadeDuration = 3000; // 3 seconds
+        // Simple crossfade: fade out ending player, fade in starting player
+        const crossfadeSteps = 10;
+        const crossfadeDuration = 2000; // 2 seconds
         const stepDuration = crossfadeDuration / crossfadeSteps;
 
         for (let step = 0; step <= crossfadeSteps; step++) {
@@ -746,11 +349,15 @@ export function useCrossfade({
           );
           const startingVolume = Math.min(
             100,
-            intendedVolumes.current[startingPlayerId] +
-              intendedVolumes.current[endingPlayerId] * progress
+            intendedVolumes.current[startingPlayerId] * progress
           );
 
           // Update volumes
+          console.log(
+            `🔊 Crossfade step ${step}: ${endingPlayerId} volume ${Math.round(
+              endingVolume
+            )}, ${startingPlayerId} volume ${Math.round(startingVolume)}`
+          );
           handleVolumeChange(endingPlayerId, Math.round(endingVolume));
           handleVolumeChange(startingPlayerId, Math.round(startingVolume));
 
@@ -764,30 +371,55 @@ export function useCrossfade({
         // Stop the ending player
         await handlePause(endingPlayerId);
 
+        // Small delay to ensure pause takes effect
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
         // Reset volumes to intended levels
         handleVolumeChange(
           startingPlayerId,
           intendedVolumes.current[startingPlayerId]
         );
 
-        // Update player states
-        setPlayers((prev) => ({
-          ...prev,
-          [endingPlayerId]: {
-            ...prev[endingPlayerId],
-            isActive: false,
-            isPlaying: false,
-            volume: intendedVolumes.current[endingPlayerId],
-          },
-          [startingPlayerId]: {
-            ...prev[startingPlayerId],
-            isActive: true,
-            volume: intendedVolumes.current[startingPlayerId],
-          },
-        }));
+        // Update player states based on crossfade type
+        if (isManualCrossfade) {
+          // For manual crossfade, keep both players active but stop the ending one
+          setPlayers((prev) => ({
+            ...prev,
+            [endingPlayerId]: {
+              ...prev[endingPlayerId],
+              isPlaying: false,
+              volume: intendedVolumes.current[endingPlayerId],
+            },
+            [startingPlayerId]: {
+              ...prev[startingPlayerId],
+              volume: intendedVolumes.current[startingPlayerId],
+            },
+          }));
+        } else {
+          // For auto-crossfade, mark ending player as inactive
+          setPlayers((prev) => ({
+            ...prev,
+            [endingPlayerId]: {
+              ...prev[endingPlayerId],
+              isActive: false,
+              isPlaying: false,
+              volume: intendedVolumes.current[endingPlayerId],
+            },
+            [startingPlayerId]: {
+              ...prev[startingPlayerId],
+              isActive: true,
+              volume: intendedVolumes.current[startingPlayerId],
+            },
+          }));
+        }
+
+        // Small delay to ensure player states are stable
+        await new Promise((resolve) => setTimeout(resolve, 300));
 
         console.log(
-          `✅ Crossfade completed: ${endingPlayerId} → ${startingPlayerId}`
+          `✅ ${
+            isManualCrossfade ? "MANUAL" : "AUTO"
+          }-crossfade completed: ${endingPlayerId} → ${startingPlayerId}`
         );
       } catch (error) {
         console.error("❌ Crossfade error:", error);
@@ -821,12 +453,18 @@ export function useCrossfade({
         isPlaying: playerA.isPlaying,
         hasSong: !!playerA.song,
         service: playerA.service,
+        volume: playerA.volume,
+        duration: playerA.duration,
+        currentTime: playerA.currentTime,
       },
       playerB: {
         isActive: playerB.isActive,
         isPlaying: playerB.isPlaying,
         hasSong: !!playerB.song,
         service: playerB.service,
+        volume: playerB.volume,
+        duration: playerB.duration,
+        currentTime: playerB.currentTime,
       },
     });
 
@@ -843,17 +481,17 @@ export function useCrossfade({
 
       if (timeRemainingA < timeRemainingB) {
         console.log("🎯 Crossfading from A to B (A has less time remaining)");
-        await triggerCrossfade("A");
+        await triggerCrossfade("A", true); // Manual crossfade
       } else {
         console.log("🎯 Crossfading from B to A (B has less time remaining)");
-        await triggerCrossfade("B");
+        await triggerCrossfade("B", true); // Manual crossfade
       }
     } else if (playerA.isActive) {
       console.log("🎯 Crossfading from A to B (only A is active)");
-      await triggerCrossfade("A");
+      await triggerCrossfade("A", true); // Manual crossfade
     } else if (playerB.isActive) {
       console.log("🎯 Crossfading from B to A (only B is active)");
-      await triggerCrossfade("B");
+      await triggerCrossfade("B", true); // Manual crossfade
     } else {
       console.log("🚫 No active players to crossfade");
     }
@@ -976,6 +614,15 @@ export function useCrossfade({
     [crossfadeInProgress]
   );
 
+  // Add function to mark when a player is destroyed to prevent crossfade during recreation
+  const markPlayerDestroyed = useCallback((playerId: "A" | "B") => {
+    console.log(`🗑️ Marking player ${playerId} as recently destroyed`);
+    playerDestroyedTime.current[playerId] = Date.now();
+
+    // Also reset crossfade triggers for this player
+    crossfadeTriggered.current[playerId] = false;
+  }, []);
+
   return {
     crossfade,
     isCrossfadeEnabled,
@@ -994,5 +641,6 @@ export function useCrossfade({
     safeSongDrop,
     checkCrossfadeCompletion,
     resetCrossfadeForDeck,
+    markPlayerDestroyed,
   };
 }

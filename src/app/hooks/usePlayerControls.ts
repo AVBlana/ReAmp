@@ -351,11 +351,11 @@ export function usePlayerControls({
   );
 
   const handleClear = useCallback(
-    (playerId: "A" | "B") => {
+    async (playerId: "A" | "B") => {
       try {
         // Stop and destroy players
         if (players[playerId].service === ServiceType.Youtube) {
-          youtubeManager.destroyPlayer(playerId);
+          await youtubeManager.destroyPlayer(playerId);
         } else if (players[playerId].service === ServiceType.Spotify) {
           spotifyManager.destroyPlayer(playerId);
         }

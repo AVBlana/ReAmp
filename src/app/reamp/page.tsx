@@ -2,7 +2,7 @@
 
 import { UnifiedProvider } from "@/app/context/UnifiedContext";
 import Header from "@/app/components/organisms/Header";
-import DJSetPlayer from "@/app/components/organisms/DJSetPlayer";
+import DJSetPlayerV2 from "@/app/components/organisms/DJSetPlayer/DJSetPlayerV2";
 import { useUnifiedContext } from "@/app/context/UnifiedContext";
 import { useState, useCallback } from "react";
 import { ServiceType } from "@/app/types/playerTypes";
@@ -158,7 +158,7 @@ function ReAMPContent() {
             <div className="w-full lg:w-2/3 rounded-lg overflow-hidden flex flex-col min-h-[800px] lg:min-h-0">
               {/* Container that adapts based on active service */}
               <div className="flex-1 relative min-h-[800px] lg:min-h-0">
-                <DJSetPlayer />
+                <DJSetPlayerV2 />
               </div>
             </div>
           </div>
