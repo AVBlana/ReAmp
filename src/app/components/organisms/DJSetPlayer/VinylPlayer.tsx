@@ -74,7 +74,7 @@ export default function VinylPlayer({
 
     // Calculate new position (10 second increments)
     const seekSeconds = seekPercentage * 10;
-    const newPosition = playerState.currentTime + (seekSeconds * 1000); // Convert to milliseconds
+    const newPosition = playerState.currentTime + seekSeconds * 1000; // Convert to milliseconds
     const clampedPosition = Math.max(
       0,
       Math.min(playerState.duration, newPosition)

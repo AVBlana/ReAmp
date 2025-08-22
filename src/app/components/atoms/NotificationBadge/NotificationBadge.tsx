@@ -9,11 +9,13 @@ import {
   FaExclamationTriangle,
   FaInfo,
   FaExclamationCircle,
+  FaSpotify,
 } from "react-icons/fa";
 import {
   useNotifications,
   Notification,
 } from "@/app/context/NotificationContext";
+import { useUnifiedContext } from "@/app/context/UnifiedContext";
 import Icon from "@/app/components/atoms/Icon";
 
 const getNotificationIcon = (type: Notification["type"]) => {
@@ -83,8 +85,33 @@ export default function NotificationBadge() {
     clearNotifications,
     addNotification,
   } = useNotifications();
+  const { spotify } = useUnifiedContext();
   const [isOpen, setIsOpen] = useState(false);
+  const [isSpotifyConnected, setIsSpotifyConnected] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Check Spotify connection status safely
+  useEffect(() => {
+    const checkSpotifyConnection = () => {
+      try {
+        const hasToken =
+          typeof window !== "undefined" &&
+          !!localStorage.getItem("spotify_token");
+        const hasCurrentSong = !!spotify.currentSong;
+        setIsSpotifyConnected(hasToken || hasCurrentSong);
+      } catch (error) {
+        console.warn("Error checking Spotify connection:", error);
+        setIsSpotifyConnected(false);
+      }
+    };
+
+    checkSpotifyConnection();
+
+    // Check again when spotify.currentSong changes
+    if (spotify.currentSong) {
+      setIsSpotifyConnected(true);
+    }
+  }, [spotify.currentSong]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -133,7 +160,7 @@ export default function NotificationBadge() {
       "Another demo notification",
       "Testing the notification system",
     ];
-    const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+    const randomMessage = messages[Math.floor(Math.random() * types.length)];
 
     addNotification({
       type: randomType,
@@ -166,6 +193,18 @@ export default function NotificationBadge() {
         )}
       </button>
 
+      {/* Spotify Connection Indicator */}
+      <div className="absolute -bottom-1 -right-1">
+        <div
+          className={`w-3 h-3 rounded-full border-2 border-white ${
+            isSpotifyConnected ? "bg-green-500" : "bg-red-500"
+          }`}
+          title={
+            isSpotifyConnected ? "Spotify Connected" : "Spotify Disconnected"
+          }
+        />
+      </div>
+
       {/* Dropdown */}
       <AnimatePresence>
         {isOpen && (
@@ -194,6 +233,34 @@ export default function NotificationBadge() {
                     Clear all
                   </button>
                 )}
+              </div>
+            </div>
+
+            {/* Spotify Status */}
+            <div className="p-4 border-b border-gray-200 bg-gray-50">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`p-2 rounded-full ${
+                    isSpotifyConnected ? "bg-green-100" : "bg-red-100"
+                  }`}
+                >
+                  <FaSpotify
+                    size={16}
+                    className={
+                      isSpotifyConnected ? "text-green-600" : "text-red-600"
+                    }
+                  />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">
+                    Spotify {isSpotifyConnected ? "Connected" : "Disconnected"}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {isSpotifyConnected
+                      ? "Ready to play music"
+                      : "Please connect your account"}
+                  </p>
+                </div>
               </div>
             </div>
 
