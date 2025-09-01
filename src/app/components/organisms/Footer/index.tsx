@@ -10,8 +10,8 @@ interface FooterProps {
   showSocialLinks?: boolean;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const SocialIcons = ({ isYouTube = true }: { isYouTube?: boolean }) => (
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   <div className="flex space-x-4 relative z-10">
     <a
       href="https://github.com"

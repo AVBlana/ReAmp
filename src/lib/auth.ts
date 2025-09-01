@@ -5,6 +5,7 @@ import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "./prisma";
 
 // Token refresh helpers
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function refreshSpotifyAccessToken(account: any) {
   try {
     const response = await fetch("https://accounts.spotify.com/api/token", {
@@ -42,6 +43,7 @@ async function refreshSpotifyAccessToken(account: any) {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function refreshGoogleAccessToken(account: any) {
   try {
     const response = await fetch("https://oauth2.googleapis.com/token", {
@@ -176,6 +178,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         where: { userId: token.sub! },
       });
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const providerTokens: any = {};
 
       for (const account of accounts) {

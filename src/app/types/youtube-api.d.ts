@@ -57,7 +57,9 @@ export interface YouTubePlayer {
     author: string;
   };
   destroy(): void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addEventListener(event: string, listener: (event: any) => void): void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   removeEventListener(event: string, listener: (event: any) => void): void;
 }
 

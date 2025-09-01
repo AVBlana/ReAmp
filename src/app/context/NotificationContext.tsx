@@ -63,7 +63,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
         }, notification.duration || 5000);
       }
     },
-    []
+    [removeNotification]
   );
 
   const removeNotification = useCallback((id: string) => {

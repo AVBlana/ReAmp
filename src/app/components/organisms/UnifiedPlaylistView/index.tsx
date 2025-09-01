@@ -331,7 +331,7 @@ const UnifiedPlaylistView = () => {
         );
       }
     },
-    [unified.setPlaylistName, unified.playlistName]
+    [unified.setPlaylistName, unified.playlistName, unified]
   );
 
   return (

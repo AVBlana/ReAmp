@@ -45,7 +45,7 @@ const VolumeControl: React.FC<VolumeControlProps> = ({
       setIsDragging(true);
       handleMouseMove(e);
     },
-    [disabled]
+    [disabled, handleMouseMove]
   );
 
   const handleMouseMove = useCallback(

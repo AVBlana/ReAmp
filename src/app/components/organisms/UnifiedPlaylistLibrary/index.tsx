@@ -233,7 +233,7 @@ const UnifiedPlaylistLibrary = memo(
           }
         }
       }
-    }, [mounted, unified.setSavedPlaylists]);
+    }, [mounted, unified.setSavedPlaylists, unified]);
 
     // Handlers
     const handleCreatePlaylist = useCallback(() => {
