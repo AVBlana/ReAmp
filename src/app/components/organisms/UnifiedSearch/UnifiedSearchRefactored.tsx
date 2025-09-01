@@ -268,10 +268,10 @@ export default function UnifiedSearchRefactored({
           const title = getTitle(result);
           const subtitle = isYoutubeVideo(result) 
             ? result.snippet?.channelTitle || "Unknown Channel"
-            : result.artist || "Unknown Artist";
+            : result.artist?.name || "Unknown Artist";
           const thumbnail = isYoutubeVideo(result)
             ? result.snippet?.thumbnails?.medium?.url || result.snippet?.thumbnails?.default?.url || ""
-            : result.albumArt || "";
+            : result.artwork?.medium?.url || result.artwork?.small?.url || "";
           const service = isYoutubeVideo(result) ? "youtube" : "spotify";
 
           return (
