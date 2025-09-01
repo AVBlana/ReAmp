@@ -3,8 +3,8 @@
 import { useAuth } from "@/app/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Button } from "@/app/components/atoms/Button";
-import { Icon } from "@/app/components/atoms/Icon";
+import Button from "@/app/components/atoms/Button";
+import Icon from "@/app/components/atoms/Icon";
 import { FaSignOutAlt } from "react-icons/fa";
 
 export default function DashboardPage() {

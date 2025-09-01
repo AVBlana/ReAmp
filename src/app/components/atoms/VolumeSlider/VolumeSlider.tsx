@@ -45,6 +45,8 @@ const VolumeSlider: React.FC<VolumeSliderProps> = ({
     [handleMouseMove]
   );
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   const handleMouseMove = useCallback(
     (e: React.MouseEvent | MouseEvent) => {
       if (!isDragging || !sliderRef.current) return;

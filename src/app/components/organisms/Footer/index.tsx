@@ -2,6 +2,7 @@ import { FaGithub, FaTwitter, FaLinkedin } from "react-icons/fa";
 
 // Import atomic design components
 import Icon from "@/app/components/atoms/Icon";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import Button from "@/app/components/atoms/Button";
 
 interface FooterProps {
@@ -10,6 +11,7 @@ interface FooterProps {
 }
 
 const SocialIcons = ({ isYouTube = true }: { isYouTube?: boolean }) => (
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   <div className="flex space-x-4 relative z-10">
     <a
       href="https://github.com"

@@ -1,8 +1,8 @@
 "use client";
 
 import { useAuth } from "@/app/context/AuthContext";
-import { Button } from "@/app/components/atoms/Button";
-import { Icon } from "@/app/components/atoms/Icon";
+import Button from "@/app/components/atoms/Button";
+import Icon from "@/app/components/atoms/Icon";
 import { FaSpotify, FaGoogle } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";

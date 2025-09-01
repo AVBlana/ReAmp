@@ -22,6 +22,7 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({
   service,
   isInPlaylist = false,
   onAddToPlaylist,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onPlay,
   className = "",
   draggable = false,
