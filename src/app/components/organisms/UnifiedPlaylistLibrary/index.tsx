@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, memo } from "react";
+import React, { useState, useEffect, useCallback, memo, useRef } from "react";
 import { useUnifiedContext } from "@/app/context/UnifiedContext";
 import { FaMusic, FaPlus, FaTrash, FaCheck } from "react-icons/fa";
 import Image from "next/image";
@@ -185,6 +185,7 @@ const UnifiedPlaylistLibrary = memo(
   ({ theme }: UnifiedPlaylistLibraryProps) => {
     const { unified } = useUnifiedContext();
     const [mounted, setMounted] = useState(false);
+    const prevPlaylistsRef = useRef<string>("");
 
     // Set theme CSS variables
     useEffect(() => {
@@ -213,12 +214,13 @@ const UnifiedPlaylistLibrary = memo(
     // Save playlists to localStorage whenever they change
     useEffect(() => {
       if (mounted && unified.savedPlaylists.length > 0) {
-        safeLocalStorage.set(
-          STORAGE_KEY,
-          JSON.stringify(unified.savedPlaylists)
-        );
+        const currentPlaylists = JSON.stringify(unified.savedPlaylists);
+        if (prevPlaylistsRef.current !== currentPlaylists) {
+          safeLocalStorage.set(STORAGE_KEY, currentPlaylists);
+          prevPlaylistsRef.current = currentPlaylists;
+        }
       }
-    }, [unified.savedPlaylists, mounted]);
+    }, [mounted, unified.savedPlaylists]);
 
     // Load playlists from localStorage on mount
     useEffect(() => {
@@ -233,7 +235,7 @@ const UnifiedPlaylistLibrary = memo(
           }
         }
       }
-    }, [mounted, unified.setSavedPlaylists, unified]); // Added unified back
+    }, [mounted]); // Only depend on mounted state
 
     // Handlers
     const handleCreatePlaylist = useCallback(() => {
