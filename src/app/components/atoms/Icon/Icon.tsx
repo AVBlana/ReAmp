@@ -1,7 +1,7 @@
 import React from "react";
 
 export interface IconProps {
-  icon: React.ReactNode | React.ComponentType<any>;
+  icon: React.ReactNode | React.ComponentType<React.SVGProps<SVGSVGElement>>;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   color?:
     | "primary"
