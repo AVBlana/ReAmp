@@ -90,3 +90,6 @@ export function SpotifyFooter({
     </footer>
   );
 }
+
+// Default export - use YouTubeFooter as the default
+export default YouTubeFooter;
