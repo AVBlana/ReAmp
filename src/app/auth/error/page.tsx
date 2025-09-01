@@ -1,11 +1,11 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Button from "@/app/components/atoms/Button";
 import { useRouter } from "next/navigation";
 
-export default function AuthErrorPage() {
+function AuthErrorContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [error, setError] = useState<string>("");
@@ -137,3 +137,16 @@ export default function AuthErrorPage() {
   );
 }
 
+export default function AuthErrorPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-900">
+          <div className="text-white text-xl">Loading...</div>
+        </div>
+      }
+    >
+      <AuthErrorContent />
+    </Suspense>
+  );
+}

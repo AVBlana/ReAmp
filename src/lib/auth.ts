@@ -17,8 +17,8 @@ const requiredEnvVars = {
 
 // Check for missing environment variables
 const missingEnvVars = Object.entries(requiredEnvVars)
-  .filter(([_, value]) => !value)
-  .map(([key]) => key);
+  .filter((entry) => !entry[1])
+  .map((entry) => entry[0]);
 
 if (missingEnvVars.length > 0) {
   console.error("Missing required environment variables:", missingEnvVars);
@@ -149,7 +149,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
 
       // Return previous token if the access token has not expired yet
-      if (token.accessTokenExpires && Date.now() < token.accessTokenExpires) {
+      if (
+        token.accessTokenExpires &&
+        Date.now() < (token.accessTokenExpires as number)
+      ) {
         return token;
       }
 

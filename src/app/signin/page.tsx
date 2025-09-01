@@ -15,7 +15,7 @@ export default function SignInPage() {
     if (isAuthenticated) {
       router.push("/dashboard");
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, router]);
 
   if (isLoading) {
     return (
