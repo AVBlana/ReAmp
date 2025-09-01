@@ -19,6 +19,7 @@ export async function getYouTubeVideos(
 
     const data = await response.json();
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const items: YoutubeVideo[] = data.items.map((item: any) => ({
       id: {
         videoId: item.id.videoId,
