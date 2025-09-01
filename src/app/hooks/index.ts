@@ -1,3 +1,3 @@
-export { default as useCrossfade } from "./useCrossfade";
-export { default as usePlayerControls } from "./usePlayerControls";
-export { default as useSpotifyPlayer } from "./useSpotifyPlayer";
+// Export the actual hooks that exist
+export { useSmartCrossfade } from "./useSmartCrossfade";
+export { useUnifiedPlayer } from "./useUnifiedPlayer";
