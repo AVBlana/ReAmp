@@ -268,7 +268,7 @@ export default function UnifiedSearchRefactored({
             <SearchResultItem
               key={getUniqueKey(result)}
               result={result}
-              onAddToPlaylist={handleAddToPlaylist}
+              onAddToPlaylist={() => handleAddToPlaylist(result, serviceType)}
               isInPlaylist={isInPlaylist}
             />
           );
