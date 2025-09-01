@@ -1,7 +1,7 @@
 import React from "react";
 
 export interface IconProps {
-  icon: React.ReactNode;
+  icon: React.ReactNode | React.ComponentType<any>;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   color?:
     | "primary"
@@ -55,9 +55,18 @@ const Icon: React.FC<IconProps> = ({
 
   const classes = `${baseClasses} ${interactiveClasses} ${disabledClasses} ${animatedClasses} ${className}`;
 
+  // Handle both ReactNode and function components
+  const renderIcon = () => {
+    if (typeof icon === 'function') {
+      const IconComponent = icon;
+      return <IconComponent />;
+    }
+    return icon;
+  };
+
   return (
     <div className={classes} onClick={disabled ? undefined : onClick}>
-      {icon}
+      {renderIcon()}
     </div>
   );
 };
