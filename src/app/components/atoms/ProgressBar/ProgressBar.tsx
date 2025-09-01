@@ -50,15 +50,6 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      if (disabled || !onSeek) return;
-      setIsDragging(true);
-      handleMouseMove(e);
-    },
-    [disabled, onSeek, handleMouseMove]
-  );
-
   const handleMouseMove = useCallback(
     (e: React.MouseEvent | MouseEvent) => {
       if (!isDragging || !progressRef.current || !onSeek) return;
@@ -70,6 +61,15 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
       setDragTime(newTime);
     },
     [isDragging, duration, onSeek]
+  );
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (disabled || !onSeek) return;
+      setIsDragging(true);
+      handleMouseMove(e);
+    },
+    [disabled, onSeek, handleMouseMove]
   );
 
   const handleMouseUp = useCallback(() => {
