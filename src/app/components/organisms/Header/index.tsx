@@ -8,7 +8,7 @@ import Button from "@/app/components/atoms/Button";
 import Icon from "@/app/components/atoms/Icon";
 import NotificationBadge from "@/app/components/atoms/NotificationBadge";
 
-interface HeaderProps {
+export interface HeaderProps {
   icon?: ReactNode;
   title: string;
   searchComponent: ReactNode;
