@@ -1,14 +1,36 @@
 "use client";
 
 import { FaMusic } from "react-icons/fa";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/app/context/AuthContext";
+import { useRouter } from "next/navigation";
 
 // Import atomic design components
 import Icon from "@/app/components/atoms/Icon";
 
 export default function Home() {
   const [hovered, setHovered] = useState<string | null>(null);
+  const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.push("/dashboard");
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  if (isLoading) {
+    return (
+      <div className="relative flex items-center justify-center min-h-screen w-full overflow-hidden bg-[#0A0A0A]">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="relative flex items-center justify-center min-h-screen w-full overflow-hidden bg-[#0A0A0A]">
@@ -44,7 +66,7 @@ export default function Home() {
         {/* ReAMP Button */}
         <div className="flex flex-col md:flex-row gap-8">
           <motion.a
-            href="/reamp"
+            href="/signin"
             className="group relative"
             onMouseEnter={() => setHovered("reamp")}
             onMouseLeave={() => setHovered(null)}
@@ -59,13 +81,15 @@ export default function Home() {
             />
             <div className="relative flex items-center space-x-4 px-8 py-4 bg-[#1A1A1A] rounded-2xl border border-white/20 hover:border-white/40 transition-all duration-300">
               <Icon icon={<FaMusic size={32} />} color="watermelon" />
-              <span className="text-white text-xl font-medium">ReAMP</span>
+              <span className="text-white text-xl font-medium">
+                Get Started
+              </span>
             </div>
           </motion.a>
 
           {/* Demo Button */}
           <motion.a
-            href="/demo"
+            href="/reamp"
             className="group relative"
             onMouseEnter={() => setHovered("demo")}
             onMouseLeave={() => setHovered(null)}

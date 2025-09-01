@@ -2,7 +2,6 @@ import { ReactNode } from "react";
 
 // Import atomic design components
 import Button from "@/app/components/atoms/Button";
-import Loading from "@/app/components/atoms/Loading";
 
 interface SearchResultsContainerProps {
   isOpen: boolean;

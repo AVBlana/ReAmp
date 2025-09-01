@@ -85,7 +85,7 @@ interface UnifiedContextType {
     currentSong: Song | null;
     setSearchResults: React.Dispatch<React.SetStateAction<Song[]>>;
     setCurrentSong: (song: Song | null) => void;
-    refreshToken: () => Promise<any>;
+    refreshToken: () => Promise<{ success: boolean }>;
     logout: () => Promise<void>;
   };
 
@@ -205,32 +205,21 @@ const UnifiedProvider: React.FC<{ children: React.ReactNode }> = memo(
       }
     }, [unifiedPlaylistName]);
 
-    // Spotify token refresh and logout functions
-    const refreshSpotifyToken = useCallback(async () => {
-      try {
-        const response = await fetch("/api/spotify/refresh");
-        if (!response.ok) {
-          window.location.href = "/api/spotify/login?origin=/reamp";
-          throw new Error("Failed to refresh token");
-        }
-        const data = await response.json();
-        return data;
-      } catch (error) {
-        console.error("Error refreshing Spotify token:", error);
-        throw error;
-      }
+    // Spotify token refresh and logout functions - now handled by NextAuth
+    const refreshSpotifyToken = useCallback(async (): Promise<{
+      success: boolean;
+    }> => {
+      // This is now handled automatically by NextAuth
+      // The token refresh happens server-side in the auth callbacks
+      console.log("Token refresh is now handled automatically by NextAuth");
+      return { success: true };
     }, []);
 
     const handleSpotifyLogout = useCallback(async () => {
-      try {
-        const response = await fetch("/api/spotify/logout");
-        if (!response.ok) throw new Error("Failed to logout");
-        setSpotifyCurrentSong(null);
-        setSpotifySearchResults([]);
-      } catch (error) {
-        console.error("Error logging out from Spotify:", error);
-        throw error;
-      }
+      // This is now handled by the AuthContext
+      console.log("Logout is now handled by AuthContext");
+      setSpotifyCurrentSong(null);
+      setSpotifySearchResults([]);
     }, []);
 
     // Memoize the context value

@@ -9,19 +9,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const spotifyToken = session.providers?.spotify?.accessToken;
+    const googleToken = session.providers?.google?.accessToken;
 
-    if (!spotifyToken) {
+    if (!googleToken) {
       return NextResponse.json(
-        { error: "Spotify not connected" },
+        { error: "Google not connected" },
         { status: 400 }
       );
     }
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("q");
-    const type = searchParams.get("type") || "track";
-    const limit = searchParams.get("limit") || "10";
+    const pageToken = searchParams.get("pageToken");
 
     if (!query) {
       return NextResponse.json(
@@ -31,29 +30,32 @@ export async function GET(request: NextRequest) {
     }
 
     const response = await fetch(
-      `https://api.spotify.com/v1/search?q=${encodeURIComponent(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=10&q=${encodeURIComponent(
         query
-      )}&type=${type}&limit=${limit}`,
+      )}&type=video${pageToken ? `&pageToken=${pageToken}` : ""}`,
       {
         headers: {
-          Authorization: `Bearer ${spotifyToken}`,
+          Authorization: `Bearer ${googleToken}`,
         },
       }
     );
 
     if (!response.ok) {
       const error = await response.json();
-      console.error("Spotify API error:", error);
+      console.error("YouTube API error:", error);
       return NextResponse.json(
-        { error: "Spotify API error" },
+        { error: "YouTube API error" },
         { status: response.status }
       );
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    return NextResponse.json({
+      items: data.items,
+      nextPageToken: data.nextPageToken,
+    });
   } catch (error) {
-    console.error("Error searching Spotify:", error);
+    console.error("Error searching YouTube:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

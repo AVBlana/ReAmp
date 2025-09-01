@@ -378,7 +378,7 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
       {/* Header */}
       <div className="flex justify-between items-center mb-6 flex-shrink-0">
         <h2 className="text-2xl font-bold text-white font-mono">
-          DJ SET PLAYER V2
+          Welcome DJ, drop a track!
         </h2>
         <div className="flex items-center gap-4">
           <CrossfadeControlsV2

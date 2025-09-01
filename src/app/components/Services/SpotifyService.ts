@@ -1,5 +1,18 @@
 import { Song } from "@/app/types/playerTypes";
 
+interface SpotifyTrack {
+  id: string;
+  name: string;
+  artists: Array<{ id: string; name: string }>;
+  album: {
+    id: string;
+    name: string;
+    images: Array<{ url: string; width: number; height: number }>;
+  };
+  duration_ms: number;
+  uri: string;
+}
+
 export interface SpotifySearchResponse {
   items: Song[];
   nextPageToken: string | null;
@@ -7,11 +20,10 @@ export interface SpotifySearchResponse {
 
 export async function searchSpotify(
   query: string,
-  token: string,
   offset?: string
 ): Promise<SpotifySearchResponse> {
   try {
-    const url = new URL("https://api.spotify.com/v1/search");
+    const url = new URL("/api/spotify/search", window.location.origin);
     url.searchParams.append("q", query);
     url.searchParams.append("type", "track");
     url.searchParams.append("limit", "20");
@@ -20,11 +32,7 @@ export async function searchSpotify(
       url.searchParams.append("offset", offset);
     }
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await fetch(url.toString());
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -35,7 +43,7 @@ export async function searchSpotify(
 
     const data = await response.json();
 
-    const items: Song[] = data.tracks.items.map((track: any) => ({
+    const items: Song[] = data.tracks.items.map((track: SpotifyTrack) => ({
       id: track.id,
       title: track.name,
       artist: {

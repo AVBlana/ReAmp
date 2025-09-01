@@ -19,7 +19,6 @@ export interface PlaylistItemProps {
 }
 
 const PlaylistItem: React.FC<PlaylistItemProps> = ({
-  id,
   title,
   artist,
   thumbnail,

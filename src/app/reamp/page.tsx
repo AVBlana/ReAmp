@@ -31,16 +31,8 @@ function ReAMPContent() {
         youtube.setCurrentSearchTerm(query);
       } else {
         try {
-          // Get Spotify token from localStorage
-          const token = localStorage.getItem("spotify_token");
-          if (!token) {
-            console.log("No Spotify token found, redirecting to login...");
-            window.location.href = "/api/spotify/login?origin=/reamp";
-            return;
-          }
-
-          // Use the proper SpotifyService
-          const { items, nextPageToken } = await searchSpotify(query, token);
+          // Use the new NextAuth-protected Spotify service
+          const { items, nextPageToken } = await searchSpotify(query);
           spotify.setSearchResults(items);
           setSpotifyNextPageToken(nextPageToken);
           youtube.setCurrentSearchTerm(query); // Use youtube for search term tracking
@@ -53,9 +45,9 @@ function ReAMPContent() {
             error.message.includes("authentication")
           ) {
             console.log(
-              "Spotify authentication failed, redirecting to login..."
+              "Spotify authentication failed, redirecting to signin..."
             );
-            window.location.href = "/api/spotify/login?origin=/reamp";
+            window.location.href = "/signin";
             return;
           }
 
@@ -82,16 +74,11 @@ function ReAMPContent() {
         if (spotifyNextPageToken && !isLoadingMore) {
           setIsLoadingMore(true);
           try {
-            const token = localStorage.getItem("spotify_token");
-            if (!token) {
-              console.error("No Spotify token found");
-              return;
-            }
+            // Token is now handled by NextAuth automatically
 
-            // Use the proper SpotifyService with offset
+            // Use the new NextAuth-protected Spotify service with offset
             const { items, nextPageToken } = await searchSpotify(
               youtube.currentSearchTerm || "",
-              token,
               spotifyNextPageToken
             );
 

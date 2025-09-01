@@ -1,0 +1,207 @@
+import NextAuth from "next-auth";
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import SpotifyProvider from "next-auth/providers/spotify";
+import GoogleProvider from "next-auth/providers/google";
+import { prisma } from "./prisma";
+
+// Token refresh helpers
+async function refreshSpotifyAccessToken(account: any) {
+  try {
+    const response = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${Buffer.from(
+          `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
+        ).toString("base64")}`,
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: account.refresh_token!,
+      }),
+    });
+
+    const tokens = await response.json();
+
+    if (!response.ok) {
+      throw tokens;
+    }
+
+    return {
+      ...account,
+      access_token: tokens.access_token,
+      expires_at: Math.floor(Date.now() / 1000) + tokens.expires_in,
+      refresh_token: tokens.refresh_token ?? account.refresh_token,
+    };
+  } catch (error) {
+    console.error("Error refreshing Spotify token:", error);
+    return {
+      ...account,
+      error: "RefreshAccessTokenError",
+    };
+  }
+}
+
+async function refreshGoogleAccessToken(account: any) {
+  try {
+    const response = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        client_id: process.env.GOOGLE_CLIENT_ID!,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+        grant_type: "refresh_token",
+        refresh_token: account.refresh_token!,
+      }),
+    });
+
+    const tokens = await response.json();
+
+    if (!response.ok) {
+      throw tokens;
+    }
+
+    return {
+      ...account,
+      access_token: tokens.access_token,
+      expires_at: Math.floor(Date.now() / 1000) + tokens.expires_in,
+      refresh_token: tokens.refresh_token ?? account.refresh_token,
+    };
+  } catch (error) {
+    console.error("Error refreshing Google token:", error);
+    return {
+      ...account,
+      error: "RefreshAccessTokenError",
+    };
+  }
+}
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  adapter: PrismaAdapter(prisma),
+  providers: [
+    SpotifyProvider({
+      clientId: process.env.SPOTIFY_CLIENT_ID!,
+      clientSecret: process.env.SPOTIFY_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope:
+            "user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private",
+        },
+      },
+    }),
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope:
+            "openid email profile https://www.googleapis.com/auth/youtube.readonly",
+          access_type: "offline",
+          prompt: "consent",
+        },
+      },
+    }),
+  ],
+  callbacks: {
+    async jwt({ token, account, user }) {
+      // Initial sign in
+      if (account && user) {
+        return {
+          ...token,
+          accessToken: account.access_token,
+          refreshToken: account.refresh_token,
+          accessTokenExpires: account.expires_at! * 1000,
+          provider: account.provider,
+        };
+      }
+
+      // Return previous token if the access token has not expired yet
+      if (Date.now() < (token.accessTokenExpires as number)) {
+        return token;
+      }
+
+      // Access token has expired, try to update it
+      const accountData = await prisma.account.findFirst({
+        where: {
+          userId: token.sub!,
+          provider: token.provider as string,
+        },
+      });
+
+      if (!accountData) {
+        return token;
+      }
+
+      let refreshedToken;
+      if (token.provider === "spotify") {
+        refreshedToken = await refreshSpotifyAccessToken(accountData);
+      } else if (token.provider === "google") {
+        refreshedToken = await refreshGoogleAccessToken(accountData);
+      }
+
+      if (!refreshedToken || refreshedToken.error) {
+        return {
+          ...token,
+          error: "RefreshAccessTokenError",
+        };
+      }
+
+      // Update the account in the database
+      await prisma.account.update({
+        where: { id: accountData.id },
+        data: {
+          access_token: refreshedToken.access_token,
+          expires_at: refreshedToken.expires_at,
+          refresh_token: refreshedToken.refresh_token,
+        },
+      });
+
+      return {
+        ...token,
+        accessToken: refreshedToken.access_token,
+        accessTokenExpires: refreshedToken.expires_at! * 1000,
+        refreshToken: refreshedToken.refresh_token,
+      };
+    },
+    async session({ session, token }) {
+      // Send properties to the client
+      session.user.id = token.sub!;
+      session.accessToken = token.accessToken as string;
+      session.provider = token.provider as string;
+
+      // Get provider tokens from database
+      const accounts = await prisma.account.findMany({
+        where: { userId: token.sub! },
+      });
+
+      const providerTokens: any = {};
+
+      for (const account of accounts) {
+        if (account.provider === "spotify") {
+          providerTokens.spotify = {
+            accessToken: account.access_token,
+            expiresAt: account.expires_at,
+          };
+        } else if (account.provider === "google") {
+          providerTokens.google = {
+            accessToken: account.access_token,
+            expiresAt: account.expires_at,
+          };
+        }
+      }
+
+      session.providers = providerTokens;
+
+      return session;
+    },
+  },
+  pages: {
+    signIn: "/signin",
+  },
+  session: {
+    strategy: "jwt",
+  },
+  secret: process.env.NEXTAUTH_SECRET,
+});

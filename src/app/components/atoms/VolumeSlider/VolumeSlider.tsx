@@ -37,10 +37,13 @@ const VolumeSlider: React.FC<VolumeSliderProps> = ({
     lg: 20,
   };
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    setIsDragging(true);
-    handleMouseMove(e);
-  }, []);
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      setIsDragging(true);
+      handleMouseMove(e);
+    },
+    [handleMouseMove]
+  );
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent | MouseEvent) => {

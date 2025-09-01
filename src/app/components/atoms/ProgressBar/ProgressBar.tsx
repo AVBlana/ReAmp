@@ -56,7 +56,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
       setIsDragging(true);
       handleMouseMove(e);
     },
-    [disabled, onSeek]
+    [disabled, onSeek, handleMouseMove]
   );
 
   const handleMouseMove = useCallback(

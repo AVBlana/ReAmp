@@ -1,0 +1,10 @@
+{
+  "buildCommand": "yarn build",
+  "installCommand": "yarn install",
+  "framework": "nextjs",
+  "functions": {
+    "src/app/api/auth/[...nextauth]/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}
