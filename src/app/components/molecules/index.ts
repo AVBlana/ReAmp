@@ -13,5 +13,5 @@ export type { PlaylistItemProps } from "./PlaylistItem";
 export type { SearchBarProps } from "./SearchBar";
 export type { VolumeControlProps } from "./VolumeControl";
 export type { SearchResultItemProps } from "./SearchResultItem";
-export type { CrossfadeControlsProps } from "./CrossfadeControls";
+export type { CrossfadeControlsV2Props } from "./CrossfadeControls";
 export type { DeckLabelProps } from "./DeckLabel";
