@@ -1,35 +1,86 @@
-// Test database connection
 const { PrismaClient } = require("@prisma/client");
 
-async function testConnection() {
-  const prisma = new PrismaClient();
+const prisma = new PrismaClient();
 
+async function testDatabaseConnection() {
   try {
-    console.log("Testing database connection...");
-    console.log("DATABASE_URL:", process.env.DATABASE_URL ? "Set" : "Not set");
+    console.log("🔍 Testing database connection...");
 
-    // Test the connection
+    // Test basic connection
     await prisma.$connect();
-    console.log("✅ Database connection successful!");
+    console.log("✅ Database connection successful");
 
-    // Test a simple query
-    const result = await prisma.$queryRaw`SELECT 1 as test`;
-    console.log("✅ Query test successful:", result);
+    // Test query
+    const userCount = await prisma.user.count();
+    console.log(`📊 Current users in database: ${userCount}`);
+
+    // Test account table
+    const accountCount = await prisma.account.count();
+    console.log(`🔐 Current accounts in database: ${accountCount}`);
+
+    // Test session table
+    const sessionCount = await prisma.session.count();
+    console.log(`🔄 Current sessions in database: ${sessionCount}`);
+
+    console.log("✅ All database tests passed");
   } catch (error) {
-    console.error("❌ Database connection failed:");
-    console.error(error.message);
-
-    if (error.message.includes("port")) {
-      console.log(
-        "\n💡 Port number issue detected. Check your DATABASE_URL format:"
-      );
-      console.log(
-        "Expected: postgresql://username:password@host:port/database?sslmode=require"
-      );
-    }
+    console.error("❌ Database connection failed:", error);
+    process.exit(1);
   } finally {
     await prisma.$disconnect();
   }
 }
 
-testConnection();
+async function checkEnvironmentVariables() {
+  console.log("🔍 Checking environment variables...");
+
+  const requiredVars = [
+    "DATABASE_URL",
+    "NEXTAUTH_SECRET",
+    "NEXTAUTH_URL",
+    "SPOTIFY_CLIENT_ID",
+    "SPOTIFY_CLIENT_SECRET",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+  ];
+
+  const missingVars = [];
+
+  for (const varName of requiredVars) {
+    if (!process.env[varName]) {
+      missingVars.push(varName);
+      console.log(`❌ Missing: ${varName}`);
+    } else {
+      console.log(`✅ Found: ${varName}`);
+    }
+  }
+
+  if (missingVars.length > 0) {
+    console.error(
+      `❌ Missing environment variables: ${missingVars.join(", ")}`
+    );
+    return false;
+  }
+
+  console.log("✅ All required environment variables are set");
+  return true;
+}
+
+async function main() {
+  console.log("🚀 ReAMP Database and Environment Test");
+  console.log("=====================================");
+
+  const envOk = await checkEnvironmentVariables();
+  if (!envOk) {
+    process.exit(1);
+  }
+
+  await testDatabaseConnection();
+
+  console.log("🎉 All tests completed successfully!");
+}
+
+main().catch((error) => {
+  console.error("❌ Test failed:", error);
+  process.exit(1);
+});
