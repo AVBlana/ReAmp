@@ -39,15 +39,6 @@ const VolumeControl: React.FC<VolumeControlProps> = ({
     lg: 20,
   };
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      if (disabled) return;
-      setIsDragging(true);
-      handleMouseMove(e);
-    },
-    [disabled, handleMouseMove]
-  );
-
   const handleMouseMove = useCallback(
     (e: React.MouseEvent | MouseEvent) => {
       if (!isDragging || !sliderRef.current || disabled) return;
@@ -59,6 +50,15 @@ const VolumeControl: React.FC<VolumeControlProps> = ({
       setDragVolume(newVolume);
     },
     [isDragging, disabled]
+  );
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (disabled) return;
+      setIsDragging(true);
+      handleMouseMove(e);
+    },
+    [disabled, handleMouseMove]
   );
 
   const handleMouseUp = useCallback(() => {
