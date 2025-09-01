@@ -264,10 +264,23 @@ export default function UnifiedSearchRefactored({
             }
           });
 
+          // Map result data to SearchResultItem props
+          const title = getTitle(result);
+          const subtitle = isYoutubeVideo(result) 
+            ? result.snippet?.channelTitle || "Unknown Channel"
+            : result.artist || "Unknown Artist";
+          const thumbnail = isYoutubeVideo(result)
+            ? result.snippet?.thumbnails?.medium?.url || result.snippet?.thumbnails?.default?.url || ""
+            : result.albumArt || "";
+          const service = isYoutubeVideo(result) ? "youtube" : "spotify";
+
           return (
             <SearchResultItem
               key={getUniqueKey(result)}
-              result={result}
+              title={title}
+              subtitle={subtitle}
+              thumbnail={thumbnail}
+              service={service}
               onAddToPlaylist={() => handleAddToPlaylist(result, serviceType)}
               isInPlaylist={isInPlaylist}
             />
