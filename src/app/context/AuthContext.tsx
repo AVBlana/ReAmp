@@ -1,6 +1,13 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+} from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { Session } from "next-auth";
 
@@ -29,40 +36,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [status]);
 
-  const handleSignIn = async (provider?: string) => {
+  const handleSignIn = useCallback(async (provider?: string) => {
     try {
       await signIn(provider, { callbackUrl: "/dashboard" });
     } catch (error) {
       console.error("Sign in error:", error);
     }
-  };
+  }, []);
 
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     try {
       await signOut({ callbackUrl: "/" });
     } catch (error) {
       console.error("Sign out error:", error);
     }
-  };
+  }, []);
 
-  const getSpotifyToken = (): string | null => {
+  const getSpotifyToken = useCallback((): string | null => {
     return session?.providers?.spotify?.accessToken || null;
-  };
+  }, [session?.providers?.spotify?.accessToken]);
 
-  const getGoogleToken = (): string | null => {
+  const getGoogleToken = useCallback((): string | null => {
     return session?.providers?.google?.accessToken || null;
-  };
+  }, [session?.providers?.google?.accessToken]);
 
-  const value: AuthContextType = {
-    isAuthenticated: !!session,
-    user: session?.user || null,
-    session,
-    isLoading,
-    signIn: handleSignIn,
-    signOut: handleSignOut,
-    getSpotifyToken,
-    getGoogleToken,
-  };
+  const value = useMemo<AuthContextType>(
+    () => ({
+      isAuthenticated: !!session,
+      user: session?.user || null,
+      session,
+      isLoading,
+      signIn: handleSignIn,
+      signOut: handleSignOut,
+      getSpotifyToken,
+      getGoogleToken,
+    }),
+    [
+      session,
+      isLoading,
+      handleSignIn,
+      handleSignOut,
+      getSpotifyToken,
+      getGoogleToken,
+    ]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

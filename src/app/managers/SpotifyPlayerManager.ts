@@ -21,6 +21,13 @@ export class SpotifyPlayerManager {
       return this.scriptLoadPromise;
     }
 
+    // Set up global callback for Spotify SDK
+    (
+      window as Window & { onSpotifyWebPlaybackSDKReady?: () => void }
+    ).onSpotifyWebPlaybackSDKReady = () => {
+      console.log("🎵 Spotify Web Playback SDK Ready");
+    };
+
     this.scriptLoadPromise = new Promise((resolve, reject) => {
       if (window.Spotify) {
         this.isApiReady = true;
