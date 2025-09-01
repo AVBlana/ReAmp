@@ -133,92 +133,119 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, account, user }) {
       // Initial sign in
       if (account && user) {
+        console.log("JWT callback - Initial sign in:", {
+          provider: account.provider,
+          hasToken: !!account.access_token,
+        });
         return {
           ...token,
           accessToken: account.access_token,
           refreshToken: account.refresh_token,
-          accessTokenExpires: account.expires_at! * 1000,
+          accessTokenExpires: account.expires_at
+            ? account.expires_at * 1000
+            : undefined,
           provider: account.provider,
         };
       }
 
       // Return previous token if the access token has not expired yet
-      if (Date.now() < (token.accessTokenExpires as number)) {
+      if (token.accessTokenExpires && Date.now() < token.accessTokenExpires) {
         return token;
       }
 
       // Access token has expired, try to update it
-      const accountData = await prisma.account.findFirst({
-        where: {
-          userId: token.sub!,
-          provider: token.provider as string,
-        },
-      });
+      if (token.sub && token.provider) {
+        const accountData = await prisma.account.findFirst({
+          where: {
+            userId: token.sub,
+            provider: token.provider as string,
+          },
+        });
 
-      if (!accountData) {
-        return token;
+        if (accountData) {
+          let refreshedToken;
+          if (token.provider === "spotify") {
+            refreshedToken = await refreshSpotifyAccessToken(accountData);
+          } else if (token.provider === "google") {
+            refreshedToken = await refreshGoogleAccessToken(accountData);
+          }
+
+          if (refreshedToken && !refreshedToken.error) {
+            // Update the account in the database
+            await prisma.account.update({
+              where: { id: accountData.id },
+              data: {
+                access_token: refreshedToken.access_token,
+                expires_at: refreshedToken.expires_at,
+                refresh_token: refreshedToken.refresh_token,
+              },
+            });
+
+            return {
+              ...token,
+              accessToken: refreshedToken.access_token,
+              accessTokenExpires: refreshedToken.expires_at! * 1000,
+              refreshToken: refreshedToken.refresh_token,
+            };
+          }
+        }
       }
 
-      let refreshedToken;
-      if (token.provider === "spotify") {
-        refreshedToken = await refreshSpotifyAccessToken(accountData);
-      } else if (token.provider === "google") {
-        refreshedToken = await refreshGoogleAccessToken(accountData);
-      }
-
-      if (!refreshedToken || refreshedToken.error) {
-        return {
-          ...token,
-          error: "RefreshAccessTokenError",
-        };
-      }
-
-      // Update the account in the database
-      await prisma.account.update({
-        where: { id: accountData.id },
-        data: {
-          access_token: refreshedToken.access_token,
-          expires_at: refreshedToken.expires_at,
-          refresh_token: refreshedToken.refresh_token,
-        },
-      });
-
-      return {
-        ...token,
-        accessToken: refreshedToken.access_token,
-        accessTokenExpires: refreshedToken.expires_at! * 1000,
-        refreshToken: refreshedToken.refresh_token,
-      };
+      return token;
     },
     async session({ session, token }) {
+      console.log("Session callback:", {
+        hasToken: !!token,
+        hasUser: !!session.user,
+      });
+
       // Send properties to the client
       session.user.id = token.sub!;
       session.accessToken = token.accessToken as string;
       session.provider = token.provider as string;
 
-      // Get provider tokens from database
-      const accounts = await prisma.account.findMany({
-        where: { userId: token.sub! },
-      });
+      // Skip database operations in middleware/edge runtime
+      if (process.env.NEXT_RUNTIME === "edge") {
+        session.providers = {};
+      } else {
+        try {
+          // Get provider tokens from database
+          const accounts = await prisma.account.findMany({
+            where: { userId: token.sub! },
+          });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const providerTokens: any = {};
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const providerTokens: any = {};
 
-      for (const account of accounts) {
-        if (account.provider === "spotify") {
-          providerTokens.spotify = {
-            accessToken: account.access_token,
-            expiresAt: account.expires_at,
-          };
-        } else if (account.provider === "google") {
-          providerTokens.google = {
-            accessToken: account.access_token,
-            expiresAt: account.expires_at,
-          };
+          for (const account of accounts) {
+            if (account.provider === "spotify") {
+              providerTokens.spotify = {
+                accessToken: account.access_token,
+                expiresAt: account.expires_at,
+              };
+            } else if (account.provider === "google") {
+              providerTokens.google = {
+                accessToken: account.access_token,
+                expiresAt: account.expires_at,
+              };
+            }
+          }
+
+          session.providers = providerTokens;
+        } catch (error) {
+          console.warn(
+            "Could not fetch provider tokens in session callback:",
+            error
+          );
+          session.providers = {};
         }
       }
 
-      session.providers = providerTokens;
+      console.log("Session callback - Final session:", {
+        userId: session.user.id,
+        provider: session.provider,
+        hasProviders: !!session.providers,
+      });
 
       return session;
     },
