@@ -11,7 +11,7 @@ Create a `.env.local` file in your project root with the following variables:
 NEXT_PUBLIC_DATABASE_URL="postgresql://username:password@localhost:5432/reamp_db"
 
 # NextAuth Configuration
-NEXT_PUBLIC_NEXTAUTH_SECRET="your-super-secret-key-here-minimum-32-characters"
+NEXTAUTH_SECRET="your-super-secret-key-here-minimum-32-characters"
 NEXTAUTH_URL="http://localhost:3000"
 
 # Spotify OAuth
@@ -32,7 +32,7 @@ Set these in your Vercel project settings:
 NEXT_PUBLIC_DATABASE_URL="postgresql://username:password@host:port/database"
 
 # NextAuth Configuration
-NEXT_PUBLIC_NEXTAUTH_SECRET="your-super-secret-key-here-minimum-32-characters"
+NEXTAUTH_SECRET="your-super-secret-key-here-minimum-32-characters"
 NEXTAUTH_URL="https://your-domain.vercel.app"
 
 # Spotify OAuth
@@ -152,7 +152,7 @@ npx prisma db push
 
    - Check all environment variables are set
    - Verify `NEXTAUTH_URL` matches your domain exactly
-   - Ensure `NEXT_PUBLIC_NEXTAUTH_SECRET` is at least 32 characters
+   - Ensure `NEXTAUTH_SECRET` is at least 32 characters
 
 2. **"Access Denied" Error**
 
@@ -183,7 +183,7 @@ This will show detailed NextAuth logs in the console.
 
 ## Security Checklist
 
-- [ ] `NEXT_PUBLIC_NEXTAUTH_SECRET` is a strong, random string (32+ characters)
+- [ ] `NEXTAUTH_SECRET` is a strong, random string (32+ characters)
 - [ ] OAuth client secrets are secure and not exposed
 - [ ] Database connection uses SSL in production
 - [ ] Environment variables are not committed to git

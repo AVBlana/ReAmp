@@ -36,7 +36,7 @@ async function checkEnvironmentVariables() {
 
   const requiredVars = [
     "NEXT_PUBLIC_DATABASE_URL",
-    "NEXT_PUBLIC_NEXTAUTH_SECRET",
+    "NEXTAUTH_SECRET",
     "NEXTAUTH_URL",
     "NEXT_PUBLIC_SPOTIFY_CLIENT_ID",
     "NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET",

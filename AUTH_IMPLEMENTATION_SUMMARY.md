@@ -94,7 +94,7 @@ Successfully implemented a production-ready authentication system using NextAuth
 NEXT_PUBLIC_DATABASE_URL="file:./dev.db"
 
 # NextAuth
-NEXT_PUBLIC_NEXTAUTH_SECRET="your-secret-key"
+NEXTAUTH_SECRET="your-secret-key"
 NEXTAUTH_URL="http://localhost:3000"
 
 # OAuth Providers

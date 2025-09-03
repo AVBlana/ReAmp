@@ -45,7 +45,7 @@ npm run generate-secret
 **Local (.env.local):**
 
 ```bash
-NEXT_PUBLIC_NEXTAUTH_SECRET="[generated-secret]"
+NEXTAUTH_SECRET="[generated-secret]"
 NEXTAUTH_URL="http://localhost:3000"
 NEXT_PUBLIC_GOOGLE_CLIENT_ID="your-google-client-id"
 NEXT_PUBLIC_GOOGLE_CLIENT_SECRET="your-google-client-secret"
@@ -55,7 +55,7 @@ NEXT_PUBLIC_DATABASE_URL="postgresql://username:password@localhost:5432/database
 **Production (Vercel):**
 
 ```bash
-NEXT_PUBLIC_NEXTAUTH_SECRET="[generated-secret]"
+NEXTAUTH_SECRET="[generated-secret]"
 NEXTAUTH_URL="https://re-amp-git-main-avblanas-projects.vercel.app"
 NEXT_PUBLIC_GOOGLE_CLIENT_ID="your-google-client-id"
 NEXT_PUBLIC_GOOGLE_CLIENT_SECRET="your-google-client-secret"

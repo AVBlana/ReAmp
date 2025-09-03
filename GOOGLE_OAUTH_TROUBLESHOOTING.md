@@ -7,7 +7,7 @@
 **Local Development (.env.local):**
 
 ```bash
-NEXT_PUBLIC_NEXTAUTH_SECRET="your-32-character-secret-key"
+NEXTAUTH_SECRET="your-32-character-secret-key"
 NEXTAUTH_URL="http://localhost:3000"
 NEXT_PUBLIC_GOOGLE_CLIENT_ID="your-google-client-id"
 NEXT_PUBLIC_GOOGLE_CLIENT_SECRET="your-google-client-secret"
@@ -17,7 +17,7 @@ NEXT_PUBLIC_DATABASE_URL="postgresql://username:password@localhost:5432/database
 **Production (Vercel):**
 
 ```bash
-NEXT_PUBLIC_NEXTAUTH_SECRET="your-32-character-secret-key"
+NEXTAUTH_SECRET="your-32-character-secret-key"
 NEXTAUTH_URL="https://re-amp-git-main-avblanas-projects.vercel.app"
 NEXT_PUBLIC_GOOGLE_CLIENT_ID="your-google-client-id"
 NEXT_PUBLIC_GOOGLE_CLIENT_SECRET="your-google-client-secret"
@@ -51,7 +51,7 @@ npx prisma db push
 
 **Causes:**
 
-1. Missing `NEXT_PUBLIC_NEXTAUTH_SECRET`
+1. Missing `NEXTAUTH_SECRET`
 2. Missing `NEXTAUTH_URL`
 3. Invalid `NEXT_PUBLIC_DATABASE_URL`
 4. Missing OAuth credentials
@@ -175,7 +175,7 @@ This will show detailed NextAuth logs in the console.
 
 - [ ] All environment variables set in Vercel
 - [ ] `NEXTAUTH_URL` matches production domain exactly
-- [ ] `NEXT_PUBLIC_NEXTAUTH_SECRET` is 32+ characters
+- [ ] `NEXTAUTH_SECRET` is 32+ characters
 - [ ] Redirect URIs added to Google Cloud Console
 - [ ] Database connection includes SSL
 - [ ] OAuth consent screen configured

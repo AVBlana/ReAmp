@@ -26,7 +26,7 @@ This guide will help you set up the production-ready authentication system for R
 NEXT_PUBLIC_DATABASE_URL="file:./dev.db"
 
 # NextAuth
-NEXT_PUBLIC_NEXTAUTH_SECRET="your-nextauth-secret-key-here-change-this-in-production"
+NEXTAUTH_SECRET="your-nextauth-secret-key-here-change-this-in-production"
 NEXTAUTH_URL="http://localhost:3000"
 
 # Spotify OAuth
@@ -43,7 +43,7 @@ REACT_APP_SPOTIFY_API_KEY="your-spotify-client-secret"
 REACT_APP_YOUTUBE_API_KEY="your-youtube-api-key"
 ```
 
-2. **Generate a secure NEXT_PUBLIC_NEXTAUTH_SECRET**:
+2. **Generate a secure NEXTAUTH_SECRET**:
    ```bash
    openssl rand -base64 32
    ```
@@ -158,7 +158,7 @@ yarn start          # Start production server
 
 1. **Update environment variables** for production
 2. **Use a production database** (PostgreSQL recommended)
-3. **Set secure NEXT_PUBLIC_NEXTAUTH_SECRET**
+3. **Set secure NEXTAUTH_SECRET**
 4. **Configure HTTPS** for production domains
 5. **Update redirect URIs** in OAuth providers
 
