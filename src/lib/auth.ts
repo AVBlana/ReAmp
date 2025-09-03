@@ -4,31 +4,6 @@ import SpotifyProvider from "next-auth/providers/spotify";
 import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "./prisma";
 
-// Validate required environment variables
-const requiredEnvVars = {
-  NEXT_PUBLIC_NEXTAUTH_SECRET: process.env.NEXT_PUBLIC_NEXTAUTH_SECRET,
-  NEXTAUTH_URL: process.env.NEXTAUTH_URL,
-  NEXT_PUBLIC_SPOTIFY_CLIENT_ID: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID,
-  NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET:
-    process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET,
-  NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
-  NEXT_PUBLIC_GOOGLE_CLIENT_SECRET:
-    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET,
-  NEXT_PUBLIC_DATABASE_URL: process.env.NEXT_PUBLIC_DATABASE_URL,
-};
-
-// Check for missing environment variables
-const missingEnvVars = Object.entries(requiredEnvVars)
-  .filter((entry) => !entry[1])
-  .map((entry) => entry[0]);
-
-if (missingEnvVars.length > 0) {
-  console.error("Missing required environment variables:", missingEnvVars);
-  throw new Error(
-    `Missing required environment variables: ${missingEnvVars.join(", ")}`
-  );
-}
-
 // Token refresh helpers
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function refreshSpotifyAccessToken(account: any) {
