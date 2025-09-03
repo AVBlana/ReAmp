@@ -28,6 +28,7 @@ export default function SignInPage() {
   if (isAuthenticated) {
     return null;
   }
+  alert(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900">

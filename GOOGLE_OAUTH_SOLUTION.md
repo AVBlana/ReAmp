@@ -45,21 +45,21 @@ npm run generate-secret
 **Local (.env.local):**
 
 ```bash
-NEXTAUTH_SECRET="[generated-secret]"
+NEXT_PUBLIC_NEXTAUTH_SECRET="[generated-secret]"
 NEXTAUTH_URL="http://localhost:3000"
-GOOGLE_CLIENT_ID="your-google-client-id"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
-DATABASE_URL="postgresql://username:password@localhost:5432/database"
+NEXT_PUBLIC_GOOGLE_CLIENT_ID="your-google-client-id"
+NEXT_PUBLIC_GOOGLE_CLIENT_SECRET="your-google-client-secret"
+NEXT_PUBLIC_DATABASE_URL="postgresql://username:password@localhost:5432/database"
 ```
 
 **Production (Vercel):**
 
 ```bash
-NEXTAUTH_SECRET="[generated-secret]"
+NEXT_PUBLIC_NEXTAUTH_SECRET="[generated-secret]"
 NEXTAUTH_URL="https://re-amp-git-main-avblanas-projects.vercel.app"
-GOOGLE_CLIENT_ID="your-google-client-id"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
-DATABASE_URL="postgresql://username:password@host:port/database?sslmode=require"
+NEXT_PUBLIC_GOOGLE_CLIENT_ID="your-google-client-id"
+NEXT_PUBLIC_GOOGLE_CLIENT_SECRET="your-google-client-secret"
+NEXT_PUBLIC_DATABASE_URL="postgresql://username:password@host:port/database?sslmode=require"
 ```
 
 ### 3. Update Google Cloud Console
@@ -187,5 +187,3 @@ vercel --prod
 6. Monitor for any remaining issues
 
 The solution addresses all the identified issues and provides a production-ready Google OAuth implementation for your ReAMP project.
-
-

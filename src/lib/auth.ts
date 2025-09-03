@@ -6,13 +6,15 @@ import { prisma } from "./prisma";
 
 // Validate required environment variables
 const requiredEnvVars = {
-  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+  NEXT_PUBLIC_NEXTAUTH_SECRET: process.env.NEXT_PUBLIC_NEXTAUTH_SECRET,
   NEXTAUTH_URL: process.env.NEXTAUTH_URL,
-  SPOTIFY_CLIENT_ID: process.env.SPOTIFY_CLIENT_ID,
-  SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET,
-  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
-  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-  DATABASE_URL: process.env.DATABASE_URL,
+  NEXT_PUBLIC_SPOTIFY_CLIENT_ID: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID,
+  NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET:
+    process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET,
+  NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+  NEXT_PUBLIC_GOOGLE_CLIENT_SECRET:
+    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET,
+  NEXT_PUBLIC_DATABASE_URL: process.env.NEXT_PUBLIC_DATABASE_URL,
 };
 
 // Check for missing environment variables
@@ -36,7 +38,7 @@ async function refreshSpotifyAccessToken(account: any) {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         Authorization: `Basic ${Buffer.from(
-          `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
+          `${process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID}:${process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET}`
         ).toString("base64")}`,
       },
       body: new URLSearchParams({
@@ -75,8 +77,8 @@ async function refreshGoogleAccessToken(account: any) {
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({
-        client_id: process.env.GOOGLE_CLIENT_ID!,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+        client_secret: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET!,
         grant_type: "refresh_token",
         refresh_token: account.refresh_token!,
       }),
@@ -102,13 +104,12 @@ async function refreshGoogleAccessToken(account: any) {
     };
   }
 }
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   providers: [
     SpotifyProvider({
-      clientId: process.env.SPOTIFY_CLIENT_ID!,
-      clientSecret: process.env.SPOTIFY_CLIENT_SECRET!,
+      clientId: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID!,
+      clientSecret: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET!,
       authorization: {
         params: {
           scope:
@@ -117,8 +118,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
           scope:
@@ -260,6 +261,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "jwt",
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXT_PUBLIC_NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
 });

@@ -91,17 +91,17 @@ Successfully implemented a production-ready authentication system using NextAuth
 
 ```bash
 # Database
-DATABASE_URL="file:./dev.db"
+NEXT_PUBLIC_DATABASE_URL="file:./dev.db"
 
 # NextAuth
-NEXTAUTH_SECRET="your-secret-key"
+NEXT_PUBLIC_NEXTAUTH_SECRET="your-secret-key"
 NEXTAUTH_URL="http://localhost:3000"
 
 # OAuth Providers
-SPOTIFY_CLIENT_ID="your-spotify-client-id"
-SPOTIFY_CLIENT_SECRET="your-spotify-client-secret"
-GOOGLE_CLIENT_ID="your-google-client-id"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
+NEXT_PUBLIC_SPOTIFY_CLIENT_ID="your-spotify-client-id"
+NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET="your-spotify-client-secret"
+NEXT_PUBLIC_GOOGLE_CLIENT_ID="your-google-client-id"
+NEXT_PUBLIC_GOOGLE_CLIENT_SECRET="your-google-client-secret"
 ```
 
 ## Setup Commands

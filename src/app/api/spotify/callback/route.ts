@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-const SPOTIFY_CLIENT_ID = process.env.REACT_APP_SPOTIFY_CLIENT_ID;
-const SPOTIFY_CLIENT_SECRET = process.env.REACT_APP_SPOTIFY_API_KEY;
+const NEXT_PUBLIC_SPOTIFY_CLIENT_ID = process.env.REACT_APP_SPOTIFY_CLIENT_ID;
+const NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET = process.env.REACT_APP_SPOTIFY_API_KEY;
 const REDIRECT_URI =
   process.env.REACT_APP_SPOTIFY_REDIRECT_URI ||
   "http://localhost:3000/api/spotify/callback";
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${BASE_URL}${originPage}?error=no_code`);
   }
 
-  if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET) {
+  if (!NEXT_PUBLIC_SPOTIFY_CLIENT_ID || !NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET) {
     console.error("Missing Spotify credentials");
     const originPage = getOriginPage();
     return NextResponse.redirect(
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         Authorization: `Basic ${Buffer.from(
-          `${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`
+          `${NEXT_PUBLIC_SPOTIFY_CLIENT_ID}:${NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET}`
         ).toString("base64")}`,
       },
       body: new URLSearchParams({

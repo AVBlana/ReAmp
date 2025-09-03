@@ -35,13 +35,13 @@ async function checkEnvironmentVariables() {
   console.log("🔍 Checking environment variables...");
 
   const requiredVars = [
-    "DATABASE_URL",
-    "NEXTAUTH_SECRET",
+    "NEXT_PUBLIC_DATABASE_URL",
+    "NEXT_PUBLIC_NEXTAUTH_SECRET",
     "NEXTAUTH_URL",
-    "SPOTIFY_CLIENT_ID",
-    "SPOTIFY_CLIENT_SECRET",
-    "GOOGLE_CLIENT_ID",
-    "GOOGLE_CLIENT_SECRET",
+    "NEXT_PUBLIC_SPOTIFY_CLIENT_ID",
+    "NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET",
+    "NEXT_PUBLIC_GOOGLE_CLIENT_ID",
+    "NEXT_PUBLIC_GOOGLE_CLIENT_SECRET",
   ];
 
   const missingVars = [];

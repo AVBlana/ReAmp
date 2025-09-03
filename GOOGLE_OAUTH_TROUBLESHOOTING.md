@@ -7,21 +7,21 @@
 **Local Development (.env.local):**
 
 ```bash
-NEXTAUTH_SECRET="your-32-character-secret-key"
+NEXT_PUBLIC_NEXTAUTH_SECRET="your-32-character-secret-key"
 NEXTAUTH_URL="http://localhost:3000"
-GOOGLE_CLIENT_ID="your-google-client-id"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
-DATABASE_URL="postgresql://username:password@localhost:5432/database"
+NEXT_PUBLIC_GOOGLE_CLIENT_ID="your-google-client-id"
+NEXT_PUBLIC_GOOGLE_CLIENT_SECRET="your-google-client-secret"
+NEXT_PUBLIC_DATABASE_URL="postgresql://username:password@localhost:5432/database"
 ```
 
 **Production (Vercel):**
 
 ```bash
-NEXTAUTH_SECRET="your-32-character-secret-key"
+NEXT_PUBLIC_NEXTAUTH_SECRET="your-32-character-secret-key"
 NEXTAUTH_URL="https://re-amp-git-main-avblanas-projects.vercel.app"
-GOOGLE_CLIENT_ID="your-google-client-id"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
-DATABASE_URL="postgresql://username:password@host:port/database?sslmode=require"
+NEXT_PUBLIC_GOOGLE_CLIENT_ID="your-google-client-id"
+NEXT_PUBLIC_GOOGLE_CLIENT_SECRET="your-google-client-secret"
+NEXT_PUBLIC_DATABASE_URL="postgresql://username:password@host:port/database?sslmode=require"
 ```
 
 ### 2. Google Cloud Console Configuration
@@ -51,9 +51,9 @@ npx prisma db push
 
 **Causes:**
 
-1. Missing `NEXTAUTH_SECRET`
+1. Missing `NEXT_PUBLIC_NEXTAUTH_SECRET`
 2. Missing `NEXTAUTH_URL`
-3. Invalid `DATABASE_URL`
+3. Invalid `NEXT_PUBLIC_DATABASE_URL`
 4. Missing OAuth credentials
 
 **Solutions:**
@@ -147,7 +147,7 @@ Test production login at your Vercel URL.
 
 ### Issue: Database connection fails in production
 
-**Solution:** Ensure `DATABASE_URL` includes `?sslmode=require` for Vercel.
+**Solution:** Ensure `NEXT_PUBLIC_DATABASE_URL` includes `?sslmode=require` for Vercel.
 
 ### Issue: NextAuth secret is too short
 
@@ -175,7 +175,7 @@ This will show detailed NextAuth logs in the console.
 
 - [ ] All environment variables set in Vercel
 - [ ] `NEXTAUTH_URL` matches production domain exactly
-- [ ] `NEXTAUTH_SECRET` is 32+ characters
+- [ ] `NEXT_PUBLIC_NEXTAUTH_SECRET` is 32+ characters
 - [ ] Redirect URIs added to Google Cloud Console
 - [ ] Database connection includes SSL
 - [ ] OAuth consent screen configured
@@ -207,5 +207,3 @@ vercel --prod
 3. Verify all environment variables are set correctly
 4. Test with a fresh OAuth client
 5. Ensure database is accessible from Vercel's IPs
-
-

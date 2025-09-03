@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-const SPOTIFY_CLIENT_ID = process.env.REACT_APP_SPOTIFY_CLIENT_ID;
+const NEXT_PUBLIC_SPOTIFY_CLIENT_ID = process.env.REACT_APP_SPOTIFY_CLIENT_ID;
 const REDIRECT_URI =
   process.env.REACT_APP_SPOTIFY_REDIRECT_URI ||
   "http://localhost:3000/api/spotify/callback";
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
 
   const params = new URLSearchParams({
     response_type: "code",
-    client_id: SPOTIFY_CLIENT_ID!,
+    client_id: NEXT_PUBLIC_SPOTIFY_CLIENT_ID!,
     scope,
     redirect_uri: REDIRECT_URI,
     show_dialog: "true",

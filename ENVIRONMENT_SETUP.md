@@ -8,19 +8,19 @@ Create a `.env.local` file in your project root with the following variables:
 
 ```bash
 # Database
-DATABASE_URL="postgresql://username:password@localhost:5432/reamp_db"
+NEXT_PUBLIC_DATABASE_URL="postgresql://username:password@localhost:5432/reamp_db"
 
 # NextAuth Configuration
-NEXTAUTH_SECRET="your-super-secret-key-here-minimum-32-characters"
+NEXT_PUBLIC_NEXTAUTH_SECRET="your-super-secret-key-here-minimum-32-characters"
 NEXTAUTH_URL="http://localhost:3000"
 
 # Spotify OAuth
-SPOTIFY_CLIENT_ID="your-spotify-client-id"
-SPOTIFY_CLIENT_SECRET="your-spotify-client-secret"
+NEXT_PUBLIC_SPOTIFY_CLIENT_ID="your-spotify-client-id"
+NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET="your-spotify-client-secret"
 
 # Google OAuth
-GOOGLE_CLIENT_ID="your-google-client-id"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
+NEXT_PUBLIC_GOOGLE_CLIENT_ID="your-google-client-id"
+NEXT_PUBLIC_GOOGLE_CLIENT_SECRET="your-google-client-secret"
 ```
 
 ### Production (Vercel Environment Variables)
@@ -29,19 +29,19 @@ Set these in your Vercel project settings:
 
 ```bash
 # Database
-DATABASE_URL="postgresql://username:password@host:port/database"
+NEXT_PUBLIC_DATABASE_URL="postgresql://username:password@host:port/database"
 
 # NextAuth Configuration
-NEXTAUTH_SECRET="your-super-secret-key-here-minimum-32-characters"
+NEXT_PUBLIC_NEXTAUTH_SECRET="your-super-secret-key-here-minimum-32-characters"
 NEXTAUTH_URL="https://your-domain.vercel.app"
 
 # Spotify OAuth
-SPOTIFY_CLIENT_ID="your-spotify-client-id"
-SPOTIFY_CLIENT_SECRET="your-spotify-client-secret"
+NEXT_PUBLIC_SPOTIFY_CLIENT_ID="your-spotify-client-id"
+NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET="your-spotify-client-secret"
 
 # Google OAuth
-GOOGLE_CLIENT_ID="your-google-client-id"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
+NEXT_PUBLIC_GOOGLE_CLIENT_ID="your-google-client-id"
+NEXT_PUBLIC_GOOGLE_CLIENT_SECRET="your-google-client-secret"
 ```
 
 ## Google Cloud Console Configuration
@@ -152,7 +152,7 @@ npx prisma db push
 
    - Check all environment variables are set
    - Verify `NEXTAUTH_URL` matches your domain exactly
-   - Ensure `NEXTAUTH_SECRET` is at least 32 characters
+   - Ensure `NEXT_PUBLIC_NEXTAUTH_SECRET` is at least 32 characters
 
 2. **"Access Denied" Error**
 
@@ -162,7 +162,7 @@ npx prisma db push
 
 3. **Database Connection Issues**
 
-   - Verify `DATABASE_URL` format
+   - Verify `NEXT_PUBLIC_DATABASE_URL` format
    - Check database is accessible from Vercel
    - Ensure SSL is enabled for production
 
@@ -183,7 +183,7 @@ This will show detailed NextAuth logs in the console.
 
 ## Security Checklist
 
-- [ ] `NEXTAUTH_SECRET` is a strong, random string (32+ characters)
+- [ ] `NEXT_PUBLIC_NEXTAUTH_SECRET` is a strong, random string (32+ characters)
 - [ ] OAuth client secrets are secure and not exposed
 - [ ] Database connection uses SSL in production
 - [ ] Environment variables are not committed to git
@@ -213,5 +213,3 @@ If issues persist:
 2. Check Vercel function logs
 3. Verify all environment variables are set
 4. Test with a fresh OAuth client
-
-
