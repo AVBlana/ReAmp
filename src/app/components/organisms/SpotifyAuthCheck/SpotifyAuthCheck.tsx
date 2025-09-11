@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 
 // Import atomic design components
 import Button from "@/app/components/atoms/Button";
@@ -9,15 +10,16 @@ import { FaCheck, FaExclamationTriangle } from "react-icons/fa";
 import { useNotifications } from "@/app/context/NotificationContext";
 
 export default function SpotifyAuthCheck() {
+  const { data: session, status } = useSession();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const { addNotification } = useNotifications();
 
   useEffect(() => {
     const checkAuth = () => {
-      const token = localStorage.getItem("spotify_token");
+      const spotifyToken = session?.providers?.spotify?.accessToken;
       const wasAuthenticated = isAuthenticated;
-      const newAuthState = !!token;
+      const newAuthState = !!spotifyToken;
 
       setIsAuthenticated(newAuthState);
       setIsChecking(false);
@@ -43,8 +45,8 @@ export default function SpotifyAuthCheck() {
     };
 
     // Show initial status notification
-    const token = localStorage.getItem("spotify_token");
-    if (token) {
+    const spotifyToken = session?.providers?.spotify?.accessToken;
+    if (spotifyToken) {
       addNotification({
         type: "info",
         message: "Welcome back! Spotify is connected",
@@ -52,21 +54,13 @@ export default function SpotifyAuthCheck() {
       });
     }
 
-    checkAuth();
-
-    // Listen for storage changes (when token is added/removed)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "spotify_token") {
-        checkAuth();
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, [isAuthenticated, addNotification]);
+    if (status !== "loading") {
+      checkAuth();
+    }
+  }, [session, status, isAuthenticated, addNotification]);
 
   const handleLogin = () => {
-    window.location.href = "/api/spotify/login?origin=/reamp";
+    window.location.href = "/signin";
   };
 
   if (isChecking) {

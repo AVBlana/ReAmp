@@ -58,19 +58,22 @@ export class SpotifyPlayerManager {
 
   private async refreshToken(): Promise<string> {
     try {
-      const response = await fetch("/api/spotify/refresh");
+      // Get token from NextAuth session instead of custom API
+      const response = await fetch("/api/auth/session");
       if (!response.ok) {
-        throw new Error("Failed to refresh token");
+        throw new Error("Failed to get session");
       }
-      const data = await response.json();
+      const session = await response.json();
 
-      // Update localStorage with the new token
-      localStorage.setItem("spotify_token", data.access_token);
+      const spotifyToken = session?.providers?.spotify?.accessToken;
+      if (!spotifyToken) {
+        throw new Error("No Spotify token in session");
+      }
 
-      console.log("✅ Spotify token refreshed and localStorage updated");
-      return data.access_token;
+      console.log("✅ Got Spotify token from NextAuth session");
+      return spotifyToken;
     } catch (error) {
-      console.error("❌ Error refreshing Spotify token:", error);
+      console.error("❌ Error getting Spotify token from session:", error);
       throw error;
     }
   }
@@ -384,7 +387,7 @@ export class SpotifyPlayerManager {
         console.error(
           "No token available for Spotify player, redirecting to login"
         );
-        window.location.href = "/api/spotify/login?origin=/reamp";
+        window.location.href = "/signin";
         return;
       }
 
@@ -420,7 +423,7 @@ export class SpotifyPlayerManager {
         // Check if it's an authentication error
         if (response.status === 401) {
           console.error("Spotify authentication failed, redirecting to login");
-          window.location.href = "/api/spotify/login?origin=/reamp";
+          window.location.href = "/signin";
           return;
         }
 
@@ -476,7 +479,7 @@ export class SpotifyPlayerManager {
         console.error(
           "Network error, might be authentication issue, redirecting to login"
         );
-        window.location.href = "/api/spotify/login?origin=/reamp";
+        window.location.href = "/signin";
         return;
       }
 
@@ -539,7 +542,7 @@ export class SpotifyPlayerManager {
         console.error(
           "Spotify authentication failed during resume, redirecting to login"
         );
-        window.location.href = "/api/spotify/login?origin=/reamp";
+        window.location.href = "/signin";
         return;
       }
 
