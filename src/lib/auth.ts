@@ -133,7 +133,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
 
       // Access token has expired, try to update it
-      if (token.sub && token.provider) {
+      // Skip database operations in middleware/edge runtime
+      if (token.sub && token.provider && process.env.NEXT_RUNTIME !== "edge") {
         const accountData = await prisma.account.findFirst({
           where: {
             userId: token.sub,
