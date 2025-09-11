@@ -274,8 +274,8 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
               isCrossfadeActive()
                 ? "border-yellow-400 bg-yellow-400/10 cursor-not-allowed"
                 : snapshot.isDraggingOver
-                ? "border-red-400 bg-red-400/10"
-                : "border-gray-600 bg-black/20"
+                ? "border-red-400 bg-red-400/10 scale-[1.02] shadow-lg"
+                : "border-gray-600 bg-black/20 hover:border-gray-500 hover:bg-black/30 hover:scale-[1.01] hover:shadow-md"
             }`}
             onDrop={(e) => {
               e.preventDefault();
@@ -336,15 +336,18 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
                 onSeek={(position) => seekDeck(playerId, position)}
               />
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-400">
+              <div className="flex items-center justify-center h-full text-gray-400 p-4">
                 <div className="text-center">
                   <DeckLabel deckId={playerId} variant="minimal" size="lg" />
                   {isCrossfadeActive() ? (
-                    <div className="text-sm text-yellow-400">
+                    <div className="text-sm text-yellow-400 mt-2">
                       Crossfade in progress...
                     </div>
                   ) : (
-                    <div className="text-sm">Drop a track here</div>
+                    <div className="text-sm mt-2">
+                      <div className="mb-2">Drop a track here</div>
+                      <div className="text-xs opacity-75">or tap to select</div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -373,14 +376,18 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
 
   return (
     <div
-      className={`w-full h-full bg-black/20 rounded-lg p-6 flex flex-col ${className}`}
+      className={`w-full min-h-full bg-black/20 rounded-lg p-3 sm:p-6 flex flex-col ${className}`}
     >
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6 flex-shrink-0">
-        <h2 className="text-2xl font-bold text-white font-mono">
+      {/* Header - Mobile Optimized */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 flex-shrink-0 space-y-3 sm:space-y-0">
+        <h2 className="text-lg sm:text-2xl font-bold text-white font-mono text-center sm:text-left">
           Welcome DJ, drop a track!
         </h2>
-        <div className="flex items-center gap-4">
+        {/* Mobile scroll hint */}
+        <div className="block sm:hidden text-xs text-gray-400 text-center animate-pulse">
+          ↓ Scroll down to see decks ↓
+        </div>
+        <div className="flex justify-center sm:justify-end">
           <CrossfadeControlsV2
             crossfadeEnabled={crossfadeEnabled}
             crossfadeDuration={crossfadeDuration}
@@ -398,9 +405,9 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
         </div>
       </div>
 
-      {/* YouTube Video Display - Dynamic sizing based on video state */}
-      <div className="mb-4 flex-shrink-0">
-        <div className="flex justify-center gap-4 w-full">
+      {/* YouTube Video Display - Mobile Responsive */}
+      <div className="mb-3 sm:mb-4 flex-shrink-0">
+        <div className="flex flex-col sm:flex-row justify-center gap-2 sm:gap-4 w-full">
           {(["A", "B"] as const).map((playerId) => {
             const currentVideo = getCurrentYouTubeVideos().find(
               (v) => v.playerId === playerId
@@ -431,9 +438,9 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
                   className={`relative bg-black rounded-lg overflow-hidden shadow-2xl transition-all duration-500 ease-in-out ${
                     shouldShowVideo
                       ? isOnlyVideoPlaying
-                        ? "w-full h-80 aspect-video opacity-100"
-                        : "w-full h-64 aspect-video opacity-100"
-                      : "w-16 h-16 opacity-60"
+                        ? "w-full h-48 sm:h-80 aspect-video opacity-100"
+                        : "w-full h-32 sm:h-64 aspect-video opacity-100"
+                      : "w-12 h-12 sm:w-16 sm:h-16 opacity-60"
                   }`}
                 >
                   {/* YouTube API Player Container - Always present for player manager */}
@@ -449,7 +456,7 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
 
                   {/* Deck label */}
                   <div className="absolute top-1 left-1 z-30">
-                    <div className="bg-black/90 text-white text-xs font-mono px-2 py-1 rounded">
+                    <div className="bg-black/90 text-white text-xs font-mono px-1 sm:px-2 py-0.5 sm:py-1 rounded">
                       DECK {playerId}
                     </div>
                   </div>
@@ -463,22 +470,26 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
         </div>
       </div>
 
-      {/* Main DJ Interface */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 min-h-0">
+      {/* Main DJ Interface - Mobile Responsive */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-6 lg:gap-8 flex-1 min-h-0 mb-6">
         {/* Player A */}
-        <div className="bg-black/30 rounded-lg p-6 border border-gray-700 flex flex-col min-h-0">
-          <div className="text-center mb-4 flex-shrink-0">
+        <div className="bg-black/30 rounded-lg p-3 sm:p-6 pb-6 sm:pb-8 border border-gray-700 flex flex-col min-h-0 shadow-lg">
+          <div className="text-center mb-3 sm:mb-4 flex-shrink-0">
             <DeckLabel deckId="A" variant="watermelon" size="lg" />
           </div>
-          <div className="flex-1 min-h-0">{renderPlayerDropZone("A")}</div>
+          <div className="flex-1 min-h-[250px] sm:min-h-[300px] mb-4">
+            {renderPlayerDropZone("A")}
+          </div>
         </div>
 
         {/* Player B */}
-        <div className="bg-black/30 rounded-lg p-6 border border-gray-700 flex flex-col min-h-0">
-          <div className="text-center mb-4 flex-shrink-0">
+        <div className="bg-black/30 rounded-lg p-3 sm:p-6 pb-6 sm:pb-8 border border-gray-700 flex flex-col min-h-0 shadow-lg">
+          <div className="text-center mb-3 sm:mb-4 flex-shrink-0">
             <DeckLabel deckId="B" variant="watermelon" size="lg" />
           </div>
-          <div className="flex-1 min-h-0">{renderPlayerDropZone("B")}</div>
+          <div className="flex-1 min-h-[250px] sm:min-h-[300px] mb-4">
+            {renderPlayerDropZone("B")}
+          </div>
         </div>
       </div>
 

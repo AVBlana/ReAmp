@@ -426,7 +426,7 @@ export default function VinylPlayer({
       </div>
 
       {/* Volume Control */}
-      <div className="w-full max-w-[250px]">
+      <div className="w-full max-w-[250px] mb-4">
         <VolumeControl
           volume={playerState.volume}
           onVolumeChange={onVolumeChange}
