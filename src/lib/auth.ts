@@ -1,8 +1,25 @@
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import SpotifyProvider from "next-auth/providers/spotify";
 import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "./prisma";
+
+// Debug environment variables
+console.log("NextAuth Environment Variables:", {
+  NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET ? "SET" : "NOT SET",
+  SPOTIFY_CLIENT_ID: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID
+    ? "SET"
+    : "NOT SET",
+  SPOTIFY_CLIENT_SECRET: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET
+    ? "SET"
+    : "NOT SET",
+  GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+    ? "SET"
+    : "NOT SET",
+  GOOGLE_CLIENT_SECRET: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET
+    ? "SET"
+    : "NOT SET",
+});
 
 // Token refresh helpers
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -81,17 +98,47 @@ async function refreshGoogleAccessToken(account: any) {
 }
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
+  // Ensure NEXTAUTH_URL is set
+  ...(process.env.NEXTAUTH_URL && { url: process.env.NEXTAUTH_URL }),
+  // Debug environment variables in development
+  ...(process.env.NODE_ENV === "development" && {
+    logger: {
+      error: (error: Error) => {
+        console.error("NextAuth Error:", error);
+      },
+      warn: (code: string) => {
+        console.warn("NextAuth Warning:", code);
+      },
+      debug: (code: string, metadata?: unknown) => {
+        console.log("NextAuth Debug:", code, metadata);
+      },
+    },
+  }),
   providers: [
-    SpotifyProvider({
-      clientId: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID!,
-      clientSecret: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET!,
+    {
+      id: "spotify",
+      name: "Spotify",
+      type: "oauth",
       authorization: {
+        url: "https://accounts.spotify.com/authorize",
         params: {
           scope:
             "user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private",
         },
       },
-    }),
+      token: "https://accounts.spotify.com/api/token",
+      userinfo: "https://api.spotify.com/v1/me",
+      clientId: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID!,
+      clientSecret: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET!,
+      profile(profile) {
+        return {
+          id: profile.id,
+          name: profile.display_name,
+          email: profile.email,
+          image: profile.images?.[0]?.url,
+        };
+      },
+    },
     GoogleProvider({
       clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
       clientSecret: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET!,
@@ -239,4 +286,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
+  trustHost: true,
 });
