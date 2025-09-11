@@ -376,7 +376,7 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
 
   return (
     <div
-      className={`w-full min-h-full bg-black/20 rounded-lg p-3 sm:p-6 flex flex-col ${className}`}
+      className={`w-full min-h-full lg:h-full bg-black/20 rounded-lg p-3 sm:p-6 flex flex-col ${className}`}
     >
       {/* Header - Mobile Optimized */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 flex-shrink-0 space-y-3 sm:space-y-0">
@@ -471,23 +471,23 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
       </div>
 
       {/* Main DJ Interface - Mobile Responsive */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-6 lg:gap-8 flex-1 min-h-0 mb-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-6 lg:gap-8 flex-1 min-h-0 mb-6 lg:mb-0 overflow-y-auto lg:overflow-visible">
         {/* Player A */}
-        <div className="bg-black/30 rounded-lg p-3 sm:p-6 pb-6 sm:pb-8 border border-gray-700 flex flex-col min-h-0 shadow-lg">
+        <div className="bg-black/30 rounded-lg p-3 sm:p-6 pb-6 sm:pb-6 border border-gray-700 flex flex-col min-h-0 shadow-lg">
           <div className="text-center mb-3 sm:mb-4 flex-shrink-0">
             <DeckLabel deckId="A" variant="watermelon" size="lg" />
           </div>
-          <div className="flex-1 min-h-[250px] sm:min-h-[300px] mb-4">
+          <div className="flex-1 min-h-[250px] sm:min-h-[300px] mb-4 sm:mb-0">
             {renderPlayerDropZone("A")}
           </div>
         </div>
 
         {/* Player B */}
-        <div className="bg-black/30 rounded-lg p-3 sm:p-6 pb-6 sm:pb-8 border border-gray-700 flex flex-col min-h-0 shadow-lg">
+        <div className="bg-black/30 rounded-lg p-3 sm:p-6 pb-6 sm:pb-6 border border-gray-700 flex flex-col min-h-0 shadow-lg">
           <div className="text-center mb-3 sm:mb-4 flex-shrink-0">
             <DeckLabel deckId="B" variant="watermelon" size="lg" />
           </div>
-          <div className="flex-1 min-h-[250px] sm:min-h-[300px] mb-4">
+          <div className="flex-1 min-h-[250px] sm:min-h-[300px] mb-4 sm:mb-0">
             {renderPlayerDropZone("B")}
           </div>
         </div>

@@ -113,7 +113,7 @@ function ReAMPContent() {
   );
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-gray-100 flex flex-col">
+    <div className="min-h-screen lg:h-screen bg-[#0A0A0A] text-gray-100 flex flex-col overflow-y-auto lg:overflow-hidden">
       {/* Background Grid */}
       <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black_70%)]" />
 
@@ -131,9 +131,9 @@ function ReAMPContent() {
       />
 
       {/* Main Content */}
-      <main className="flex-1 w-full p-6 relative z-10">
+      <main className="flex-1 w-full p-6 relative z-10 overflow-visible lg:overflow-hidden">
         {/* Main Layout Container - Responsive */}
-        <div className="flex flex-col lg:flex-row gap-6 min-h-full">
+        <div className="flex flex-col lg:flex-row gap-6 min-h-full lg:h-full">
           {/* Library Section - Vertical in desktop, Horizontal in tablet/mobile */}
           <div className="flex flex-row lg:flex-col">
             <motion.div className="bg-black/20 rounded-lg p-4 flex flex-col min-h-0 max-h-full">
@@ -158,10 +158,10 @@ function ReAMPContent() {
               </div>
             </div>
 
-            {/* DJ Set Player Section - Mobile Scrollable */}
-            <div className="w-full lg:w-2/3 rounded-lg flex flex-col">
-              {/* Container that allows scrolling on mobile */}
-              <div className="flex-1 relative">
+            {/* DJ Set Player Section - Full width in portrait mode */}
+            <div className="w-full lg:w-2/3 rounded-lg overflow-visible lg:overflow-hidden flex flex-col min-h-[800px] lg:min-h-0">
+              {/* Container that adapts based on active service */}
+              <div className="flex-1 relative min-h-[800px] lg:min-h-0">
                 <DJSetPlayerV2 />
               </div>
             </div>
