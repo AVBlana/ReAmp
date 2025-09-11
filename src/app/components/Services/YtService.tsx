@@ -5,7 +5,7 @@ export async function getYouTubeVideos(
   pageToken?: string
 ): Promise<{ items: YoutubeVideo[]; nextPageToken: string | undefined }> {
   try {
-    const url = new URL("/api/youtube/search", window.location.origin);
+    const url = new URL("/api/youtube", window.location.origin);
     url.searchParams.append("q", query);
     if (pageToken) {
       url.searchParams.append("pageToken", pageToken);

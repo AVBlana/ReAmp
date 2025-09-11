@@ -51,6 +51,23 @@ function ReAMPContent() {
             return;
           }
 
+          // Check if Spotify is not connected
+          if (
+            error instanceof Error &&
+            error.message.includes("Spotify not connected")
+          ) {
+            console.log(
+              "Spotify not connected - user needs to connect Spotify account"
+            );
+            // You could show a notification or modal here
+            alert(
+              "Please connect your Spotify account first to search Spotify tracks."
+            );
+            spotify.setSearchResults([]);
+            setSpotifyNextPageToken(null);
+            return;
+          }
+
           spotify.setSearchResults([]);
           setSpotifyNextPageToken(null);
         }

@@ -38,6 +38,15 @@ export async function searchSpotify(
       if (response.status === 401) {
         throw new Error("authentication failed");
       }
+      if (response.status === 400) {
+        // Check if it's a "Spotify not connected" error
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.error === "Spotify not connected") {
+          throw new Error(
+            "Spotify not connected - please connect your Spotify account first"
+          );
+        }
+      }
       throw new Error(`Spotify API error: ${response.status}`);
     }
 
