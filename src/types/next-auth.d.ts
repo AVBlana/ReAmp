@@ -29,5 +29,15 @@ declare module "next-auth" {
     refreshToken?: string;
     provider?: string;
     error?: string;
+    spotify?: {
+      accessToken: string;
+      refreshToken: string;
+      expires_at: number;
+    };
+    google?: {
+      accessToken: string;
+      refreshToken: string;
+      expires_at: number;
+    };
   }
 }

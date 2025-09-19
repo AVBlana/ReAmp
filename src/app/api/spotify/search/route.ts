@@ -1,21 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
 
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const spotifyToken = session.providers?.spotify?.accessToken;
+    // Get Spotify access token from session (NextAuth handles refresh automatically)
+    let spotifyToken = session.providers?.spotify?.accessToken;
 
     if (!spotifyToken) {
-      return NextResponse.json(
-        { error: "Spotify not connected" },
-        { status: 400 }
-      );
+      // Fallback: try to get token directly from database if session doesn't have it
+      console.log("🎵 No token in session, trying database fallback");
+      const spotifyAccount = await prisma.account.findFirst({
+        where: {
+          userId: session.user.id,
+          provider: "spotify",
+        },
+      });
+
+      if (!spotifyAccount?.access_token) {
+        return NextResponse.json(
+          { error: "Spotify not connected" },
+          { status: 400 }
+        );
+      }
+
+      spotifyToken = spotifyAccount.access_token;
+      console.log("🎵 Using Spotify token from database fallback");
+    } else {
+      console.log("🎵 Using Spotify token from session");
     }
 
     const { searchParams } = new URL(request.url);
@@ -44,6 +62,18 @@ export async function GET(request: NextRequest) {
     if (!response.ok) {
       const error = await response.json();
       console.error("Spotify API error:", error);
+
+      // Check if it's an authentication error (token revoked/expired)
+      if (response.status === 401) {
+        return NextResponse.json(
+          {
+            error:
+              "Spotify authentication failed - please reconnect your Spotify account",
+          },
+          { status: 401 }
+        );
+      }
+
       return NextResponse.json(
         { error: "Spotify API error" },
         { status: response.status }

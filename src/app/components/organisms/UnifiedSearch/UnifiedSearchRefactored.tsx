@@ -7,6 +7,7 @@ import { ServiceType, Song } from "@/app/types/playerTypes";
 import { YoutubeVideo } from "@/app/types/youtubeTypes";
 import SearchResultsContainer from "@/app/components/SearchResultsContainer";
 import SearchResultItem from "@/app/components/molecules/SearchResultItem";
+import { useOutsideClick } from "@/app/hooks";
 
 type SearchResult = YoutubeVideo | Song;
 
@@ -29,26 +30,61 @@ export default function UnifiedSearchRefactored({
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [manuallyClosed, setManuallyClosed] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSearchQueryRef = useRef<string>("");
 
   // Handle clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        searchRef.current &&
-        !searchRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
+  useOutsideClick(searchRef, () => {
+    // Clear any pending search timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+      searchTimeoutRef.current = null;
     }
+    setIsOpen(false);
+    setQuery("");
+    setHasSearched(false);
+    setManuallyClosed(true);
+    youtube.setSearchResults([]);
+    spotify.setSearchResults([]);
+    // Force clear the input field
+    if (searchInputRef.current) {
+      searchInputRef.current.value = "";
+    }
+    // Clear the last search query to prevent reopening
+    lastSearchQueryRef.current = "";
+  });
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+  // Handle escape key
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        // Clear any pending search timeout
+        if (searchTimeoutRef.current) {
+          clearTimeout(searchTimeoutRef.current);
+          searchTimeoutRef.current = null;
+        }
+        setIsOpen(false);
+        setQuery("");
+        setHasSearched(false);
+        setManuallyClosed(true);
+        youtube.setSearchResults([]);
+        spotify.setSearchResults([]);
+        // Force clear the input field
+        if (searchInputRef.current) {
+          searchInputRef.current.value = "";
+        }
+        // Clear the last search query to prevent reopening
+        lastSearchQueryRef.current = "";
+      }
     };
-  }, []);
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [youtube, spotify]);
 
   // Debounced search effect
   useEffect(() => {
@@ -62,12 +98,17 @@ export default function UnifiedSearchRefactored({
       searchTimeoutRef.current = setTimeout(async () => {
         setIsSearching(true);
         try {
+          // Clear previous results before new search
+          youtube.setSearchResults([]);
+          spotify.setSearchResults([]);
+
           // Search both services simultaneously
           await Promise.all([
             onSearch(query.trim(), ServiceType.Youtube),
             onSearch(query.trim(), ServiceType.Spotify),
           ]);
           lastSearchQueryRef.current = query.trim();
+          setHasSearched(true);
           setIsOpen(true);
         } finally {
           setIsSearching(false);
@@ -151,7 +192,17 @@ export default function UnifiedSearchRefactored({
         )
       );
     })
+    // Sort by service first (YouTube, then Spotify), then by title
     .sort((a, b) => {
+      const serviceA = getServiceType(a);
+      const serviceB = getServiceType(b);
+
+      // If different services, prioritize YouTube first
+      if (serviceA !== serviceB) {
+        return serviceA === ServiceType.Youtube ? -1 : 1;
+      }
+
+      // If same service, sort by title
       const titleA = getTitle(a).toLowerCase();
       const titleB = getTitle(b).toLowerCase();
       return titleA.localeCompare(titleB);
@@ -220,12 +271,25 @@ export default function UnifiedSearchRefactored({
         <div className="relative flex items-center">
           {/* Search Input */}
           <input
+            ref={searchInputRef}
             type="text"
             id="unified-search-input"
             name="unified-search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => setIsOpen(true)}
+            onFocus={() => {
+              // Only reopen if we have a valid search query and results
+              if (
+                hasSearched &&
+                query.trim() &&
+                combinedResults.length > 0 &&
+                !isOpen &&
+                lastSearchQueryRef.current === query.trim() &&
+                lastSearchQueryRef.current !== ""
+              ) {
+                setIsOpen(true);
+              }
+            }}
             placeholder="Search for songs..."
             className="w-full bg-black/20 text-white placeholder-gray-400 rounded-lg pl-4 pr-4 py-2 border-2 border-[#FF6B6B] focus:outline-none focus:ring-2 focus:ring-[#FF6B6B] focus:bg-black/30 transition-all duration-200"
             autoComplete="off"
@@ -266,11 +330,13 @@ export default function UnifiedSearchRefactored({
 
           // Map result data to SearchResultItem props
           const title = getTitle(result);
-          const subtitle = isYoutubeVideo(result) 
+          const subtitle = isYoutubeVideo(result)
             ? result.snippet?.channelTitle || "Unknown Channel"
             : result.artist?.name || "Unknown Artist";
           const thumbnail = isYoutubeVideo(result)
-            ? result.snippet?.thumbnails?.medium?.url || result.snippet?.thumbnails?.default?.url || ""
+            ? result.snippet?.thumbnails?.medium?.url ||
+              result.snippet?.thumbnails?.default?.url ||
+              ""
             : result.artwork?.medium?.url || result.artwork?.small?.url || "";
           const service = isYoutubeVideo(result) ? "youtube" : "spotify";
 

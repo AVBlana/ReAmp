@@ -124,6 +124,12 @@ export default function UnifiedSearch({
         !searchRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
+        setQuery(""); // Clear the search term
+        // Clear search results
+        youtube.setSearchResults([]);
+        spotify.setSearchResults([]);
+        // Clear the last search query to prevent reopening
+        lastSearchQueryRef.current = "";
       }
     }
 
@@ -131,7 +137,7 @@ export default function UnifiedSearch({
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, []);
+  }, [youtube, spotify]);
 
   // Debounced search effect
   useEffect(() => {
@@ -253,6 +259,7 @@ export default function UnifiedSearch({
         <div className="relative flex items-center">
           {/* Search Input - Now using SearchBar molecule */}
           <SearchBar
+            value={query}
             onSearch={(searchQuery) => {
               setQuery(searchQuery);
               setIsOpen(true);
@@ -302,7 +309,7 @@ export default function UnifiedSearch({
               onDragStart={(e) => {
                 e.dataTransfer.setData(
                   "text/plain",
-                  `${serviceType}-${resultId}`
+                  `${serviceType}|${resultId}`
                 );
               }}
             />

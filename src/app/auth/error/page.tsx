@@ -85,7 +85,7 @@ function AuthErrorContent() {
   }, [searchParams]);
 
   const handleRetry = () => {
-    router.push("/signin");
+    router.push("/");
   };
 
   const handleGoHome = () => {

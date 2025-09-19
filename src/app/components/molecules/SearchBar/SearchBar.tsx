@@ -10,6 +10,7 @@ export interface SearchBarProps {
   autoFocus?: boolean;
   disabled?: boolean;
   loading?: boolean;
+  value?: string; // Allow external control of the input value
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({
@@ -21,8 +22,10 @@ const SearchBar: React.FC<SearchBarProps> = ({
   autoFocus = false,
   disabled = false,
   loading = false,
+  value,
 }) => {
-  const [query, setQuery] = useState("");
+  const [internalQuery, setInternalQuery] = useState("");
+  const query = value !== undefined ? value : internalQuery;
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -49,11 +52,16 @@ const SearchBar: React.FC<SearchBarProps> = ({
   }, [query, onSearch, debounceMs]);
 
   const handleClear = useCallback(() => {
-    setQuery("");
+    if (value === undefined) {
+      setInternalQuery("");
+    } else {
+      // If value is controlled externally, notify parent to clear
+      onSearch("");
+    }
     if (inputRef.current) {
       inputRef.current.focus();
     }
-  }, []);
+  }, [value, onSearch]);
 
   return (
     <div className={`relative ${className}`}>
@@ -62,7 +70,14 @@ const SearchBar: React.FC<SearchBarProps> = ({
           ref={inputRef}
           type="text"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            if (value === undefined) {
+              setInternalQuery(e.target.value);
+            } else {
+              // If value is controlled externally, we need to notify parent
+              onSearch(e.target.value);
+            }
+          }}
           placeholder={placeholder}
           disabled={disabled}
           autoFocus={autoFocus}

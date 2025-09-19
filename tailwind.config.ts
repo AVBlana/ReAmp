@@ -11,6 +11,16 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        // Spotify brand colors
+        spotify: {
+          green: "#1DB954",
+          "green-hover": "#1AA34A",
+        },
+        // Google brand colors
+        google: {
+          blue: "#4285F4",
+          "blue-hover": "#3367D6",
+        },
       },
     },
   },

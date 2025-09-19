@@ -40,6 +40,7 @@ export class UnifiedPlayerManager {
   private readonly RECREATION_COOLDOWN = 5000; // 5 seconds cooldown between recreations
   private lastAutoCrossfadeTime: { [key: string]: number } = { A: 0, B: 0 };
   private readonly AUTO_CROSSFADE_COOLDOWN = 10000; // 10 seconds cooldown between auto-crossfades
+  private getSpotifyToken: (() => string | null) | null = null;
 
   constructor() {
     this.youtubeManager = new YouTubePlayerManager();
@@ -70,6 +71,13 @@ export class UnifiedPlayerManager {
       progress: 0,
       startTime: 0,
     };
+  }
+
+  /**
+   * Set the Spotify token getter function
+   */
+  setSpotifyTokenGetter(tokenGetter: () => string | null): void {
+    this.getSpotifyToken = tokenGetter;
   }
 
   private createPlayerInstance(deckId: "A" | "B"): PlayerInstance {
@@ -349,7 +357,9 @@ export class UnifiedPlayerManager {
       // Volume setting is logged in the main loadTrack method
     } else if (service === ServiceType.Spotify) {
       const spotifyTrack = track as Song;
-      const token = localStorage.getItem("spotify_token");
+
+      // Get token from the token getter function (session-based)
+      const token = this.getSpotifyToken ? this.getSpotifyToken() : null;
 
       if (!token) {
         throw new Error("No Spotify token available");
@@ -1005,75 +1015,17 @@ export class UnifiedPlayerManager {
   /**
    * Check if auto-crossfade should be triggered
    */
-  shouldAutoCrossfade(deckId: "A" | "B"): boolean {
-    if (this.crossfadeState.isActive) {
-      return false; // Already crossfading
-    }
-
-    const currentPlayer = this.playerPool[deckId];
-    const otherDeck = this.getOtherDeck(deckId);
-    const otherDeckPlayer = this.playerPool[otherDeck];
-
-    // Check cooldown to prevent excessive auto-crossfade attempts
-    const now = Date.now();
-    if (
-      now - this.lastAutoCrossfadeTime[deckId] <
-      this.AUTO_CROSSFADE_COOLDOWN
-    ) {
-      return false; // Still in cooldown
-    }
-
-    // Only auto-crossfade if:
-    // 1. Current deck is actually playing
-    // 2. Current deck is ending soon (within threshold)
-    // 3. Other deck is ready and has a track
-    // 4. Other deck is NOT already playing
-    // 5. Current deck has been playing for at least a few seconds (to avoid immediate crossfade)
-    const hasBeenPlayingLongEnough =
-      currentPlayer.lastActivity < Date.now() - 5000; // At least 5 seconds
-
-    const shouldCrossfade =
-      currentPlayer.isPlaying && // Must be actively playing
-      hasBeenPlayingLongEnough && // Must have been playing for a while
-      this.isTrackEndingSoon(deckId, 10) && // Track ending within 10 seconds
-      otherDeckPlayer.isReady && // Other deck has a track
-      !!otherDeckPlayer.currentTrack && // Other deck has a track loaded
-      !otherDeckPlayer.isPlaying; // Other deck is not already playing
-
-    // Debug logging for auto-crossfade decisions
-    if (
-      currentPlayer.isPlaying &&
-      otherDeckPlayer.isReady &&
-      !!otherDeckPlayer.currentTrack
-    ) {
-      console.log(`🔍 Auto-crossfade check for ${deckId}:`, {
-        isPlaying: currentPlayer.isPlaying,
-        hasBeenPlayingLongEnough,
-        isTrackEndingSoon: this.isTrackEndingSoon(deckId, 10),
-        otherDeckReady: otherDeckPlayer.isReady,
-        otherDeckHasTrack: !!otherDeckPlayer.currentTrack,
-        otherDeckNotPlaying: !otherDeckPlayer.isPlaying,
-        shouldCrossfade,
-        currentTime: currentPlayer.currentTime,
-        duration: currentPlayer.duration,
-        lastActivity: currentPlayer.lastActivity,
-        timeSinceLastActivity: Date.now() - currentPlayer.lastActivity,
-        cooldownRemaining: Math.max(
-          0,
-          this.AUTO_CROSSFADE_COOLDOWN -
-            (now - this.lastAutoCrossfadeTime[deckId])
-        ),
-      });
-    }
-
-    return shouldCrossfade;
+  shouldAutoCrossfade(): boolean {
+    // Auto-crossfade is disabled - use useSmartCrossfade hook instead
+    // This prevents automatic crossfade and allows user-controlled crossfade
+    return false;
   }
 
   /**
    * Trigger auto-crossfade if conditions are met
    */
   public async triggerAutoCrossfadeIfNeeded(deckId: "A" | "B"): Promise<void> {
-    if (this.shouldAutoCrossfade(deckId)) {
+    if (this.shouldAutoCrossfade()) {
       const otherDeck = this.getOtherDeck(deckId);
       console.log(`🔄 Auto-crossfade triggered from ${deckId} to ${otherDeck}`);
 

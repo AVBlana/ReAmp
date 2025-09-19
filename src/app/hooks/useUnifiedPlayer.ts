@@ -6,6 +6,7 @@ import {
   PlayerInstance,
   CrossfadeState,
 } from "@/app/managers/UnifiedPlayerManager";
+import { useAuth } from "@/app/context/AuthContext";
 
 interface UseUnifiedPlayerProps {
   onPlayerStateChange?: (deckId: "A" | "B", state: PlayerInstance) => void;
@@ -16,6 +17,7 @@ export function useUnifiedPlayer({
   onPlayerStateChange,
   onCrossfadeStateChange,
 }: UseUnifiedPlayerProps = {}) {
+  const { getSpotifyToken } = useAuth();
   const [isInitialized, setIsInitialized] = useState(false);
   const [playerStates, setPlayerStates] = useState<{
     A: PlayerInstance;
@@ -65,6 +67,10 @@ export function useUnifiedPlayer({
     const initManager = async () => {
       try {
         const manager = new UnifiedPlayerManager();
+
+        // Set the Spotify token getter
+        manager.setSpotifyTokenGetter(getSpotifyToken);
+
         await manager.initialize();
         managerRef.current = manager;
         setIsInitialized(true);
@@ -84,7 +90,7 @@ export function useUnifiedPlayer({
         clearInterval(progressIntervalRef.current);
       }
     };
-  }, []);
+  }, [getSpotifyToken]);
 
   // Update player states from manager
   const updatePlayerStates = useCallback(() => {
@@ -479,9 +485,9 @@ export function useUnifiedPlayer({
   );
 
   // Check if auto-crossfade is available for a deck
-  const canAutoCrossfade = useCallback((deckId: "A" | "B") => {
+  const canAutoCrossfade = useCallback(() => {
     if (!managerRef.current) return false;
-    return managerRef.current["shouldAutoCrossfade"](deckId);
+    return managerRef.current["shouldAutoCrossfade"]();
   }, []);
 
   return {

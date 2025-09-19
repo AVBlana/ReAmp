@@ -13,9 +13,13 @@ import DeckLabel from "@/app/components/molecules/DeckLabel";
 
 interface DJSetPlayerV2Props {
   className?: string;
+  userName?: string | null;
 }
 
-export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
+export default function DJSetPlayerV2({
+  className = "",
+  userName,
+}: DJSetPlayerV2Props) {
   const { youtube, spotify, unified } = useUnifiedContext();
   const playerAContainerRef = useRef<HTMLDivElement>(null);
   const playerBContainerRef = useRef<HTMLDivElement>(null);
@@ -188,21 +192,40 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
           return;
         }
 
-        // Find the actual song/video object
+        // Find the actual song/video object with defensive checks
         let song: Song | YoutubeVideo | null = null;
 
         if (service === ServiceType.Youtube) {
-          song =
-            youtube.searchResults.find((v) => v.id.videoId === id) ||
-            (unified.playlist.find(
-              (item) => item.id === id && item.type === ServiceType.Youtube
-            )?.data as YoutubeVideo);
+          // First try to find in search results
+          if (youtube.searchResults && youtube.searchResults.length > 0) {
+            song =
+              youtube.searchResults.find((v) => v?.id?.videoId === id) || null;
+          }
+
+          // If not found in search results, try playlist
+          if (!song && unified.playlist && unified.playlist.length > 0) {
+            const playlistItem = unified.playlist.find(
+              (item) => item?.id === id && item?.type === ServiceType.Youtube
+            );
+            if (playlistItem?.data) {
+              song = playlistItem.data as YoutubeVideo;
+            }
+          }
         } else if (service === ServiceType.Spotify) {
-          song =
-            spotify.searchResults.find((s) => s.id === id) ||
-            (unified.playlist.find(
-              (item) => item.id === id && item.type === ServiceType.Spotify
-            )?.data as Song);
+          // First try to find in search results
+          if (spotify.searchResults && spotify.searchResults.length > 0) {
+            song = spotify.searchResults.find((s) => s?.id === id) || null;
+          }
+
+          // If not found in search results, try playlist
+          if (!song && unified.playlist && unified.playlist.length > 0) {
+            const playlistItem = unified.playlist.find(
+              (item) => item?.id === id && item?.type === ServiceType.Spotify
+            );
+            if (playlistItem?.data) {
+              song = playlistItem.data as Song;
+            }
+          }
         }
 
         if (song) {
@@ -234,7 +257,20 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
           }
         } else {
           console.error(`❌ Could not find ${service} item with id: ${id}`);
-          alert(`Could not find ${service} item. Please try searching again.`);
+
+          // Provide more helpful error message for YouTube items
+          if (service === ServiceType.Youtube) {
+            alert(`Could not find YouTube item. This might be because:
+1. The search results have changed
+2. The video is no longer available
+3. There was a network issue
+
+Please try searching again or refresh the page.`);
+          } else {
+            alert(
+              `Could not find ${service} item. Please try searching again.`
+            );
+          }
         }
       }
     };
@@ -381,7 +417,7 @@ export default function DJSetPlayerV2({ className = "" }: DJSetPlayerV2Props) {
       {/* Header - Mobile Optimized */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 flex-shrink-0 space-y-3 sm:space-y-0">
         <h2 className="text-lg sm:text-2xl font-bold text-white font-mono text-center sm:text-left">
-          Welcome DJ, drop a track!
+          Welcome {userName || "DJ"}, drop a track!
         </h2>
         {/* Mobile scroll hint */}
         <div className="block sm:hidden text-xs text-gray-400 text-center animate-pulse">

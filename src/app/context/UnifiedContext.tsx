@@ -435,7 +435,7 @@ const DragDropWrapper: React.FC<{ children: React.ReactNode }> = memo(
 
         // Handle dropping to player
         if (destination.droppableId === "unified-player") {
-          const [service, id] = draggableId.split("-");
+          const [service, id] = draggableId.split("|");
 
           if (!service || !id) return;
 
@@ -470,7 +470,7 @@ const DragDropWrapper: React.FC<{ children: React.ReactNode }> = memo(
         // Handle dropping to DJ players
         if (destination.droppableId.startsWith("dj-player-")) {
           const playerId = destination.droppableId.split("-")[2] as "A" | "B";
-          const [service, id] = draggableId.split("-");
+          const [service, id] = draggableId.split("|");
 
           if (!service || !id) return;
 
@@ -487,7 +487,7 @@ const DragDropWrapper: React.FC<{ children: React.ReactNode }> = memo(
           destination.droppableId === "unified-playlist" &&
           source.droppableId !== "unified-playlist"
         ) {
-          const [service, id] = draggableId.split("-");
+          const [service, id] = draggableId.split("|");
 
           if (service === ServiceType.Youtube) {
             const video = youtube.searchResults.find(

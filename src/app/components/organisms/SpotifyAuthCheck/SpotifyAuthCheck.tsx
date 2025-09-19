@@ -16,51 +16,62 @@ export default function SpotifyAuthCheck() {
   const { addNotification } = useNotifications();
 
   useEffect(() => {
-    const checkAuth = () => {
-      const spotifyToken = session?.providers?.spotify?.accessToken;
-      const wasAuthenticated = isAuthenticated;
-      const newAuthState = !!spotifyToken;
+    const checkAuth = async () => {
+      try {
+        setIsChecking(true);
+        const response = await fetch("/api/user/connected-services", {
+          credentials: "include",
+        });
 
-      setIsAuthenticated(newAuthState);
-      setIsChecking(false);
+        if (response.ok) {
+          const data = await response.json();
+          const wasAuthenticated = isAuthenticated;
+          const newAuthState = data.user?.providers?.spotify || false;
 
-      // Show notification when auth state changes
-      if (wasAuthenticated !== newAuthState) {
-        if (newAuthState) {
-          addNotification({
-            type: "success",
-            message: "Spotify connected successfully",
-            icon: <FaCheck size={16} />,
-            duration: 4000,
-          });
+          setIsAuthenticated(newAuthState);
+          setIsChecking(false);
+
+          // Show notification when auth state changes
+          if (wasAuthenticated !== newAuthState) {
+            if (newAuthState) {
+              addNotification({
+                type: "success",
+                message: "Spotify connected successfully",
+                icon: <FaCheck size={16} />,
+                duration: 4000,
+              });
+            } else {
+              addNotification({
+                type: "warning",
+                message: "Spotify disconnected",
+                icon: <FaExclamationTriangle size={16} />,
+                duration: 4000,
+              });
+            }
+          }
         } else {
-          addNotification({
-            type: "warning",
-            message: "Spotify disconnected",
-            icon: <FaExclamationTriangle size={16} />,
-            duration: 4000,
-          });
+          setIsAuthenticated(false);
+          setIsChecking(false);
         }
+      } catch (error) {
+        console.error("Error checking Spotify auth:", error);
+        setIsAuthenticated(false);
+        setIsChecking(false);
       }
     };
 
-    // Show initial status notification
-    const spotifyToken = session?.providers?.spotify?.accessToken;
-    if (spotifyToken) {
-      addNotification({
-        type: "info",
-        message: "Welcome back! Spotify is connected",
-        duration: 3000,
-      });
-    }
-
-    if (status !== "loading") {
+    if (status === "loading") {
+      setIsChecking(true);
+    } else if (session?.user) {
       checkAuth();
+    } else {
+      setIsAuthenticated(false);
+      setIsChecking(false);
     }
   }, [session, status, isAuthenticated, addNotification]);
 
   const handleLogin = () => {
-    window.location.href = "/signin";
+    window.location.href = "/";
   };
 
   if (isChecking) {

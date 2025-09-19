@@ -27,16 +27,64 @@ export function useSmartCrossfade({
   const crossfadeCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastCrossfadeTimeRef = useRef<number>(0);
   const crossfadeCooldownRef = useRef<number>(5000); // 5 seconds cooldown
+  const prevTrackRef = useRef<{ A: string | null; B: string | null }>({
+    A: null,
+    B: null,
+  });
+  const hasUserActionRef = useRef<boolean>(false);
+  const isInitialLoadRef = useRef<boolean>(true);
+
+  // Track changes to detect user actions
+  useEffect(() => {
+    const currentTrackA =
+      typeof playerStates.A.currentTrack?.id === "string"
+        ? playerStates.A.currentTrack.id
+        : playerStates.A.currentTrack?.id?.videoId || null;
+    const currentTrackB =
+      typeof playerStates.B.currentTrack?.id === "string"
+        ? playerStates.B.currentTrack.id
+        : playerStates.B.currentTrack?.id?.videoId || null;
+
+    // Check if tracks have changed (user action)
+    if (
+      currentTrackA !== prevTrackRef.current.A ||
+      currentTrackB !== prevTrackRef.current.B
+    ) {
+      // Only count as user action if it's not the initial load
+      if (!isInitialLoadRef.current) {
+        console.log("🎯 User action detected: Track change", {
+          deckA: { from: prevTrackRef.current.A, to: currentTrackA },
+          deckB: { from: prevTrackRef.current.B, to: currentTrackB },
+        });
+        hasUserActionRef.current = true;
+      } else {
+        console.log("🚫 Initial load detected: Not counting as user action", {
+          deckA: { from: prevTrackRef.current.A, to: currentTrackA },
+          deckB: { from: prevTrackRef.current.B, to: currentTrackB },
+        });
+        isInitialLoadRef.current = false;
+      }
+      prevTrackRef.current = { A: currentTrackA, B: currentTrackB };
+    }
+  }, [playerStates.A.currentTrack, playerStates.B.currentTrack]);
 
   // Check for auto-crossfade opportunities
   useEffect(() => {
+    // Only run auto-crossfade checks if crossfade is explicitly enabled by user
     if (!crossfadeEnabled || isCrossfadeActive()) return;
 
     const checkForAutoCrossfade = () => {
       const now = Date.now();
 
+      // Only trigger crossfade if user has performed an action (track change, etc.)
+      if (!hasUserActionRef.current) {
+        console.log("🚫 Auto-crossfade skipped: No user action detected");
+        return;
+      }
+
       // Check cooldown
       if (now - lastCrossfadeTimeRef.current < crossfadeCooldownRef.current) {
+        console.log("🚫 Auto-crossfade skipped: Cooldown active");
         return;
       }
 

@@ -53,21 +53,36 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const addNotification = useCallback(
     (notification: Omit<Notification, "id" | "timestamp">) => {
-      const id = Math.random().toString(36).substr(2, 9);
-      const newNotification: Notification = {
-        ...notification,
-        id,
-        timestamp: new Date(),
-      };
+      // Check for duplicate notifications (same type and message)
+      setNotifications((prev) => {
+        const isDuplicate = prev.some(
+          (existing) =>
+            existing.type === notification.type &&
+            existing.message === notification.message
+        );
 
-      setNotifications((prev) => [...prev, newNotification]);
+        if (isDuplicate) {
+          return prev; // Don't add duplicate
+        }
 
-      // Auto-remove notification after duration (default: 5 seconds)
-      if (notification.duration !== 0) {
-        setTimeout(() => {
-          removeNotification(id);
-        }, notification.duration || 5000);
-      }
+        const id = Math.random().toString(36).substr(2, 9);
+        const newNotification: Notification = {
+          ...notification,
+          id,
+          timestamp: new Date(),
+        };
+
+        const updatedNotifications = [...prev, newNotification];
+
+        // Auto-remove notification after duration (default: 5 seconds)
+        if (notification.duration !== 0) {
+          setTimeout(() => {
+            removeNotification(id);
+          }, notification.duration || 5000);
+        }
+
+        return updatedNotifications;
+      });
     },
     [removeNotification]
   );

@@ -3,103 +3,89 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "./prisma";
 
-// Debug environment variables
-console.log("NextAuth Environment Variables:", {
+// Function to refresh Spotify access token
+async function refreshSpotifyToken(refreshToken: string): Promise<{
+  access_token: string;
+  expires_in: number;
+}> {
+  console.log("[nextauth] 🔄 Attempting Spotify token refresh...");
+  console.log(
+    "[nextauth] Client ID:",
+    requiredEnvVars.SPOTIFY_CLIENT_ID ? "SET" : "NOT SET"
+  );
+  console.log(
+    "[nextauth] Client Secret:",
+    requiredEnvVars.SPOTIFY_CLIENT_SECRET ? "SET" : "NOT SET"
+  );
+  console.log("[nextauth] Refresh token length:", refreshToken.length);
+
+  const response = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${Buffer.from(
+        `${requiredEnvVars.SPOTIFY_CLIENT_ID}:${requiredEnvVars.SPOTIFY_CLIENT_SECRET}`
+      ).toString("base64")}`,
+    },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+    }),
+  });
+
+  console.log("[nextauth] Spotify refresh response status:", response.status);
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("[nextauth] Spotify refresh error response:", errorText);
+    throw new Error(
+      `Failed to refresh Spotify token: ${response.status} - ${errorText}`
+    );
+  }
+
+  const result = await response.json();
+  console.log("[nextauth] ✅ Spotify token refresh successful");
+  return result;
+}
+
+// Validate environment variables
+const requiredEnvVars = {
   NEXTAUTH_URL: process.env.NEXTAUTH_URL,
-  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET ? "SET" : "NOT SET",
-  SPOTIFY_CLIENT_ID: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID
+  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+  SPOTIFY_CLIENT_ID: process.env.SPOTIFY_CLIENT_ID,
+  SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET,
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+};
+
+console.log("NextAuth Environment Variables:", {
+  NEXTAUTH_URL: requiredEnvVars.NEXTAUTH_URL,
+  NEXTAUTH_SECRET: requiredEnvVars.NEXTAUTH_SECRET ? "SET" : "NOT SET",
+  SPOTIFY_CLIENT_ID: requiredEnvVars.SPOTIFY_CLIENT_ID ? "SET" : "NOT SET",
+  SPOTIFY_CLIENT_SECRET: requiredEnvVars.SPOTIFY_CLIENT_SECRET
     ? "SET"
     : "NOT SET",
-  SPOTIFY_CLIENT_SECRET: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET
-    ? "SET"
-    : "NOT SET",
-  GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
-    ? "SET"
-    : "NOT SET",
-  GOOGLE_CLIENT_SECRET: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET
+  GOOGLE_CLIENT_ID: requiredEnvVars.GOOGLE_CLIENT_ID ? "SET" : "NOT SET",
+  GOOGLE_CLIENT_SECRET: requiredEnvVars.GOOGLE_CLIENT_SECRET
     ? "SET"
     : "NOT SET",
 });
 
-// Token refresh helpers
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function refreshSpotifyAccessToken(account: any) {
-  try {
-    const response = await fetch("https://accounts.spotify.com/api/token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${Buffer.from(
-          `${process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID}:${process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET}`
-        ).toString("base64")}`,
-      },
-      body: new URLSearchParams({
-        grant_type: "refresh_token",
-        refresh_token: account.refresh_token!,
-      }),
-    });
+// Check for missing required environment variables
+const missingVars = Object.entries(requiredEnvVars)
+  .filter(([, value]) => !value)
+  .map(([key]) => key);
 
-    const tokens = await response.json();
-
-    if (!response.ok) {
-      throw tokens;
-    }
-
-    return {
-      ...account,
-      access_token: tokens.access_token,
-      expires_at: Math.floor(Date.now() / 1000) + tokens.expires_in,
-      refresh_token: tokens.refresh_token ?? account.refresh_token,
-    };
-  } catch (error) {
-    console.error("Error refreshing Spotify token:", error);
-    return {
-      ...account,
-      error: "RefreshAccessTokenError",
-    };
-  }
+if (missingVars.length > 0) {
+  console.error("❌ Missing required environment variables:", missingVars);
+  throw new Error(
+    `Missing required environment variables: ${missingVars.join(", ")}`
+  );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function refreshGoogleAccessToken(account: any) {
-  try {
-    const response = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
-        client_secret: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET!,
-        grant_type: "refresh_token",
-        refresh_token: account.refresh_token!,
-      }),
-    });
-
-    const tokens = await response.json();
-
-    if (!response.ok) {
-      throw tokens;
-    }
-
-    return {
-      ...account,
-      access_token: tokens.access_token,
-      expires_at: Math.floor(Date.now() / 1000) + tokens.expires_in,
-      refresh_token: tokens.refresh_token ?? account.refresh_token,
-    };
-  } catch (error) {
-    console.error("Error refreshing Google token:", error);
-    return {
-      ...account,
-      error: "RefreshAccessTokenError",
-    };
-  }
-}
+// Token refresh is now handled automatically by NextAuth with database strategy
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  // Ensure NEXTAUTH_URL is set
-  ...(process.env.NEXTAUTH_URL && { url: process.env.NEXTAUTH_URL }),
   // Debug environment variables in development
   ...(process.env.NODE_ENV === "development" && {
     logger: {
@@ -123,14 +109,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         url: "https://accounts.spotify.com/authorize",
         params: {
           scope:
-            "user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private",
+            "user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private streaming",
+          prompt: "consent", // Force re-authentication to get new scopes
+          show_dialog: true, // Always show the permission dialog
         },
       },
       token: "https://accounts.spotify.com/api/token",
       userinfo: "https://api.spotify.com/v1/me",
-      clientId: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID!,
-      clientSecret: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET!,
+      clientId: requiredEnvVars.SPOTIFY_CLIENT_ID!,
+      clientSecret: requiredEnvVars.SPOTIFY_CLIENT_SECRET!,
       profile(profile) {
+        console.log("🎵 Spotify profile received:", {
+          id: profile.id,
+          name: profile.display_name,
+          email: profile.email,
+          images: profile.images?.length || 0,
+        });
         return {
           id: profile.id,
           name: profile.display_name,
@@ -138,14 +132,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           image: profile.images?.[0]?.url,
         };
       },
+      // Add debugging for provider initialization
+      ...(process.env.NODE_ENV === "development" && {
+        debug: true,
+      }),
     },
     GoogleProvider({
-      clientId: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET!,
+      clientId: requiredEnvVars.GOOGLE_CLIENT_ID!,
+      clientSecret: requiredEnvVars.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
-          scope:
-            "openid email profile https://www.googleapis.com/auth/youtube.readonly",
+          scope: "openid email profile",
           access_type: "offline",
           prompt: "consent",
         },
@@ -153,138 +150,238 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, account, user }) {
-      // Initial sign in
-      if (account && user) {
-        console.log("JWT callback - Initial sign in:", {
-          provider: account.provider,
-          hasToken: !!account.access_token,
-        });
-        return {
-          ...token,
-          accessToken: account.access_token,
-          refreshToken: account.refresh_token,
-          accessTokenExpires: account.expires_at
-            ? account.expires_at * 1000
-            : undefined,
-          provider: account.provider,
-        };
-      }
+    async signIn({ user, account, profile }) {
+      console.log("[nextauth] === SIGNIN CALLBACK START ===");
+      console.log(
+        "[nextauth] signIn account:",
+        account?.provider,
+        account?.providerAccountId
+      );
+      console.log("[nextauth] signIn user:", user?.email, user?.id);
+      console.log("[nextauth] signIn profile:", profile?.email);
+      console.log("[nextauth] === SIGNIN CALLBACK END ===");
 
-      // Return previous token if the access token has not expired yet
-      if (
-        token.accessTokenExpires &&
-        Date.now() < (token.accessTokenExpires as number)
-      ) {
-        return token;
-      }
+      // Allow all sign-ins - let allowDangerousEmailAccountLinking handle the linking
+      return true;
+    },
+    async redirect({ url, baseUrl }) {
+      console.log("🔀 Redirect callback called:", { url, baseUrl });
 
-      // Access token has expired, try to update it
-      // Skip database operations in middleware/edge runtime
-      if (token.sub && token.provider && process.env.NEXT_RUNTIME !== "edge") {
-        const accountData = await prisma.account.findFirst({
-          where: {
-            userId: token.sub,
-            provider: token.provider as string,
-          },
-        });
+      // Handle OAuth errors gracefully
+      if (url.includes("error=")) {
+        const urlObj = new URL(url);
+        const error = urlObj.searchParams.get("error");
+        const errorDescription = urlObj.searchParams.get("error_description");
 
-        if (accountData) {
-          let refreshedToken;
-          if (token.provider === "spotify") {
-            refreshedToken = await refreshSpotifyAccessToken(accountData);
-          } else if (token.provider === "google") {
-            refreshedToken = await refreshGoogleAccessToken(accountData);
-          }
+        console.log("🔀 OAuth error detected:", error);
+        console.log("🔀 OAuth error description:", errorDescription);
+        console.log("🔀 Full error URL:", url);
 
-          if (refreshedToken && !refreshedToken.error) {
-            // Update the account in the database
-            await prisma.account.update({
-              where: { id: accountData.id },
-              data: {
-                access_token: refreshedToken.access_token,
-                expires_at: refreshedToken.expires_at,
-                refresh_token: refreshedToken.refresh_token,
-              },
-            });
-
-            return {
-              ...token,
-              accessToken: refreshedToken.access_token,
-              accessTokenExpires: refreshedToken.expires_at! * 1000,
-              refreshToken: refreshedToken.refresh_token,
-            };
-          }
+        switch (error) {
+          case "OAuthAccountNotLinked":
+            return `${baseUrl}?error=account-not-linked`;
+          case "OAuthCallbackError":
+            return `${baseUrl}?error=oauth-callback-error`;
+          case "AccessDenied":
+            return `${baseUrl}?error=access-denied`;
+          case "Verification":
+            return `${baseUrl}?error=verification-failed`;
+          default:
+            return `${baseUrl}?error=oauth-error`;
         }
       }
 
-      return token;
+      // Prevent redirect loops - always redirect to baseUrl after OAuth
+      if (url.includes("connected=") || url.includes("callbackUrl=")) {
+        console.log("🔀 OAuth callback detected, redirecting to base URL");
+        return baseUrl;
+      }
+
+      // If relative path, make it absolute
+      if (url.startsWith("/")) {
+        console.log("🔀 Redirecting to relative URL:", `${baseUrl}${url}`);
+        return `${baseUrl}${url}`;
+      }
+
+      // If same origin, allow it
+      try {
+        const urlObj = new URL(url);
+        if (urlObj.origin === baseUrl) {
+          console.log("🔀 Redirecting to same origin:", url);
+          return url;
+        }
+      } catch (e) {
+        console.log("🔀 Invalid URL, using baseUrl:", e);
+      }
+
+      // Default to baseUrl (landing page) to prevent loops
+      console.log("🔀 Default redirect to landing page");
+      return baseUrl;
     },
-    async session({ session, token }) {
-      console.log("Session callback:", {
-        hasToken: !!token,
-        hasUser: !!session.user,
-      });
+    async session({ session, user }) {
+      console.log("[nextauth] === SESSION CALLBACK START ===");
+      console.log("[nextauth] session user:", user?.email, user?.id);
+      console.log(
+        "[nextauth] session callback called at:",
+        new Date().toISOString()
+      );
 
       // Send properties to the client
-      session.user.id = token.sub!;
-      session.accessToken = token.accessToken as string;
-      session.provider = token.provider as string;
+      if (user) {
+        session.user.id = user.id;
+      }
 
-      // Skip database operations in middleware/edge runtime
-      if (process.env.NEXT_RUNTIME === "edge") {
-        session.providers = {};
-      } else {
+      // Initialize providers object
+      session.providers = {
+        spotify: undefined,
+        google: undefined,
+      };
+
+      // Fetch provider data from database if user exists
+      if (user?.id) {
         try {
-          // Get provider tokens from database
           const accounts = await prisma.account.findMany({
-            where: { userId: token.sub! },
+            where: { userId: user.id },
+            select: {
+              provider: true,
+              providerAccountId: true,
+              access_token: true,
+              refresh_token: true,
+              expires_at: true,
+            },
           });
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const providerTokens: any = {};
+          console.log("[nextauth] found accounts:", accounts.length);
 
           for (const account of accounts) {
             if (account.provider === "spotify") {
-              providerTokens.spotify = {
-                accessToken: account.access_token,
-                expiresAt: account.expires_at,
-              };
+              const hasValidToken =
+                account.access_token &&
+                account.expires_at &&
+                Date.now() / 1000 <= account.expires_at - 300;
+              const hasRefreshToken = !!account.refresh_token;
+
+              if (hasValidToken) {
+                // Token is still valid
+                session.providers.spotify = {
+                  accessToken: account.access_token,
+                  expiresAt: account.expires_at,
+                };
+                console.log(
+                  "[nextauth] ✅ Spotify provider added to session (valid token)"
+                );
+              } else if (hasRefreshToken) {
+                // Token expired but we have refresh token - refresh it
+                try {
+                  console.log("[nextauth] 🔄 Refreshing expired Spotify token");
+                  const refreshed = await refreshSpotifyToken(
+                    account.refresh_token
+                  );
+
+                  // Update the database with new token
+                  const newExpiresAt =
+                    Math.floor(Date.now() / 1000) + refreshed.expires_in;
+                  await prisma.account.update({
+                    where: {
+                      provider_providerAccountId: {
+                        provider: "spotify",
+                        providerAccountId: account.providerAccountId,
+                      },
+                    },
+                    data: {
+                      access_token: refreshed.access_token,
+                      expires_at: newExpiresAt,
+                    },
+                  });
+
+                  session.providers.spotify = {
+                    accessToken: refreshed.access_token,
+                    expiresAt: newExpiresAt,
+                  };
+                  console.log(
+                    "[nextauth] ✅ Spotify provider added to session (refreshed token)"
+                  );
+                } catch (error) {
+                  console.error(
+                    "[nextauth] ❌ Failed to refresh Spotify token:",
+                    error
+                  );
+
+                  // Check if it's a revoked token error
+                  if (
+                    error instanceof Error &&
+                    error.message.includes("Refresh token revoked")
+                  ) {
+                    console.log(
+                      "[nextauth] 🔄 Spotify token revoked, marking as disconnected"
+                    );
+                    // Don't add provider to session - user needs to reconnect
+                  } else {
+                    console.log(
+                      "[nextauth] 🔄 Other refresh error, not adding provider"
+                    );
+                  }
+                }
+              }
             } else if (account.provider === "google") {
-              providerTokens.google = {
-                accessToken: account.access_token,
-                expiresAt: account.expires_at,
-              };
+              const hasValidToken =
+                account.access_token &&
+                account.expires_at &&
+                Date.now() / 1000 <= account.expires_at - 300;
+              const hasRefreshToken = !!account.refresh_token;
+
+              if (hasValidToken || hasRefreshToken) {
+                session.providers.google = {
+                  accessToken: account.access_token,
+                  expiresAt: account.expires_at,
+                };
+                console.log("[nextauth] ✅ Google provider added to session");
+              }
             }
           }
-
-          session.providers = providerTokens;
         } catch (error) {
-          console.warn(
-            "Could not fetch provider tokens in session callback:",
+          console.error(
+            "[nextauth] ❌ Error fetching accounts in session callback:",
             error
           );
-          session.providers = {};
+          console.error(
+            "[nextauth] Error details:",
+            error instanceof Error ? error.message : String(error),
+            error instanceof Error ? error.stack : undefined
+          );
+          // Keep providers as undefined if there's an error
         }
       }
 
-      console.log("Session callback - Final session:", {
-        userId: session.user.id,
-        provider: session.provider,
-        hasProviders: !!session.providers,
-      });
+      console.log("[nextauth] session final providers:", session.providers);
+      console.log("[nextauth] === SESSION CALLBACK END ===");
 
       return session;
     },
   },
   pages: {
-    signIn: "/signin",
+    signIn: "/", // landing page is the sign-in hub
     error: "/auth/error",
   },
   session: {
-    strategy: "jwt",
+    strategy: "database",
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  cookies: {
+    // Use consistent cookie naming across environments
+    sessionToken: {
+      name:
+        process.env.NODE_ENV === "production"
+          ? "__Secure-authjs.session-token"
+          : "authjs.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
+  secret: requiredEnvVars.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
   trustHost: true,
 });

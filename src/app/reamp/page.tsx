@@ -4,10 +4,11 @@ import { UnifiedProvider } from "@/app/context/UnifiedContext";
 import Header from "@/app/components/organisms/Header";
 import DJSetPlayerV2 from "@/app/components/organisms/DJSetPlayer/DJSetPlayerV2";
 import { useUnifiedContext } from "@/app/context/UnifiedContext";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { ServiceType } from "@/app/types/playerTypes";
 import { getYouTubeVideos } from "@/app/components/Services/YtService";
 import { searchSpotify } from "@/app/components/Services/SpotifyService";
+import { useAuth } from "@/app/context/AuthContext";
 
 import UnifiedSearch from "@/app/components/organisms/UnifiedSearch";
 import UnifiedPlaylistLibrary from "@/app/components/organisms/UnifiedPlaylistLibrary";
@@ -15,12 +16,40 @@ import UnifiedPlaylistView from "@/app/components/organisms/UnifiedPlaylistView"
 import { motion } from "framer-motion";
 import { YouTubeFooter } from "@/app/components/organisms/Footer";
 
+interface UserProfile {
+  id: string;
+  name: string | null;
+  email: string | null;
+  image: string | null;
+}
+
 function ReAMPContent() {
   const { youtube, spotify } = useUnifiedContext();
+  const { signOut, isAuthenticated } = useAuth();
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [spotifyNextPageToken, setSpotifyNextPageToken] = useState<
     string | null
   >(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  // Fetch user profile
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!isAuthenticated) return;
+
+      try {
+        const response = await fetch("/api/user/profile");
+        if (response.ok) {
+          const profile = await response.json();
+          setUserProfile(profile);
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+      }
+    };
+
+    fetchUserProfile();
+  }, [isAuthenticated]);
 
   const handleSearch = useCallback(
     async (query: string, service: ServiceType) => {
@@ -29,7 +58,23 @@ function ReAMPContent() {
         youtube.setSearchResults(items);
         youtube.setNextPageToken(nextPageToken);
         youtube.setCurrentSearchTerm(query);
-      } else {
+      } else if (service === ServiceType.Spotify) {
+        // Check if Spotify is connected before attempting search
+        try {
+          const response = await fetch("/api/user/connected-services");
+          if (response.ok) {
+            const services = await response.json();
+            if (!services.user.providers.spotify) {
+              console.log("Spotify not connected, skipping search");
+              spotify.setSearchResults([]);
+              setSpotifyNextPageToken(null);
+              return;
+            }
+          }
+        } catch (error) {
+          console.error("Error checking connected services:", error);
+        }
+
         try {
           // Use the new NextAuth-protected Spotify service
           const { items, nextPageToken } = await searchSpotify(query);
@@ -39,15 +84,15 @@ function ReAMPContent() {
         } catch (error) {
           console.error("Error searching Spotify:", error);
 
-          // Check if it's an authentication error
+          // Check if it's an authentication error - but don't redirect immediately
           if (
             error instanceof Error &&
             error.message.includes("authentication")
           ) {
-            console.log(
-              "Spotify authentication failed, redirecting to signin..."
-            );
-            window.location.href = "/signin";
+            console.log("Spotify authentication failed, but staying on page");
+            // Don't redirect - just clear results and let user try again
+            spotify.setSearchResults([]);
+            setSpotifyNextPageToken(null);
             return;
           }
 
@@ -58,10 +103,6 @@ function ReAMPContent() {
           ) {
             console.log(
               "Spotify not connected - user needs to connect Spotify account"
-            );
-            // You could show a notification or modal here
-            alert(
-              "Please connect your Spotify account first to search Spotify tracks."
             );
             spotify.setSearchResults([]);
             setSpotifyNextPageToken(null);
@@ -128,6 +169,8 @@ function ReAMPContent() {
             spotifyNextPageToken={spotifyNextPageToken}
           />
         }
+        onLogout={signOut}
+        showLogout={isAuthenticated}
       />
 
       {/* Main Content */}
@@ -162,7 +205,7 @@ function ReAMPContent() {
             <div className="w-full lg:w-2/3 rounded-lg overflow-visible lg:overflow-hidden flex flex-col min-h-[800px] lg:min-h-0">
               {/* Container that adapts based on active service */}
               <div className="flex-1 relative min-h-[800px] lg:min-h-0">
-                <DJSetPlayerV2 />
+                <DJSetPlayerV2 userName={userProfile?.name} />
               </div>
             </div>
           </div>

@@ -16,7 +16,10 @@ interface AuthContextType {
   user: Session["user"] | null;
   session: Session | null;
   isLoading: boolean;
-  signIn: (provider?: string) => Promise<void>;
+  signIn: (
+    provider?: string,
+    options?: { callbackUrl?: string }
+  ) => Promise<void>;
   signOut: () => Promise<void>;
   getSpotifyToken: () => string | null;
   getGoogleToken: () => string | null;
@@ -36,13 +39,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [status]);
 
-  const handleSignIn = useCallback(async (provider?: string) => {
-    try {
-      await signIn(provider, { callbackUrl: "/dashboard" });
-    } catch (error) {
-      console.error("Sign in error:", error);
-    }
-  }, []);
+  const handleSignIn = useCallback(
+    async (provider?: string, options?: { callbackUrl?: string }) => {
+      try {
+        console.log(
+          "🔐 AuthContext: Attempting sign in with provider:",
+          provider
+        );
+        console.log("🔐 AuthContext: Current session:", session?.user?.email);
+        console.log("🔐 AuthContext: Is authenticated:", !!session);
+        console.log("🔐 AuthContext: Callback URL:", options?.callbackUrl);
+
+        const result = await signIn(provider, {
+          callbackUrl: options?.callbackUrl || "/reamp",
+        });
+        console.log("🔐 AuthContext: SignIn result:", result);
+      } catch (error) {
+        console.error("Sign in error:", error);
+      }
+    },
+    [session]
+  );
 
   const handleSignOut = useCallback(async () => {
     try {

@@ -107,7 +107,7 @@ const PlaylistItemContent = memo(
     };
 
     const onDragStart = (e: React.DragEvent) => {
-      e.dataTransfer.setData("text/plain", `${item.type}-${item.id}`);
+      e.dataTransfer.setData("text/plain", `${item.type}|${item.id}`);
     };
 
     return (
@@ -168,7 +168,7 @@ const DraggableItem = memo(({ item, index }: DraggableItemProps) => {
   );
 
   return (
-    <Draggable draggableId={`${item.type}-${item.id}`} index={index}>
+    <Draggable draggableId={`${item.type}|${item.id}`} index={index}>
       {(
         provided: DraggableProvided,
         { isDragging }: DraggableStateSnapshot

@@ -228,7 +228,27 @@ export class SpotifyPlayerManager {
               message
             );
             this.globalPlayerInitializing = false;
-            reject(new Error(`Spotify authentication error: ${message}`));
+
+            // Check if it's a scope issue
+            if (
+              message.includes("scope") ||
+              message.includes("web-playback") ||
+              message.includes("401")
+            ) {
+              console.error(
+                "❌ Spotify Web Playback SDK requires 'streaming' scope. Please re-authenticate with Spotify."
+              );
+              console.error(
+                "🔧 SOLUTION: Sign out and sign in again with Spotify to grant the new 'streaming' permission."
+              );
+              reject(
+                new Error(
+                  "Spotify authentication error: Missing 'streaming' scope. Please sign out and sign in again with Spotify to grant the required permissions for music playback."
+                )
+              );
+            } else {
+              reject(new Error(`Spotify authentication error: ${message}`));
+            }
           }
         );
 
@@ -387,7 +407,7 @@ export class SpotifyPlayerManager {
         console.error(
           "No token available for Spotify player, redirecting to login"
         );
-        window.location.href = "/signin";
+        window.location.href = "/";
         return;
       }
 
@@ -423,7 +443,7 @@ export class SpotifyPlayerManager {
         // Check if it's an authentication error
         if (response.status === 401) {
           console.error("Spotify authentication failed, redirecting to login");
-          window.location.href = "/signin";
+          window.location.href = "/";
           return;
         }
 
@@ -479,7 +499,7 @@ export class SpotifyPlayerManager {
         console.error(
           "Network error, might be authentication issue, redirecting to login"
         );
-        window.location.href = "/signin";
+        window.location.href = "/";
         return;
       }
 
@@ -542,7 +562,7 @@ export class SpotifyPlayerManager {
         console.error(
           "Spotify authentication failed during resume, redirecting to login"
         );
-        window.location.href = "/signin";
+        window.location.href = "/";
         return;
       }
 
