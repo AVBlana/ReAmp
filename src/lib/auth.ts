@@ -275,7 +275,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 try {
                   console.log("[nextauth] 🔄 Refreshing expired Spotify token");
                   const refreshed = await refreshSpotifyToken(
-                    account.refresh_token
+                    account.refresh_token!
                   );
 
                   // Update the database with new token
@@ -307,18 +307,56 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     error
                   );
 
-                  // Check if it's a revoked token error
-                  if (
-                    error instanceof Error &&
-                    error.message.includes("Refresh token revoked")
-                  ) {
-                    console.log(
-                      "[nextauth] 🔄 Spotify token revoked, marking as disconnected"
-                    );
-                    // Don't add provider to session - user needs to reconnect
+                  // Handle different types of refresh errors
+                  if (error instanceof Error) {
+                    const errorMessage = error.message.toLowerCase();
+
+                    if (
+                      errorMessage.includes("refresh token revoked") ||
+                      errorMessage.includes("invalid_grant")
+                    ) {
+                      console.log(
+                        "[nextauth] 🔄 Spotify token revoked/invalid, cleaning up account"
+                      );
+
+                      // Clean up the revoked account from database
+                      try {
+                        await prisma.account.deleteMany({
+                          where: {
+                            userId: user.id,
+                            provider: "spotify",
+                            providerAccountId: account.providerAccountId,
+                          },
+                        });
+                        console.log(
+                          "[nextauth] ✅ Revoked Spotify account cleaned up from database"
+                        );
+                      } catch (cleanupError) {
+                        console.error(
+                          "[nextauth] ❌ Failed to clean up revoked Spotify account:",
+                          cleanupError
+                        );
+                      }
+
+                      // Don't add provider to session - user needs to reconnect
+                    } else if (
+                      errorMessage.includes("network") ||
+                      errorMessage.includes("timeout") ||
+                      errorMessage.includes("fetch")
+                    ) {
+                      console.log(
+                        "[nextauth] 🔄 Network error during token refresh, keeping account for retry"
+                      );
+                      // Don't clean up account for network errors - might be temporary
+                    } else {
+                      console.log(
+                        "[nextauth] 🔄 Other refresh error, not adding provider:",
+                        error.message
+                      );
+                    }
                   } else {
                     console.log(
-                      "[nextauth] 🔄 Other refresh error, not adding provider"
+                      "[nextauth] 🔄 Unknown refresh error, not adding provider"
                     );
                   }
                 }

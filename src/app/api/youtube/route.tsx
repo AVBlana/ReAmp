@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 import axios from "axios";
 
-const API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
+const API_KEY = process.env.YOUTUBE_API_KEY;
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("q");
   const pageToken = searchParams.get("pageToken");
+
+  console.log("🔍 YouTube API request:", {
+    query,
+    pageToken,
+    hasApiKey: !!API_KEY,
+  });
 
   if (!query) {
     return NextResponse.json(

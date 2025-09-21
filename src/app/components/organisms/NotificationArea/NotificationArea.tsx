@@ -24,13 +24,38 @@ const NotificationArea: React.FC = () => {
 
           // Add notifications for missing services only if they're actually missing
           if (!services.spotify) {
-            addNotification({
-              type: "warning",
-              message:
-                "Spotify is not connected. Connect your Spotify account to search and play Spotify tracks.",
-              icon: <FaSpotify className="text-green-500" />,
-              duration: 0, // Persistent notification
-            });
+            // Check if this is a recent disconnection (could be due to revoked token)
+            const wasRecentlyConnected = localStorage.getItem(
+              "spotify_was_connected"
+            );
+            const lastConnectionCheck =
+              localStorage.getItem("spotify_last_check");
+            const now = Date.now();
+            const isRecentDisconnection =
+              wasRecentlyConnected === "true" &&
+              lastConnectionCheck &&
+              now - parseInt(lastConnectionCheck) < 300000; // 5 minutes
+
+            if (isRecentDisconnection) {
+              addNotification({
+                type: "error",
+                message:
+                  "Spotify connection was lost. Your Spotify account may have been disconnected. Please reconnect to continue using Spotify features.",
+                icon: <FaSpotify className="text-green-500" />,
+                duration: 0, // Persistent notification
+              });
+            } else {
+              addNotification({
+                type: "warning",
+                message:
+                  "Spotify is not connected. Connect your Spotify account to search and play Spotify tracks.",
+                icon: <FaSpotify className="text-green-500" />,
+                duration: 0, // Persistent notification
+              });
+            }
+          } else {
+            // Spotify is connected, update tracking
+            localStorage.setItem("spotify_was_connected", "true");
           }
 
           if (!services.youtube) {
@@ -55,6 +80,8 @@ const NotificationArea: React.FC = () => {
         });
       } finally {
         setHasCheckedServices(true);
+        // Update last check timestamp
+        localStorage.setItem("spotify_last_check", Date.now().toString());
       }
     };
 
