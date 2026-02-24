@@ -2,56 +2,22 @@
 
 import { useAuth } from "@/app/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Button from "@/app/components/atoms/Button";
 import Icon from "@/app/components/atoms/Icon";
 import { FaSignOutAlt, FaSpotify, FaGoogle } from "react-icons/fa";
 import NotificationArea from "@/app/components/organisms/NotificationArea";
-
-interface ConnectedServices {
-  spotify: boolean;
-  youtube: boolean;
-}
+import { useConnectedServices } from "@/app/hooks/useConnectedServices";
+import { getConnectUrl } from "@/lib/auth-helpers";
 
 export default function DashboardPage() {
   const { isAuthenticated, user, signOut, isLoading } = useAuth();
   const router = useRouter();
-  const [connectedServices, setConnectedServices] = useState<ConnectedServices>(
-    {
-      spotify: false,
-      youtube: false,
-    }
-  );
-  const [servicesLoading, setServicesLoading] = useState(true);
+  const { spotify, youtube, loading: servicesLoading } = useConnectedServices();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/");
-    }
+    if (!isLoading && !isAuthenticated) router.push("/");
   }, [isAuthenticated, isLoading, router]);
-
-  // Fetch connected services from backend
-  useEffect(() => {
-    const fetchConnectedServices = async () => {
-      if (!isAuthenticated) return;
-
-      try {
-        const response = await fetch("/api/user/connected-services");
-        if (response.ok) {
-          const services = await response.json();
-          setConnectedServices(services);
-        } else {
-          console.error("Failed to fetch connected services");
-        }
-      } catch (error) {
-        console.error("Error fetching connected services:", error);
-      } finally {
-        setServicesLoading(false);
-      }
-    };
-
-    fetchConnectedServices();
-  }, [isAuthenticated]);
 
   if (isLoading) {
     return (
@@ -61,9 +27,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!isAuthenticated) {
-    return null;
-  }
+  if (!isAuthenticated) return null;
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -81,16 +45,10 @@ export default function DashboardPage() {
                 try {
                   const response = await fetch("/api/test-db");
                   const data = await response.json();
-                  console.log("🔍 Database test result:", data);
                   alert(
-                    `Database test: ${
-                      data.success ? "SUCCESS" : "FAILED"
-                    }\nAccounts: ${
-                      data.totalAccounts
-                    }\nDetails: ${JSON.stringify(data, null, 2)}`
+                    `Database test: ${data.success ? "SUCCESS" : "FAILED"}\nAccounts: ${data.totalAccounts}\nDetails: ${JSON.stringify(data, null, 2)}`
                   );
-                } catch (error) {
-                  console.error("Error testing database:", error);
+                } catch {
                   alert("Error testing database");
                 }
               }}
@@ -101,10 +59,10 @@ export default function DashboardPage() {
             <Button
               onClick={async () => {
                 try {
-                  const response = await fetch("/api/auth/clear-spotify", {
+                  const res = await fetch("/api/auth/clear-spotify", {
                     method: "POST",
                   });
-                  const data = await response.json();
+                  const data = await res.json();
                   if (data.success) {
                     alert(
                       "Spotify account cleared! Please sign in again with Spotify."
@@ -113,8 +71,7 @@ export default function DashboardPage() {
                   } else {
                     alert("Failed to clear Spotify account: " + data.error);
                   }
-                } catch (error) {
-                  console.error("Error clearing Spotify account:", error);
+                } catch {
                   alert("Error clearing Spotify account");
                 }
               }}
@@ -133,7 +90,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Notification Area */}
         <NotificationArea />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -151,23 +107,15 @@ export default function DashboardPage() {
                   <div className="flex items-center space-x-2">
                     <span
                       className={
-                        connectedServices.spotify
-                          ? "text-green-400"
-                          : "text-red-400"
+                        spotify ? "text-green-400" : "text-red-400"
                       }
                     >
-                      {connectedServices.spotify
-                        ? "Connected"
-                        : "Not Connected"}
+                      {spotify ? "Connected" : "Not Connected"}
                     </span>
-                    {!connectedServices.spotify && (
+                    {!spotify && (
                       <Button
                         onClick={() =>
-                          (window.location.href =
-                            "/api/auth/signin/spotify?callbackUrl=" +
-                            encodeURIComponent(
-                              window.location.origin + "/?connected=spotify"
-                            ))
+                          (window.location.href = getConnectUrl("spotify"))
                         }
                         className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
                       >
@@ -184,23 +132,15 @@ export default function DashboardPage() {
                   <div className="flex items-center space-x-2">
                     <span
                       className={
-                        connectedServices.youtube
-                          ? "text-green-400"
-                          : "text-red-400"
+                        youtube ? "text-green-400" : "text-red-400"
                       }
                     >
-                      {connectedServices.youtube
-                        ? "Connected"
-                        : "Not Connected"}
+                      {youtube ? "Connected" : "Not Connected"}
                     </span>
-                    {!connectedServices.youtube && (
+                    {!youtube && (
                       <Button
                         onClick={() =>
-                          (window.location.href =
-                            "/api/auth/signin/google?callbackUrl=" +
-                            encodeURIComponent(
-                              window.location.origin + "/?connected=google"
-                            ))
+                          (window.location.href = getConnectUrl("google"))
                         }
                         className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
                       >

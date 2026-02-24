@@ -1,6 +1,7 @@
 import React from "react";
 import { FaYoutube, FaSpotify, FaTrash, FaPlay, FaPause } from "react-icons/fa";
 import Image from "next/image";
+import { formatDurationFromMs } from "@/utils/helpers";
 
 export interface PlaylistItemProps {
   id: string;
@@ -56,14 +57,6 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
   const config = serviceConfig[service];
   const IconComponent = config.icon;
 
-  const formatDuration = (ms: number) => {
-    if (!ms) return "";
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  };
-
   return (
     <div
       className={`flex items-center w-full max-w-full py-4 hover:bg-white/5 transition-all duration-200 cursor-pointer group rounded-lg ${
@@ -115,7 +108,7 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
       {/* Duration - only if provided */}
       {duration && (
         <div className="flex-shrink-0 text-xs text-gray-400 font-mono mr-4">
-          {formatDuration(duration)}
+          {formatDurationFromMs(duration)}
         </div>
       )}
 

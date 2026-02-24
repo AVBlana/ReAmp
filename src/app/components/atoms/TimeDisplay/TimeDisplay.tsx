@@ -1,4 +1,5 @@
 import React from "react";
+import { formatTimeFromMs } from "@/utils/helpers";
 
 export interface TimeDisplayProps {
   currentTime: number;
@@ -32,23 +33,6 @@ const TimeDisplay: React.FC<TimeDisplayProps> = ({
     watermelon: "text-[#FF6B6B]",
   };
 
-  const formatTime = (time: number, includeMs = false) => {
-    if (!time || isNaN(time)) return "0:00";
-
-    const totalSeconds = Math.floor(time / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-
-    if (includeMs) {
-      const milliseconds = Math.floor((time % 1000) / 10);
-      return `${minutes}:${seconds.toString().padStart(2, "0")}.${milliseconds
-        .toString()
-        .padStart(2, "0")}`;
-    }
-
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  };
-
   const getFormat = () => {
     if (format === "auto") {
       return duration > 60000 ? "mm:ss" : "mm:ss.ms"; // Show ms for tracks under 1 minute
@@ -65,11 +49,11 @@ const TimeDisplay: React.FC<TimeDisplayProps> = ({
     <div className={`flex items-center gap-2 ${classes}`}>
       {showLabels && <span className="text-gray-400">Time:</span>}
       <span className="min-w-[40px] text-right">
-        {formatTime(currentTime, includeMs)}
+        {formatTimeFromMs(currentTime, includeMs)}
       </span>
       <span className="text-gray-400">/</span>
       <span className="min-w-[40px] text-left">
-        {formatTime(duration, includeMs)}
+        {formatTimeFromMs(duration, includeMs)}
       </span>
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState } from "react";
+import { formatTimeFromMs } from "@/utils/helpers";
 
 export interface ProgressBarProps {
   currentTime: number;
@@ -41,13 +42,6 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
     sm: "h-1",
     md: "h-2",
     lg: "h-3",
-  };
-
-  const formatTime = (time: number) => {
-    const totalSeconds = Math.floor(time / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
   const handleMouseMove = useCallback(
@@ -93,7 +87,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
     <div className={`flex items-center gap-2 ${className}`}>
       {showTime && (
         <span className="text-xs text-gray-400 font-mono min-w-[40px]">
-          {formatTime(isDragging ? dragTime : currentTime)}
+          {formatTimeFromMs(isDragging ? dragTime : currentTime)}
         </span>
       )}
 
@@ -121,7 +115,7 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
 
       {showTime && (
         <span className="text-xs text-gray-400 font-mono min-w-[40px]">
-          {formatTime(duration)}
+          {formatTimeFromMs(duration)}
         </span>
       )}
     </div>

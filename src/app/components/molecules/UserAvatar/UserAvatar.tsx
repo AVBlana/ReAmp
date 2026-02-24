@@ -5,6 +5,7 @@ import { useAuth } from "@/app/context/AuthContext";
 import { useNotifications } from "@/app/context/NotificationContext";
 import { useOutsideClick } from "@/app/hooks";
 import NotificationBadge from "@/app/components/atoms/NotificationBadge";
+import { getConnectUrl } from "@/lib/auth-helpers";
 import { FaUser, FaBell, FaChevronDown } from "react-icons/fa";
 
 const UserAvatar: React.FC = () => {
@@ -112,19 +113,10 @@ const UserAvatar: React.FC = () => {
                         notification={notification}
                         onDismiss={removeNotification}
                         onAction={() => {
-                          // Handle connect action
                           if (notification.message.includes("Spotify")) {
-                            window.location.href =
-                              "/api/auth/signin/spotify?callbackUrl=" +
-                              encodeURIComponent(
-                                window.location.origin + "/?connected=spotify"
-                              );
+                            window.location.href = getConnectUrl("spotify");
                           } else if (notification.message.includes("YouTube")) {
-                            window.location.href =
-                              "/api/auth/signin/google?callbackUrl=" +
-                              encodeURIComponent(
-                                window.location.origin + "/?connected=google"
-                              );
+                            window.location.href = getConnectUrl("google");
                           }
                         }}
                         actionLabel="Connect"

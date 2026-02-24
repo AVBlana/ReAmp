@@ -4,93 +4,21 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import Button from "@/app/components/atoms/Button";
 import { useRouter } from "next/navigation";
+import { getAuthErrorDescription } from "@/types/auth";
 
 function AuthErrorContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [error, setError] = useState<string>("");
+  const [errorCode, setErrorCode] = useState<string>("");
   const [errorDescription, setErrorDescription] = useState<string>("");
 
   useEffect(() => {
-    const errorParam = searchParams.get("error");
-    setError(errorParam || "Unknown error");
-
-    // Map error codes to user-friendly messages
-    switch (errorParam) {
-      case "Configuration":
-        setErrorDescription(
-          "There's a configuration issue with the authentication service. Please check your environment variables and OAuth settings."
-        );
-        break;
-      case "AccessDenied":
-        setErrorDescription(
-          "Access was denied. You may have cancelled the authentication process or the app doesn't have the required permissions."
-        );
-        break;
-      case "Verification":
-        setErrorDescription(
-          "The verification token has expired or is invalid. Please try signing in again."
-        );
-        break;
-      case "OAuthSignin":
-        setErrorDescription(
-          "There was an error during the OAuth sign-in process. Please try again."
-        );
-        break;
-      case "OAuthCallback":
-        setErrorDescription(
-          "There was an error during the OAuth callback process. Please try again."
-        );
-        break;
-      case "OAuthCreateAccount":
-        setErrorDescription(
-          "There was an error creating your account. Please try again."
-        );
-        break;
-      case "EmailCreateAccount":
-        setErrorDescription(
-          "There was an error creating your account with email. Please try again."
-        );
-        break;
-      case "Callback":
-        setErrorDescription(
-          "There was an error during the callback process. Please try again."
-        );
-        break;
-      case "OAuthAccountNotLinked":
-        setErrorDescription(
-          "This account is already associated with another sign-in method. Please use the original sign-in method."
-        );
-        break;
-      case "EmailSignin":
-        setErrorDescription(
-          "There was an error sending the sign-in email. Please try again."
-        );
-        break;
-      case "CredentialsSignin":
-        setErrorDescription(
-          "There was an error with your credentials. Please check your username and password."
-        );
-        break;
-      case "SessionRequired":
-        setErrorDescription(
-          "You need to be signed in to access this page. Please sign in first."
-        );
-        break;
-      default:
-        setErrorDescription(
-          "An unexpected error occurred during authentication. Please try again."
-        );
-    }
+    const code = searchParams.get("error");
+    setErrorCode(code || "Unknown error");
+    setErrorDescription(getAuthErrorDescription(code));
   }, [searchParams]);
 
-  const handleRetry = () => {
-    router.push("/");
-  };
-
-  const handleGoHome = () => {
-    router.push("/");
-  };
+  const isConfigurationError = errorCode === "Configuration";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -104,21 +32,33 @@ function AuthErrorContent() {
               Authentication Error
             </h2>
             <p className="text-red-300 mb-2">
-              <strong>Error:</strong> {error}
+              <strong>Error:</strong> {errorCode}
             </p>
             <p className="text-gray-300 text-sm">{errorDescription}</p>
+            {isConfigurationError && (
+              <div className="mt-4 p-3 bg-amber-900/30 border border-amber-600/50 rounded text-left text-sm text-amber-200">
+                <p className="font-medium mb-1">Common cause:</p>
+                <p>
+                  If you started login on <strong>localhost</strong> but
+                  NEXTAUTH_URL is set to your production URL, Spotify redirects
+                  to production and the session state is lost. In{" "}
+                  <code className="bg-black/30 px-1 rounded">.env.local</code>{" "}
+                  use <code className="bg-black/30 px-1 rounded">NEXTAUTH_URL=http://localhost:3000</code> for
+                  local dev. Use the production URL only in Vercel env.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">
             <Button
-              onClick={handleRetry}
+              onClick={() => router.push("/")}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg transition-colors"
             >
               Try Again
             </Button>
-
             <Button
-              onClick={handleGoHome}
+              onClick={() => router.push("/")}
               className="w-full bg-gray-600 hover:bg-gray-700 text-white py-3 px-4 rounded-lg transition-colors"
             >
               Go Home

@@ -56,6 +56,42 @@ export const ERROR_MESSAGES: Record<FriendlyError, ErrorMessage> = {
   },
 };
 
+/** NextAuth error codes (from URL ?error=) to user-facing description. Single source for auth error copy. */
+export const AUTH_ERROR_DESCRIPTIONS: Record<string, string> = {
+  Configuration:
+    "There's a configuration issue with the authentication service. Please check your environment variables and OAuth settings.",
+  AccessDenied:
+    "Access was denied. You may have cancelled the authentication process or the app doesn't have the required permissions.",
+  Verification:
+    "The verification token has expired or is invalid. Please try signing in again.",
+  OAuthSignin:
+    "There was an error during the OAuth sign-in process. Please try again.",
+  OAuthCallback:
+    "There was an error during the OAuth callback process. Please try again.",
+  OAuthCreateAccount:
+    "There was an error creating your account. Please try again.",
+  EmailCreateAccount:
+    "There was an error creating your account with email. Please try again.",
+  Callback:
+    "There was an error during the callback process. Please try again.",
+  OAuthAccountNotLinked:
+    "This account is already associated with another sign-in method. Please use the original sign-in method.",
+  EmailSignin:
+    "There was an error sending the sign-in email. Please try again.",
+  CredentialsSignin:
+    "There was an error with your credentials. Please check your username and password.",
+  SessionRequired:
+    "You need to be signed in to access this page. Please sign in first.",
+};
+
+const DEFAULT_AUTH_ERROR =
+  "An unexpected error occurred during authentication. Please try again.";
+
+export function getAuthErrorDescription(errorCode: string | null): string {
+  if (!errorCode) return DEFAULT_AUTH_ERROR;
+  return AUTH_ERROR_DESCRIPTIONS[errorCode] ?? DEFAULT_AUTH_ERROR;
+}
+
 // Account linking types
 export interface LinkedAccount {
   provider: string;

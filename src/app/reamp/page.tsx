@@ -9,6 +9,7 @@ import { ServiceType } from "@/app/types/playerTypes";
 import { getYouTubeVideos } from "@/app/components/Services/YtService";
 import { searchSpotify } from "@/app/components/Services/SpotifyService";
 import { useAuth } from "@/app/context/AuthContext";
+import { useConnectedServices } from "@/app/hooks/useConnectedServices";
 
 import UnifiedSearch from "@/app/components/organisms/UnifiedSearch";
 import UnifiedPlaylistLibrary from "@/app/components/organisms/UnifiedPlaylistLibrary";
@@ -26,6 +27,7 @@ interface UserProfile {
 function ReAMPContent() {
   const { youtube, spotify } = useUnifiedContext();
   const { signOut, isAuthenticated } = useAuth();
+  const { spotify: spotifyConnected } = useConnectedServices();
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [spotifyNextPageToken, setSpotifyNextPageToken] = useState<
     string | null
@@ -59,22 +61,11 @@ function ReAMPContent() {
         youtube.setNextPageToken(nextPageToken);
         youtube.setCurrentSearchTerm(query);
       } else if (service === ServiceType.Spotify) {
-        // Check if Spotify is connected before attempting search
-        try {
-          const response = await fetch("/api/user/connected-services");
-          if (response.ok) {
-            const services = await response.json();
-            if (!services.user.providers.spotify) {
-              console.log("Spotify not connected, skipping search");
-              spotify.setSearchResults([]);
-              setSpotifyNextPageToken(null);
-              return;
-            }
-          }
-        } catch (error) {
-          console.error("Error checking connected services:", error);
+        if (!spotifyConnected) {
+          spotify.setSearchResults([]);
+          setSpotifyNextPageToken(null);
+          return;
         }
-
         try {
           // Use the new NextAuth-protected Spotify service
           const { items, nextPageToken } = await searchSpotify(query);

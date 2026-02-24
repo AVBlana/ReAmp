@@ -19,6 +19,32 @@ export const formatTime = (seconds: number): string => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 };
 
+/** Format time in milliseconds as mm:ss or mm:ss.ms */
+export const formatTimeFromMs = (
+  ms: number,
+  includeMs = false
+): string => {
+  if (!ms || isNaN(ms)) return "0:00";
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const base = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  if (includeMs) {
+    const milliseconds = Math.floor((ms % 1000) / 10);
+    return `${base}.${milliseconds.toString().padStart(2, "0")}`;
+  }
+  return base;
+};
+
+/** Format duration in milliseconds as mm:ss */
+export const formatDurationFromMs = (ms: number): string => {
+  if (!ms) return "";
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const debounce = <T extends (...args: any[]) => any>(
   func: T,

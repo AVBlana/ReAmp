@@ -48,7 +48,33 @@ async function refreshSpotifyToken(refreshToken: string): Promise<{
   return result;
 }
 
-// Validate environment variables
+// Normalize base URL: no trailing slash, force HTTPS in production.
+// Spotify requires an exact redirect URI match; "Insecure redirect URI" often means
+// the redirect_uri sent was http or didn't match the dashboard.
+// Spotify no longer allows "localhost" (400 Bad Request) — use 127.0.0.1 in dev:
+// https://developer.spotify.com/documentation/web-api/tutorials/migration-insecure-redirect-uri
+function normalizeBaseUrl(url: string | undefined): string {
+  if (!url || typeof url !== "string") return "";
+  let base = url.trim().replace(/\/+$/, "");
+  if (process.env.NODE_ENV === "production") {
+    if (base && !base.startsWith("https://")) {
+      base = base.replace(/^http:\/\//i, "https://");
+    }
+  } else {
+    // Development: use 127.0.0.1 so Spotify accepts the redirect_uri (localhost is rejected)
+    base = base.replace(/^https?:\/\/localhost(:\d+)?(\/|$)/i, "http://127.0.0.1$1$2");
+  }
+  return base;
+}
+
+const rawNextAuthUrl = process.env.NEXTAUTH_URL ?? process.env.AUTH_URL ?? "";
+const normalizedBaseUrl = normalizeBaseUrl(rawNextAuthUrl);
+if (normalizedBaseUrl) {
+  process.env.NEXTAUTH_URL = normalizedBaseUrl;
+  process.env.AUTH_URL = normalizedBaseUrl;
+}
+
+// Validate environment variables (read after normalization so NEXTAUTH_URL is correct)
 const requiredEnvVars = {
   NEXTAUTH_URL: process.env.NEXTAUTH_URL,
   NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
@@ -57,6 +83,11 @@ const requiredEnvVars = {
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
 };
+
+// Exact URL Spotify will receive as redirect_uri — must match Spotify Dashboard exactly (no trailing slash)
+const spotifyCallbackUrl = requiredEnvVars.NEXTAUTH_URL
+  ? `${requiredEnvVars.NEXTAUTH_URL}/api/auth/callback/spotify`
+  : "";
 
 console.log("NextAuth Environment Variables:", {
   NEXTAUTH_URL: requiredEnvVars.NEXTAUTH_URL,
@@ -69,6 +100,10 @@ console.log("NextAuth Environment Variables:", {
   GOOGLE_CLIENT_SECRET: requiredEnvVars.GOOGLE_CLIENT_SECRET
     ? "SET"
     : "NOT SET",
+  ...(spotifyCallbackUrl && {
+    SPOTIFY_CALLBACK_URL:
+      "Set this exact URL in Spotify Dashboard Redirect URIs: " + spotifyCallbackUrl,
+  }),
 });
 
 // Check for missing required environment variables
@@ -86,6 +121,9 @@ if (missingVars.length > 0) {
 // Token refresh is now handled automatically by NextAuth with database strategy
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
+  // Allow linking Spotify and Google to the same user (same email). Without this,
+  // signing in with one provider then the other throws OAuthAccountNotLinked.
+  allowDangerousEmailAccountLinking: true,
   // Debug environment variables in development
   ...(process.env.NODE_ENV === "development" && {
     logger: {
