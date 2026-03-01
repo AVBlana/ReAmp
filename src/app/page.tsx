@@ -1,7 +1,7 @@
 "use client";
 
 import { FaSpotify, FaGoogle } from "react-icons/fa";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
@@ -10,7 +10,15 @@ import { connectCallbackUrl, connectUrlWhenOnLocalhost } from "@/lib/auth-helper
 import { getAuthErrorDescription } from "@/types/auth";
 import Button from "@/app/components/atoms/Button";
 
-export default function Home() {
+function HomeFallback() {
+  return (
+    <div className="relative flex items-center justify-center min-h-screen w-full overflow-hidden bg-[#0A0A0A]">
+      <div className="text-white text-xl">Loading...</div>
+    </div>
+  );
+}
+
+function HomeContent() {
   const [hovered, setHovered] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState<string | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState<string | null>(null);
@@ -243,5 +251,13 @@ export default function Home() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<HomeFallback />}>
+      <HomeContent />
+    </Suspense>
   );
 }
