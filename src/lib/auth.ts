@@ -1,6 +1,7 @@
 import { type NextAuthOptions } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import GoogleProvider from "next-auth/providers/google";
+import SpotifyProvider from "next-auth/providers/spotify";
 import { prisma } from "./prisma";
 import { getServerSession } from "next-auth";
 
@@ -63,24 +64,17 @@ async function refreshSpotifyToken(refreshToken: string): Promise<{ access_token
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
-  allowDangerousEmailAccountLinking: true,
   providers: [
-    {
-      id: "spotify",
-      name: "Spotify",
-      type: "oauth",
+    SpotifyProvider({
+      clientId: requiredEnv.SPOTIFY_CLIENT_ID!,
+      clientSecret: requiredEnv.SPOTIFY_CLIENT_SECRET!,
       authorization: {
-        url: "https://accounts.spotify.com/authorize",
         params: {
           scope:
             "user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private streaming",
           show_dialog: "true",
         },
       },
-      token: "https://accounts.spotify.com/api/token",
-      userinfo: "https://api.spotify.com/v1/me",
-      clientId: requiredEnv.SPOTIFY_CLIENT_ID!,
-      clientSecret: requiredEnv.SPOTIFY_CLIENT_SECRET!,
       profile(profile: { id: string; display_name?: string; email?: string; images?: { url: string }[] }) {
         return {
           id: profile.id,
@@ -89,7 +83,8 @@ export const authOptions: NextAuthOptions = {
           image: profile.images?.[0]?.url ?? null,
         };
       },
-    },
+      allowDangerousEmailAccountLinking: true,
+    }),
     GoogleProvider({
       clientId: requiredEnv.GOOGLE_CLIENT_ID!,
       clientSecret: requiredEnv.GOOGLE_CLIENT_SECRET!,
@@ -206,7 +201,6 @@ export const authOptions: NextAuthOptions = {
   },
   secret: requiredEnv.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
-  trustHost: false,
 };
 
 /** Get current session in API routes / server (NextAuth v4). */
