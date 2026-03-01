@@ -54,40 +54,44 @@ function ReAMPContent() {
   }, [isAuthenticated]);
 
   const handleSearch = useCallback(
-    async (query: string, service: ServiceType) => {
+    async (
+      query: string,
+      service: ServiceType,
+      isCurrentSearch?: () => boolean
+    ) => {
       if (service === ServiceType.Youtube) {
         const { items, nextPageToken } = await getYouTubeVideos(query);
+        if (isCurrentSearch && !isCurrentSearch()) return;
         youtube.setSearchResults(items);
         youtube.setNextPageToken(nextPageToken);
         youtube.setCurrentSearchTerm(query);
       } else if (service === ServiceType.Spotify) {
         if (!spotifyConnected) {
+          if (isCurrentSearch && !isCurrentSearch()) return;
           spotify.setSearchResults([]);
           setSpotifyNextPageToken(null);
           return;
         }
         try {
-          // Use the new NextAuth-protected Spotify service
           const { items, nextPageToken } = await searchSpotify(query);
+          if (isCurrentSearch && !isCurrentSearch()) return;
           spotify.setSearchResults(items);
           setSpotifyNextPageToken(nextPageToken);
-          youtube.setCurrentSearchTerm(query); // Use youtube for search term tracking
+          youtube.setCurrentSearchTerm(query);
         } catch (error) {
           console.error("Error searching Spotify:", error);
+          if (isCurrentSearch && !isCurrentSearch()) return;
 
-          // Check if it's an authentication error - but don't redirect immediately
           if (
             error instanceof Error &&
             error.message.includes("authentication")
           ) {
             console.log("Spotify authentication failed, but staying on page");
-            // Don't redirect - just clear results and let user try again
             spotify.setSearchResults([]);
             setSpotifyNextPageToken(null);
             return;
           }
 
-          // Check if Spotify is not connected
           if (
             error instanceof Error &&
             error.message.includes("Spotify not connected")
@@ -105,7 +109,7 @@ function ReAMPContent() {
         }
       }
     },
-    [youtube, spotify]
+    [youtube, spotify, spotifyConnected]
   );
 
   const handleLoadMore = useCallback(

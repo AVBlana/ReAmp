@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import UnifiedSearchRefactored from "../UnifiedSearchRefactored";
+import UnifiedSearch from "../index";
 import { useUnifiedContext } from "@/app/context/UnifiedContext";
 
 // Mock the UnifiedContext
@@ -53,7 +53,7 @@ describe("Search Dropdown UX", () => {
 
   it("should not open dropdown on focus if no previous search results", () => {
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}
@@ -83,7 +83,7 @@ describe("Search Dropdown UX", () => {
     ];
 
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}
@@ -121,7 +121,7 @@ describe("Search Dropdown UX", () => {
     ];
 
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}
@@ -159,7 +159,7 @@ describe("Search Dropdown UX", () => {
     ];
 
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}
@@ -197,7 +197,7 @@ describe("Search Dropdown UX", () => {
     ];
 
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}
@@ -230,7 +230,7 @@ describe("Search Dropdown UX", () => {
 
   it("should clear previous results before new search", async () => {
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}

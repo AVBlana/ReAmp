@@ -75,13 +75,17 @@ export const AUTH_ERROR_DESCRIPTIONS: Record<string, string> = {
   Callback:
     "There was an error during the callback process. Please try again.",
   OAuthAccountNotLinked:
-    "This account is already associated with another sign-in method. Please use the original sign-in method.",
+    "This email is already used with another sign-in method (e.g. Google). Sign in with that method first, then on the app click “Connect Spotify” or “Connect Google” to link both to the same account.",
   EmailSignin:
     "There was an error sending the sign-in email. Please try again.",
   CredentialsSignin:
     "There was an error with your credentials. Please check your username and password.",
   SessionRequired:
     "You need to be signed in to access this page. Please sign in first.",
+  SessionBridgeExpired:
+    "The connection link expired. Please try connecting Spotify again.",
+  SessionBridgeNoSession:
+    "Session was lost during connection. Please try connecting Spotify again.",
 };
 
 const DEFAULT_AUTH_ERROR =

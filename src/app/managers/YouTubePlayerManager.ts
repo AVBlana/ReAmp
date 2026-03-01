@@ -28,7 +28,8 @@ export class YouTubePlayerManager {
   async createPlayer(
     playerId: string,
     videoId: string,
-    container: HTMLDivElement
+    container: HTMLDivElement,
+    options?: { onEmbedDisabled?: () => void }
   ) {
     console.log(`🎯 YouTubeManager.createPlayer called for ${playerId}:`, {
       videoId,
@@ -87,7 +88,8 @@ export class YouTubePlayerManager {
           reject(new Error(`YouTube player creation timeout for ${playerId}`));
         }, 20000); // 20 second timeout for better reliability
 
-        // Create player immediately without delays
+        // Do NOT set origin in playerVars - it can trigger error 150 for more videos and break
+        // playback. See: https://stackoverflow.com/questions/34345124/youtube-iframe-api-setting-origin-breaks-video-events
         new window.YT.Player(container, {
           videoId: videoId,
           playerVars: {
@@ -192,13 +194,24 @@ export class YouTubePlayerManager {
               });
             },
             onError: (event: { data: number }) => {
-              console.error(`❌ YouTube player ${playerId} error:`, event.data);
+              const code = event.data;
+              console.error(`❌ YouTube player ${playerId} error:`, code);
 
-              // Clear timeout since we're handling the error
               clearTimeout(playerCreationTimeout);
 
+              // 150/101 = embedding disabled by owner - keep player so deck doesn't break;
+              // notify UI so it can show "Watch on YouTube" fallback.
+              if (code === 150 || code === 101) {
+                console.warn(
+                  `⚠️ YouTube embed disabled for ${playerId} (${code}); keeping deck state so you can load another track`
+                );
+                options?.onEmbedDisabled?.();
+                resolve();
+                return;
+              }
+
               this.destroyPlayer(playerId).catch(console.error);
-              reject(new Error(`YouTube player error: ${event.data}`));
+              reject(new Error(`YouTube player error: ${code}`));
             },
           },
         });
@@ -269,8 +282,15 @@ export class YouTubePlayerManager {
   playPlayer(playerId: string) {
     const player = this.players.get(playerId);
     if (player) {
-      console.log(`▶️ Playing YouTube player ${playerId}`);
-      player.playVideo();
+      try {
+        console.log(`▶️ Playing YouTube player ${playerId}`);
+        player.playVideo();
+      } catch (err) {
+        console.warn(
+          `⚠️ YouTube player ${playerId} play failed (video may have embedding disabled):`,
+          err
+        );
+      }
     } else {
       console.warn(`⚠️ YouTube player ${playerId} not found for play`);
     }

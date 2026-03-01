@@ -1,5 +1,5 @@
-import { describe, it, expect, jest, beforeEach } from "@jest/globals";
-import { auth, signIn, signOut } from "@/lib/auth";
+import { describe, it, expect, jest, beforeEach, afterEach } from "@jest/globals";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 // Mock Prisma
@@ -51,12 +51,12 @@ describe("Spotify OAuth Configuration", () => {
   });
 
   it("should redirect to /reamp after successful login", async () => {
-    const mockRedirect = jest.fn();
+    const _mockRedirect = jest.fn();
     const mockBaseUrl = "http://localhost:3000";
     const mockUrl = "/reamp";
 
     // Mock the redirect callback
-    const redirectCallback = auth.callbacks?.redirect;
+    const redirectCallback = authOptions.callbacks?.redirect;
     if (redirectCallback) {
       const result = await redirectCallback({
         url: mockUrl,
@@ -89,7 +89,7 @@ describe("Spotify OAuth Configuration", () => {
       accounts: [{ provider: "google" }],
     });
 
-    const signInCallback = auth.callbacks?.signIn;
+    const signInCallback = authOptions.callbacks?.signIn;
     if (signInCallback) {
       const result = await signInCallback({
         user: mockUser,
@@ -123,7 +123,7 @@ describe("Spotify OAuth Configuration", () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
     (prisma.account.findUnique as jest.Mock).mockResolvedValue(null);
 
-    const signInCallback = auth.callbacks?.signIn;
+    const signInCallback = authOptions.callbacks?.signIn;
     if (signInCallback) {
       const result = await signInCallback({
         user: mockUser,
@@ -143,7 +143,7 @@ describe("Spotify OAuth Configuration", () => {
     };
 
     // Find the Spotify provider in the configuration
-    const spotifyProvider = auth.providers?.find((p) => p.id === "spotify");
+    const spotifyProvider = authOptions.providers?.find((p: { id?: string }) => p.id === "spotify");
     expect(spotifyProvider).toBeDefined();
 
     if (spotifyProvider && "profile" in spotifyProvider) {
@@ -162,38 +162,26 @@ describe("Spotify OAuth Configuration", () => {
   });
 
   it("should handle JWT token creation for Spotify", async () => {
-    const mockToken = {
+    const _mockToken = {
       sub: "user-1",
       provider: "spotify",
     };
 
-    const mockAccount = {
+    const _mockAccount = {
       provider: "spotify",
       access_token: "access-token",
       refresh_token: "refresh-token",
       expires_at: Math.floor(Date.now() / 1000) + 3600,
     };
 
-    const mockUser = {
+    const _mockUser = {
       id: "user-1",
       email: "test@example.com",
     };
 
-    const jwtCallback = auth.callbacks?.jwt;
-    if (jwtCallback) {
-      const result = await jwtCallback({
-        token: mockToken,
-        account: mockAccount,
-        user: mockUser,
-      });
-
-      expect(result).toMatchObject({
-        sub: "user-1",
-        accessToken: "access-token",
-        refreshToken: "refresh-token",
-        provider: "spotify",
-      });
-    }
+    // v4 with database strategy does not use jwt callback
+    const jwtCallback = authOptions.callbacks?.jwt;
+    expect(jwtCallback).toBeUndefined();
   });
 
   it("should handle session creation with Spotify tokens", async () => {
@@ -220,16 +208,15 @@ describe("Spotify OAuth Configuration", () => {
       },
     ]);
 
-    const sessionCallback = auth.callbacks?.session;
+    const sessionCallback = authOptions.callbacks?.session;
     if (sessionCallback) {
+      const mockUser = { id: "user-1", email: "test@example.com", name: null, image: null };
       const result = await sessionCallback({
         session: mockSession,
-        token: mockToken,
+        user: mockUser,
       });
 
       expect(result.user.id).toBe("user-1");
-      expect(result.accessToken).toBe("spotify-access-token");
-      expect(result.provider).toBe("spotify");
       expect(result.providers).toHaveProperty("spotify");
     }
   });

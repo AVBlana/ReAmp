@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 import { useConnectedServices } from "@/app/hooks/useConnectedServices";
-import { getConnectCallbackUrl } from "@/lib/auth-helpers";
+import { connectCallbackUrl, connectUrlWhenOnLocalhost } from "@/lib/auth-helpers";
 import { getAuthErrorDescription } from "@/types/auth";
 import Button from "@/app/components/atoms/Button";
 
@@ -23,32 +23,25 @@ export default function Home() {
 
   const { spotify, youtube, loading: servicesLoading } = useConnectedServices({
     retryOnMount: !!connectedParam,
-    retries: 5,
-    retryDelayMs: 300,
+    retries: 3,
+    retryDelayMs: 400,
   });
 
   const hasConnectedService = spotify || youtube;
 
-  // Handle OAuth error and URL cleanup
   useEffect(() => {
     const error = searchParams.get("error");
     if (error) {
       setErrorMessage(getAuthErrorDescription(error));
       setTimeout(() => setErrorMessage(null), 10000);
-      router.replace("/", { scroll: false });
-      return;
     }
-    if (connectedParam) router.replace("/", { scroll: false });
+    if (error || connectedParam) router.replace("/", { scroll: false });
   }, [connectedParam, searchParams, router]);
 
-  // Show success toast once when returning from OAuth and the service is connected
   useEffect(() => {
-    if (
-      !connectedParam ||
-      hasShownConnectToast.current ||
-      (connectedParam === "google" ? !youtube : !spotify)
-    )
-      return;
+    if (!connectedParam || hasShownConnectToast.current) return;
+    const connected = connectedParam === "google" ? youtube : spotify;
+    if (!connected) return;
     hasShownConnectToast.current = true;
     setShowSuccessToast(connectedParam);
     setTimeout(() => setShowSuccessToast(null), 3000);
@@ -57,8 +50,12 @@ export default function Home() {
   const handleConnect = async (provider: "spotify" | "google") => {
     setIsConnecting(provider);
     try {
-      const callbackUrl = getConnectCallbackUrl(provider);
-      await signIn(provider, { callbackUrl });
+      const url = connectUrlWhenOnLocalhost(provider);
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      await signIn(provider, { callbackUrl: connectCallbackUrl(provider) });
     } catch {
       setErrorMessage(getAuthErrorDescription("OAuthSignin"));
     } finally {
@@ -188,8 +185,8 @@ export default function Home() {
         <div className="text-center max-w-md">
           <p className="text-gray-400 text-lg">
             {hasConnectedService
-              ? "Ready to mix! Connect additional services for more features"
-              : "Connect your accounts to access Spotify and YouTube features"}
+              ? "Ready to mix! Connect the other service so search shows both Spotify and YouTube."
+              : "Connect with Google or Spotify (or both). Search will show results from each service you connect."}
           </p>
         </div>
 

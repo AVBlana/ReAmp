@@ -162,11 +162,6 @@ const DraggableItem = memo(({ item, index }: DraggableItemProps) => {
     }
   }, [item, youtube.selectedVideo, spotify.currentSong]);
 
-  // Debug log
-  console.log(
-    `Item ${item.id} (${item.type}): isCurrentlyPlaying = ${isCurrentlyPlaying}`
-  );
-
   return (
     <Draggable draggableId={`${item.type}|${item.id}`} index={index}>
       {(

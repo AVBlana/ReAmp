@@ -24,6 +24,8 @@ interface DJPlayerState {
   duration: number;
   isActive: boolean;
   playerId: string;
+  /** YouTube error 150/101: video can't be embedded; show "Watch on YouTube" */
+  embedDisabled?: boolean;
 }
 
 interface VinylPlayerProps {
@@ -51,36 +53,35 @@ export default function VinylPlayer({
   const needleControls = useAnimation();
 
   const [isDragging, setIsDragging] = useState(false);
-  const [dragStartX, setDragStartX] = useState(0);
+  const dragStartRef = useRef({ x: 0, positionMs: 0 });
 
-  // Handle vinyl drag to seek the song
+  // Handle vinyl drag to seek the song (scratch): seek relative to position at drag start
   const handleVinylDragStart = (e: React.PointerEvent) => {
     setIsDragging(true);
-    setDragStartX(e.clientX);
+    dragStartRef.current = {
+      x: e.clientX,
+      positionMs: playerState.currentTime,
+    };
   };
 
   const handleVinylDragMove = (e: React.PointerEvent) => {
     if (!isDragging) return;
 
-    const currentX = e.clientX;
-    const dragDistance = currentX - dragStartX;
-    const maxDragDistance = 100; // Maximum drag distance for full seek
+    const { x: startX, positionMs: startPositionMs } = dragStartRef.current;
+    const dragDistance = e.clientX - startX;
+    const maxDragDistance = 100;
 
-    // Calculate seek percentage based on drag distance
     const seekPercentage = Math.max(
       -1,
       Math.min(1, dragDistance / maxDragDistance)
     );
-
-    // Calculate new position (10 second increments)
-    const seekSeconds = seekPercentage * 10;
-    const newPosition = playerState.currentTime + seekSeconds * 1000; // Convert to milliseconds
+    const seekDeltaMs = (seekPercentage * 10) * 1000;
+    const newPosition = startPositionMs + seekDeltaMs;
     const clampedPosition = Math.max(
       0,
-      Math.min(playerState.duration, newPosition)
+      Math.min(playerState.duration || 0, newPosition)
     );
 
-    // Call onSeek with the new position in milliseconds
     onSeek(clampedPosition);
   };
 
@@ -198,8 +199,34 @@ export default function VinylPlayer({
     }
   }, [playerState.isPlaying, needleControls]);
 
+  const youtubeWatchUrl =
+    playerState.embedDisabled &&
+    playerState.song &&
+    "snippet" in playerState.song
+      ? `https://www.youtube.com/watch?v=${(playerState.song as YoutubeVideo).id?.videoId || ""}`
+      : null;
+
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center">
+      {/* YouTube embed disabled by owner - show fallback */}
+      {playerState.embedDisabled && (
+        <div className="absolute top-0 left-0 right-0 z-20 mx-2 rounded-lg bg-amber-500/20 border border-amber-500/40 px-3 py-2 text-center">
+          <p className="text-amber-200 text-sm">
+            This video can&apos;t be played here (embedding disabled).
+          </p>
+          {youtubeWatchUrl && (
+            <a
+              href={youtubeWatchUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block mt-1.5 text-sm font-medium text-[#FF6B6B] hover:text-[#FF5252] underline"
+            >
+              Watch on YouTube →
+            </a>
+          )}
+        </div>
+      )}
+
       {/* Vinyl Player Container */}
       <div className="relative w-64 h-64 mb-4">
         {/* Vinyl Disk */}

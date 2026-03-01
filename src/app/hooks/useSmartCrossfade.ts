@@ -34,6 +34,20 @@ export function useSmartCrossfade({
   const hasUserActionRef = useRef<boolean>(false);
   const isInitialLoadRef = useRef<boolean>(true);
 
+  // Keep latest state for the interval callback so the 1s timer isn't reset on every playerStates update (every 250ms)
+  const latestRef = useRef({
+    playerStates,
+    autoCrossfadeThreshold,
+    minTimeRemaining,
+    crossfadeDuration,
+  });
+  latestRef.current = {
+    playerStates,
+    autoCrossfadeThreshold,
+    minTimeRemaining,
+    crossfadeDuration,
+  };
+
   // Track changes to detect user actions
   useEffect(() => {
     const currentTrackA =
@@ -68,93 +82,78 @@ export function useSmartCrossfade({
     }
   }, [playerStates.A.currentTrack, playerStates.B.currentTrack]);
 
-  // Check for auto-crossfade opportunities
-  useEffect(() => {
-    // Only run auto-crossfade checks if crossfade is explicitly enabled by user
-    if (!crossfadeEnabled || isCrossfadeActive()) return;
+  // Run auto-crossfade check with explicit state (called from progress loop with fresh manager state)
+  type StatesArg = { A: PlayerInstance; B: PlayerInstance };
+  const checkAutoCrossfadeWithState = useCallback(
+    (states: StatesArg) => {
+      if (!crossfadeEnabled || isCrossfadeActive()) return;
 
-    const checkForAutoCrossfade = () => {
       const now = Date.now();
+      const { autoCrossfadeThreshold: threshold, minTimeRemaining: minRem, crossfadeDuration: duration } = latestRef.current;
 
-      // Only trigger crossfade if user has performed an action (track change, etc.)
-      if (!hasUserActionRef.current) {
-        console.log("🚫 Auto-crossfade skipped: No user action detected");
-        return;
-      }
+      if (!hasUserActionRef.current) return;
+      if (now - lastCrossfadeTimeRef.current < crossfadeCooldownRef.current) return;
 
-      // Check cooldown
-      if (now - lastCrossfadeTimeRef.current < crossfadeCooldownRef.current) {
-        console.log("🚫 Auto-crossfade skipped: Cooldown active");
-        return;
-      }
+      type Candidate = { fromDeck: "A" | "B"; toDeck: "A" | "B"; timeRemaining: number };
+      const candidates: Candidate[] = [];
 
-      // Check if any deck is about to end
-      ["A", "B"].forEach((deckId) => {
-        const player = playerStates[deckId as "A" | "B"];
+      for (const deckId of ["A", "B"] as const) {
+        const player = states[deckId];
         const otherDeckId = deckId === "A" ? "B" : "A";
-        const otherPlayer = playerStates[otherDeckId as "A" | "B"];
+        const otherPlayer = states[otherDeckId];
 
-        // Only trigger crossfade if both players are ready
         if (
           player.isReady &&
           player.isPlaying &&
           player.currentTrack &&
           player.duration > 0 &&
           otherPlayer.isReady &&
-          otherPlayer.currentTrack &&
-          otherPlayer.duration > 0
+          otherPlayer.currentTrack
         ) {
           const timeRemaining = player.duration - player.currentTime;
-
-          if (
-            timeRemaining <= autoCrossfadeThreshold &&
-            timeRemaining >= minTimeRemaining
-          ) {
-            console.log(
-              `🎯 Auto-crossfade triggered for deck ${deckId} (${Math.round(
-                timeRemaining / 1000
-              )}s remaining)`
-            );
-
-            // Start crossfade
-            startCrossfade(
-              deckId as "A" | "B",
-              otherDeckId as "A" | "B",
-              crossfadeDuration
-            )
-              .then(() => {
-                lastCrossfadeTimeRef.current = now;
-                console.log(
-                  `✅ Auto-crossfade completed from ${deckId} to ${otherDeckId}`
-                );
-              })
-              .catch((error) => {
-                console.error(`❌ Auto-crossfade failed:`, error);
-              });
+          if (timeRemaining <= threshold && timeRemaining >= minRem) {
+            candidates.push({ fromDeck: deckId, toDeck: otherDeckId, timeRemaining });
           }
         }
-      });
+      }
+
+      if (candidates.length === 0) return;
+
+      const best = candidates.reduce((a, b) =>
+        a.timeRemaining <= b.timeRemaining ? a : b
+      );
+
+      console.log(
+        `🎯 Auto-crossfade triggered for deck ${best.fromDeck} (${Math.round(best.timeRemaining / 1000)}s remaining)`
+      );
+
+      startCrossfade(best.fromDeck, best.toDeck, duration)
+        .then(() => {
+          lastCrossfadeTimeRef.current = now;
+          console.log(`✅ Auto-crossfade completed from ${best.fromDeck} to ${best.toDeck}`);
+        })
+        .catch((error) => {
+          console.error(`❌ Auto-crossfade failed:`, error);
+        });
+    },
+    [crossfadeEnabled, isCrossfadeActive, startCrossfade]
+  );
+
+  // Keep interval as backup; primary check is via checkAutoCrossfadeWithState from progress loop
+  useEffect(() => {
+    if (!crossfadeEnabled || isCrossfadeActive()) return;
+
+    const checkForAutoCrossfade = () => {
+      checkAutoCrossfadeWithState(latestRef.current.playerStates);
     };
 
-    crossfadeCheckIntervalRef.current = setInterval(
-      checkForAutoCrossfade,
-      1000
-    );
-
+    crossfadeCheckIntervalRef.current = setInterval(checkForAutoCrossfade, 1000);
     return () => {
       if (crossfadeCheckIntervalRef.current) {
         clearInterval(crossfadeCheckIntervalRef.current);
       }
     };
-  }, [
-    crossfadeEnabled,
-    isCrossfadeActive,
-    playerStates,
-    startCrossfade,
-    crossfadeDuration,
-    autoCrossfadeThreshold,
-    minTimeRemaining,
-  ]);
+  }, [crossfadeEnabled, isCrossfadeActive, checkAutoCrossfadeWithState]);
 
   // Manual crossfade
   const triggerManualCrossfade = useCallback(async () => {
@@ -205,16 +204,19 @@ export function useSmartCrossfade({
       // Provide user-friendly error message for Spotify device issues
       if (
         error instanceof Error &&
-        error.message.includes("device not available")
+        (error.message === "SPOTIFY_NO_ACTIVE_DEVICE" ||
+          error.message.includes("device not available"))
       ) {
         alert(
-          "Crossfade failed: Spotify device not available. Please ensure Spotify app is open and active."
+          "To play Spotify here, open the Spotify app or spotify.com in another tab, press Play on any track once, then try again."
         );
       } else if (
         error instanceof Error &&
         error.message.includes("Cannot start Spotify playback")
       ) {
-        alert(error.message);
+        alert(
+          "To play Spotify here, open the Spotify app or spotify.com in another tab, press Play on any track once, then try again."
+        );
       } else {
         alert(
           `Crossfade failed: ${
@@ -229,6 +231,10 @@ export function useSmartCrossfade({
   const toggleCrossfade = useCallback(() => {
     const newState = !crossfadeEnabled;
     setCrossfadeEnabled(newState);
+    // When user enables auto-crossfade, treat it as user intent so auto-crossfade actually runs
+    if (newState) {
+      hasUserActionRef.current = true;
+    }
     console.log(`🎛️ Auto-crossfade ${newState ? "ENABLED" : "DISABLED"}`);
   }, [crossfadeEnabled]);
 
@@ -270,7 +276,7 @@ export function useSmartCrossfade({
     return hasPlayingDeck && hasReadyDeck;
   }, [playerStates, isCrossfadeActive]);
 
-  // Get crossfade suggestions
+  // Get crossfade suggestions (when auto-crossfade is OFF, suggest manual; when ON, don't suggest "track ending" since we auto-crossfade)
   const getCrossfadeSuggestions = useCallback(() => {
     const suggestions: Array<{
       fromDeck: "A" | "B";
@@ -282,37 +288,39 @@ export function useSmartCrossfade({
     const playerA = playerStates.A;
     const playerB = playerStates.B;
 
-    // Check for ending tracks
-    if (playerA.isPlaying && playerA.duration > 0) {
-      const timeRemaining = playerA.duration - playerA.currentTime;
-      if (
-        timeRemaining <= autoCrossfadeThreshold &&
-        timeRemaining >= minTimeRemaining
-      ) {
-        if (playerB.isReady && playerB.currentTrack) {
-          suggestions.push({
-            fromDeck: "A",
-            toDeck: "B",
-            reason: `Track ending in ${Math.round(timeRemaining / 1000)}s`,
-            priority: timeRemaining <= 3000 ? "high" : "medium",
-          });
+    // Only suggest "track ending" when auto-crossfade is disabled; when enabled we auto-crossfade so no suggestion needed
+    if (!crossfadeEnabled) {
+      if (playerA.isPlaying && playerA.duration > 0) {
+        const timeRemaining = playerA.duration - playerA.currentTime;
+        if (
+          timeRemaining <= autoCrossfadeThreshold &&
+          timeRemaining >= minTimeRemaining
+        ) {
+          if (playerB.isReady && playerB.currentTrack) {
+            suggestions.push({
+              fromDeck: "A",
+              toDeck: "B",
+              reason: `Track ending in ${Math.round(timeRemaining / 1000)}s`,
+              priority: timeRemaining <= 3000 ? "high" : "medium",
+            });
+          }
         }
       }
-    }
 
-    if (playerB.isPlaying && playerB.duration > 0) {
-      const timeRemaining = playerB.duration - playerB.currentTime;
-      if (
-        timeRemaining <= autoCrossfadeThreshold &&
-        timeRemaining >= minTimeRemaining
-      ) {
-        if (playerA.isReady && playerA.currentTrack) {
-          suggestions.push({
-            fromDeck: "B",
-            toDeck: "A",
-            reason: `Track ending in ${Math.round(timeRemaining / 1000)}s`,
-            priority: timeRemaining <= 3000 ? "high" : "medium",
-          });
+      if (playerB.isPlaying && playerB.duration > 0) {
+        const timeRemaining = playerB.duration - playerB.currentTime;
+        if (
+          timeRemaining <= autoCrossfadeThreshold &&
+          timeRemaining >= minTimeRemaining
+        ) {
+          if (playerA.isReady && playerA.currentTrack) {
+            suggestions.push({
+              fromDeck: "B",
+              toDeck: "A",
+              reason: `Track ending in ${Math.round(timeRemaining / 1000)}s`,
+              priority: timeRemaining <= 3000 ? "high" : "medium",
+            });
+          }
         }
       }
     }
@@ -336,7 +344,7 @@ export function useSmartCrossfade({
       const priorityOrder = { high: 3, medium: 2, low: 1 };
       return priorityOrder[b.priority] - priorityOrder[a.priority];
     });
-  }, [playerStates, autoCrossfadeThreshold, minTimeRemaining]);
+  }, [playerStates, autoCrossfadeThreshold, minTimeRemaining, crossfadeEnabled]);
 
   return {
     // State
@@ -352,6 +360,9 @@ export function useSmartCrossfade({
     setAutoCrossfadeThresholdMs,
     setMinTimeRemainingMs,
     setCrossfadeCooldownMs,
+
+    // Called by progress loop with fresh manager state so auto-crossfade actually fires
+    checkAutoCrossfadeWithState,
 
     // Queries
     canCrossfade,

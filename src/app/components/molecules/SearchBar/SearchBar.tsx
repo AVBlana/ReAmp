@@ -27,23 +27,27 @@ const SearchBar: React.FC<SearchBarProps> = ({
   const [internalQuery, setInternalQuery] = useState("");
   const query = value !== undefined ? value : internalQuery;
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSentQueryRef = useRef<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Debounced search effect
+  // Debounced search effect - only fire onSearch when trimmed value actually changed to avoid duplicate parent updates
   useEffect(() => {
-    if (query.trim()) {
-      // Clear any existing timeout
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-
-      // Set new timeout for search
-      searchTimeoutRef.current = setTimeout(() => {
-        onSearch(query.trim());
-      }, debounceMs);
+    const trimmed = query.trim();
+    if (!trimmed) {
+      lastSentQueryRef.current = "";
+      return;
     }
 
-    // Cleanup timeout on unmount or query change
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      if (trimmed === lastSentQueryRef.current) return;
+      lastSentQueryRef.current = trimmed;
+      onSearch(trimmed);
+    }, debounceMs);
+
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);

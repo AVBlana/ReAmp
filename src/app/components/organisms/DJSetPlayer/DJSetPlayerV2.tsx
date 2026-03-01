@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
+import type { PlayerInstance } from "@/app/managers/UnifiedPlayerManager";
 import { Droppable } from "@hello-pangea/dnd";
 import { useUnifiedContext } from "@/app/context/UnifiedContext";
 import { ServiceType, Song } from "@/app/types/playerTypes";
@@ -23,6 +24,9 @@ export default function DJSetPlayerV2({
   const { youtube, spotify, unified } = useUnifiedContext();
   const playerAContainerRef = useRef<HTMLDivElement>(null);
   const playerBContainerRef = useRef<HTMLDivElement>(null);
+  const autoCrossfadeCheckRef = useRef<
+    ((states: { A: PlayerInstance; B: PlayerInstance }) => void) | null
+  >(null);
 
   // Use the unified player system
   const {
@@ -41,12 +45,9 @@ export default function DJSetPlayerV2({
     isDeckPlaying,
     hasTrack,
   } = useUnifiedPlayer({
-    onPlayerStateChange: () => {
-      // State change callback - no logging to reduce console spam
-    },
-    onCrossfadeStateChange: () => {
-      // Crossfade state change callback - no logging to reduce console spam
-    },
+    onPlayerStateChange: () => {},
+    onCrossfadeStateChange: () => {},
+    autoCrossfadeCheckRef,
   });
 
   // Use the smart crossfade system
@@ -62,11 +63,20 @@ export default function DJSetPlayerV2({
     setMinTimeRemainingMs,
     canCrossfade,
     getCrossfadeSuggestions,
+    checkAutoCrossfadeWithState,
   } = useSmartCrossfade({
     playerStates,
     startCrossfade,
     isCrossfadeActive,
   });
+
+  // Let the progress loop call our auto-crossfade check with fresh manager state
+  useEffect(() => {
+    autoCrossfadeCheckRef.current = checkAutoCrossfadeWithState;
+    return () => {
+      autoCrossfadeCheckRef.current = null;
+    };
+  }, [checkAutoCrossfadeWithState]);
 
   // Monitor playlist changes and clear video containers when tracks are removed
   useEffect(() => {
@@ -242,9 +252,12 @@ export default function DJSetPlayerV2({
             // Provide user-friendly error messages for common issues
             let userMessage = "Failed to load track";
             if (error instanceof Error) {
-              if (error.message.includes("device not available")) {
+              if (
+                error.message === "SPOTIFY_NO_ACTIVE_DEVICE" ||
+                error.message.includes("device not available")
+              ) {
                 userMessage =
-                  "Spotify device not available. Please ensure Spotify app is open and active.";
+                  "To play Spotify here, open the Spotify app or spotify.com in another tab, press Play on any track once, then try again.";
               } else if (error.message.includes("authentication")) {
                 userMessage =
                   "Spotify authentication failed. Please log in again.";
@@ -364,8 +377,25 @@ Please try searching again or refresh the page.`);
                   duration: playerState.duration,
                   isActive: playerState.isReady,
                   playerId: playerId,
+                  embedDisabled: playerState.embedDisabled,
                 }}
-                onPlay={() => playDeck(playerId)}
+                onPlay={async () => {
+                  try {
+                    await playDeck(playerId);
+                  } catch (e) {
+                    const msg = e instanceof Error ? e.message : String(e);
+                    if (
+                      msg === "SPOTIFY_NO_ACTIVE_DEVICE" ||
+                      msg.includes("device not available")
+                    ) {
+                      alert(
+                        "To play Spotify here, open the Spotify app or spotify.com in another tab, press Play on any track once, then try again."
+                      );
+                    } else {
+                      alert(msg);
+                    }
+                  }
+                }}
                 onPause={() => pauseDeck(playerId)}
                 onStop={() => stopDeck(playerId)}
                 onVolumeChange={(volume) => setDeckVolume(playerId, volume)}
@@ -437,6 +467,9 @@ Please try searching again or refresh the page.`);
             onSetCrossfadeDuration={setCrossfadeDurationMs}
             onSetAutoCrossfadeThreshold={setAutoCrossfadeThresholdMs}
             onSetMinTimeRemaining={setMinTimeRemainingMs}
+            onSuggestionClick={(from, to) =>
+              startCrossfade(from, to, crossfadeDuration)
+            }
           />
         </div>
       </div>
@@ -471,18 +504,18 @@ Please try searching again or refresh the page.`);
                 }`}
               >
                 <div
-                  className={`relative bg-black rounded-lg overflow-hidden shadow-2xl transition-all duration-500 ease-in-out ${
+                  className={`relative bg-black rounded-lg overflow-hidden shadow-2xl transition-all duration-500 ease-in-out min-w-[200px] min-h-[200px] ${
                     shouldShowVideo
                       ? isOnlyVideoPlaying
                         ? "w-full h-48 sm:h-80 aspect-video opacity-100"
                         : "w-full h-32 sm:h-64 aspect-video opacity-100"
-                      : "w-12 h-12 sm:w-16 sm:h-16 opacity-60"
+                      : "w-[200px] h-[200px] opacity-60"
                   }`}
                 >
-                  {/* YouTube API Player Container - Always present for player manager */}
+                  {/* YouTube API Player Container - min 200x200 required by YouTube IFrame API */}
                   <div
                     id={`youtube-player-${playerId}`}
-                    className="w-full h-full"
+                    className="w-full h-full min-w-[200px] min-h-[200px]"
                     ref={
                       playerId === "A"
                         ? playerAContainerRef

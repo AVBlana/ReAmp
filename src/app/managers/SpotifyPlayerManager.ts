@@ -58,23 +58,78 @@ export class SpotifyPlayerManager {
 
   private async refreshToken(): Promise<string> {
     try {
-      // Get token from NextAuth session instead of custom API
       const response = await fetch("/api/auth/session");
-      if (!response.ok) {
-        throw new Error("Failed to get session");
-      }
-      const session = await response.json();
-
-      const spotifyToken = session?.providers?.spotify?.accessToken;
-      if (!spotifyToken) {
-        throw new Error("No Spotify token in session");
+      if (response.ok) {
+        const session = await response.json();
+        const fromSession = session?.providers?.spotify?.accessToken;
+        if (fromSession) {
+          return fromSession;
+        }
       }
 
-      console.log("✅ Got Spotify token from NextAuth session");
-      return spotifyToken;
+      // Fallback: server-side token (session may not include providers on client)
+      const tokenRes = await fetch("/api/user/spotify-token", {
+        credentials: "include",
+      });
+      if (tokenRes.ok) {
+        const { accessToken } = await tokenRes.json();
+        if (accessToken) {
+          return accessToken;
+        }
+      }
+
+      throw new Error("No Spotify token. Please connect Spotify in account settings.");
     } catch (error) {
-      console.error("❌ Error getting Spotify token from session:", error);
+      console.error("❌ Error getting Spotify token:", error);
       throw error;
+    }
+  }
+
+  /** Transfer user's playback to our device so play requests succeed (fixes 404 when device was inactive) */
+  private async transferPlaybackToDevice(
+    deviceId: string,
+    token: string,
+    options?: { play: boolean }
+  ): Promise<boolean> {
+    try {
+      const res = await fetch("https://api.spotify.com/v1/me/player", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          device_ids: [deviceId],
+          play: options?.play ?? false,
+        }),
+      });
+      if (res.status === 204) {
+        console.log("✅ Transferred playback to our device");
+        return true;
+      }
+      if (res.status === 404) {
+        // Device not found or no active session
+        return false;
+      }
+      const err = await res.json().catch(() => ({}));
+      console.warn("⚠️ Transfer playback response:", res.status, err);
+      return false;
+    } catch (e) {
+      console.warn("⚠️ Transfer playback failed:", e);
+      return false;
+    }
+  }
+
+  /** Activate the Web Playback SDK element so the device stays registered with Spotify (reduces 404s on subsequent plays) */
+  private async ensureDeviceActive(playerId: string): Promise<void> {
+    const player = this.players.get(playerId) || this.globalPlayerInstance;
+    if (player?.activateElement) {
+      try {
+        await player.activateElement();
+        await new Promise((r) => setTimeout(r, 1500));
+      } catch {
+        // ignore
+      }
     }
   }
 
@@ -82,16 +137,12 @@ export class SpotifyPlayerManager {
     try {
       console.log(`🔄 Refreshing device ID for player ${playerId}`);
 
-      // Get a fresh token
       const token = await this.refreshToken();
 
-      // Get available devices from Spotify API
       const response = await fetch(
         "https://api.spotify.com/v1/me/player/devices",
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
@@ -100,20 +151,12 @@ export class SpotifyPlayerManager {
         return null;
       }
 
-      const devices = await response.json();
-      console.log("📱 Available Spotify devices:", devices);
+      const data = await response.json();
+      const devices: Array<{ is_active: boolean; type: string; id: string; name: string }> = data.devices || [];
+      console.log("📱 Available Spotify devices:", { devices });
 
-      // Look for an active device or web player
-      const activeDevice = devices.devices.find(
-        (device: {
-          is_active: boolean;
-          type: string;
-          id: string;
-          name: string;
-        }) =>
-          device.is_active ||
-          device.type === "Computer" ||
-          device.type === "Web"
+      const activeDevice = devices.find(
+        (d) => d.is_active || d.type === "Computer" || d.type === "Web"
       );
 
       if (activeDevice) {
@@ -124,20 +167,31 @@ export class SpotifyPlayerManager {
         return activeDevice.id;
       }
 
-      // If no active device, try to activate the web player
+      // No device in API list: use Web Playback SDK device_id and transfer playback to it
+      const player = this.players.get(playerId) || this.globalPlayerInstance;
+      const sdkDeviceId = player?._options?.device_id;
+      if (sdkDeviceId) {
+        console.log("🔄 No device in API list; using SDK device and transferring playback");
+        await this.globalPlayerInstance?.activateElement?.();
+        // Wait longer so Spotify registers the Web device (empty list often needs 2s+ after activate)
+        await new Promise((r) => setTimeout(r, 2000));
+        const transferred = await this.transferPlaybackToDevice(sdkDeviceId, token);
+        if (transferred) {
+          await new Promise((r) => setTimeout(r, 400));
+        }
+        this.deviceIds.set(playerId, sdkDeviceId);
+        return sdkDeviceId;
+      }
+
       if (this.globalPlayerInstance) {
         try {
           await this.globalPlayerInstance.activateElement();
           console.log("🔄 Activated web player element");
-
-          // Wait a moment for activation
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          // Try to get the device ID again
-          const deviceId = this.deviceIds.get(playerId);
-          if (deviceId) {
-            console.log(`✅ Got device ID after activation: ${deviceId}`);
-            return deviceId;
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          const id = this.deviceIds.get(playerId) ?? this.globalPlayerInstance?._options?.device_id;
+          if (id) {
+            this.deviceIds.set(playerId, id);
+            return id;
           }
         } catch (activationError) {
           console.error("Failed to activate web player:", activationError);
@@ -324,6 +378,22 @@ export class SpotifyPlayerManager {
     }
   }
 
+  /**
+   * Load a new track into an existing Spotify player without destroying it.
+   * Use when the deck already has a Spotify player (e.g. after crossfade) to avoid
+   * disconnecting and invalidating the other deck's device.
+   */
+  loadTrackIntoExistingPlayer(playerId: string, trackId: string, token: string): void {
+    const player = this.players.get(playerId);
+    if (!player) {
+      console.warn(`⚠️ No existing Spotify player ${playerId}, caller should use createPlayer`);
+      return;
+    }
+    this.tokens.set(playerId, token);
+    this.trackInfo.set(playerId, { trackId, token });
+    console.log(`🎵 Loaded track ${trackId} into existing Spotify player ${playerId}`);
+  }
+
   async createPlayer(playerId: string, trackId: string, token: string) {
     console.log(`🎯 SpotifyManager.createPlayer called for ${playerId}:`, {
       trackId,
@@ -383,7 +453,37 @@ export class SpotifyPlayerManager {
     });
   }
 
-  async playTrack(playerId: string, trackId: string): Promise<void> {
+  /** Reconnect the Web Playback SDK to get a fresh device_id when the current one returns 404 */
+  private async reconnectSpotifyPlayer(playerId: string): Promise<SpotifyPlayer | null> {
+    const player = this.players.get(playerId);
+    if (!player) return null;
+    try {
+      console.log(`🔄 Reconnecting Spotify SDK for ${playerId} to get fresh device...`);
+      player.disconnect();
+    } catch {
+      // ignore
+    }
+    this.players.delete(playerId);
+    this.deviceIds.delete(playerId);
+    this.globalPlayerInstance = null;
+
+    try {
+      const newPlayer = await this.createSpotifyPlayer(playerId);
+      this.players.set(playerId, newPlayer);
+      console.log(`✅ Spotify SDK reconnected for ${playerId}`);
+      return newPlayer;
+    } catch (err) {
+      console.error("❌ Spotify SDK reconnect failed:", err);
+      return null;
+    }
+  }
+
+  async playTrack(
+    playerId: string,
+    trackId: string,
+    /** Set when retrying after SDK reconnect to avoid reconnect loop */
+    retriedAfterReconnect = false
+  ): Promise<void> {
     console.log(`🚀 playTrack called for ${playerId} with track ${trackId}`);
 
     const player = this.players.get(playerId);
@@ -393,6 +493,9 @@ export class SpotifyPlayerManager {
     }
 
     try {
+      // Keep Web Playback device registered before API calls (reduces 404 on second+ play)
+      await this.ensureDeviceActive(playerId);
+
       const deviceId = await this.getDeviceId(player);
       const token = this.tokens.get(playerId);
 
@@ -416,59 +519,75 @@ export class SpotifyPlayerManager {
         return;
       }
 
+      const playPayload = {
+        uris: [`spotify:track:${trackId}`],
+      };
+      const playOpts = {
+        method: "PUT" as const,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(playPayload),
+      };
+
+      const doPlay = (device: string) =>
+        fetch(
+          `https://api.spotify.com/v1/me/player/play?device_id=${device}`,
+          playOpts
+        );
+
       console.log(
         `🎵 Sending play request to Spotify API for track ${trackId} on device ${deviceId}`
       );
 
-      const response = await fetch(
-        `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            uris: [`spotify:track:${trackId}`],
-          }),
-        }
-      );
+      let response = await doPlay(deviceId);
 
       console.log(`📡 Spotify API response status: ${response.status}`);
 
+      // On 404: activate element, transfer to our device, then retry
+      if (response.status === 404) {
+        console.log(
+          "Spotify device not found (404). Activating device, transferring playback, and retrying..."
+        );
+        await this.ensureDeviceActive(playerId);
+        await new Promise((r) => setTimeout(r, 800));
+        const transferred = await this.transferPlaybackToDevice(deviceId, token);
+        if (transferred) {
+          await new Promise((r) => setTimeout(r, 600));
+          response = await doPlay(deviceId);
+          console.log(`📡 Spotify API retry status: ${response.status}`);
+        }
+      }
+
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         console.error(`❌ Spotify play error:`, errorData);
 
-        // Check if it's an authentication error
         if (response.status === 401) {
           console.error("Spotify authentication failed, redirecting to login");
           window.location.href = "/";
           return;
         }
 
-        // Handle 404 error (device not found or inactive)
         if (response.status === 404) {
-          console.error(
-            "Spotify device not found or inactive. Please ensure Spotify app is open and active."
-          );
-
-          // Try to refresh the device ID
           try {
-            console.log("🔄 Attempting to refresh device ID...");
             const newDeviceId = await this.refreshDeviceId(playerId);
-            if (newDeviceId) {
-              console.log(`🔄 Retrying with new device ID: ${newDeviceId}`);
-              // Retry the play request with the new device ID
-              return await this.playTrack(playerId, trackId);
+            if (newDeviceId && newDeviceId !== deviceId) {
+              return await this.playTrack(playerId, trackId, retriedAfterReconnect);
             }
-          } catch (refreshError) {
-            console.error("Failed to refresh device ID:", refreshError);
+            // Still 404 with same or no device: reconnect SDK once for a fresh device_id (unless we already did)
+            if (!retriedAfterReconnect) {
+              const reconnected = await this.reconnectSpotifyPlayer(playerId);
+              if (reconnected) {
+                await new Promise((r) => setTimeout(r, 1200));
+                return await this.playTrack(playerId, trackId, true);
+              }
+            }
+          } catch {
+            // ignore
           }
-
-          throw new Error(
-            "Spotify device not available. Please ensure Spotify app is open and active."
-          );
+          throw new Error("SPOTIFY_NO_ACTIVE_DEVICE");
         }
 
         throw new Error(`Spotify play failed: ${response.status}`);
@@ -507,6 +626,11 @@ export class SpotifyPlayerManager {
     }
   }
 
+  /**
+   * Pause playback for a specific deck's device only.
+   * Uses the REST API with device_id so we don't pause the currently active device
+   * (e.g. after crossfade A→B, calling pausePlayer("A") must not pause B).
+   */
   async pausePlayer(playerId: string): Promise<void> {
     const player = this.players.get(playerId);
     if (!player) {
@@ -514,9 +638,43 @@ export class SpotifyPlayerManager {
       return;
     }
 
+    const token = this.tokens.get(playerId);
+    if (!token) {
+      console.warn(`⚠️ No token for Spotify player ${playerId}, skipping pause`);
+      return;
+    }
+
     try {
+      const deviceId = await this.getDeviceId(player);
+      if (!deviceId) {
+        console.warn(`⚠️ No device ID for Spotify player ${playerId}, falling back to SDK pause`);
+        await player.pause();
+        console.log(`⏸️ Paused Spotify player ${playerId} (SDK fallback)`);
+        return;
+      }
+
+      const res = await fetch(
+        `https://api.spotify.com/v1/me/player/pause?device_id=${encodeURIComponent(deviceId)}`,
+        {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (res.ok) {
+        // 204 or any 2xx: pause targeted this device only; do NOT call player.pause() (that would pause the active device)
+        console.log(`⏸️ Paused Spotify player ${playerId} (device ${deviceId.slice(0, 8)}…)`);
+        return;
+      }
+      if (res.status === 404) {
+        // Device not active (e.g. playback already on other device) - that's ok
+        console.log(`⏸️ Spotify device ${playerId} not active, no-op`);
+        return;
+      }
+      const err = await res.json().catch(() => ({}));
+      console.warn(`⚠️ Spotify pause response ${res.status}:`, err);
+      // Only fall back to SDK pause on real errors; SDK pause affects active device so avoid if we're not sure
       await player.pause();
-      console.log(`⏸️ Paused Spotify player ${playerId}`);
+      console.log(`⏸️ Paused Spotify player ${playerId} (SDK fallback after API ${res.status})`);
     } catch (error) {
       console.error(`❌ Error pausing Spotify player ${playerId}:`, error);
       throw error;
@@ -592,20 +750,20 @@ export class SpotifyPlayerManager {
     }
   }
 
-  async setVolume(playerId: string, volume: number): Promise<void> {
+  async setVolume(playerId: string, volume: number, options?: { quiet?: boolean }): Promise<void> {
     const player = this.players.get(playerId);
     if (!player) {
-      console.warn(`⚠️ Spotify player ${playerId} not found for volume change`);
+      if (!options?.quiet) console.warn(`⚠️ Spotify player ${playerId} not found for volume change`);
       return;
     }
 
     try {
       if (player.setVolume) {
         await player.setVolume(volume / 100);
-        console.log(`🔊 Set Spotify player ${playerId} volume to ${volume}`);
+        if (!options?.quiet) console.log(`🔊 Set Spotify player ${playerId} volume to ${volume}`);
       }
     } catch (error) {
-      console.error(
+      if (!options?.quiet) console.error(
         `❌ Error setting Spotify player ${playerId} volume:`,
         error
       );

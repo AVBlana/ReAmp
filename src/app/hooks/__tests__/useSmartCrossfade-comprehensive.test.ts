@@ -99,7 +99,7 @@ describe("Crossfade Behavior - Comprehensive Tests", () => {
     });
 
     // Simulate session restore by changing tracks without user action
-    const sessionRestoreStates = {
+    const _sessionRestoreStates = {
       ...mockPlayerStates,
       A: {
         ...mockPlayerStates.A,

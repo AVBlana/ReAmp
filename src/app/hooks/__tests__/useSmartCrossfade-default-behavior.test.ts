@@ -99,7 +99,7 @@ describe("Crossfade Default Behavior - Tests", () => {
     });
 
     // Simulate session restore by changing tracks without user action
-    const sessionRestoreStates = {
+    const _sessionRestoreStates = {
       ...mockPlayerStates,
       A: {
         ...mockPlayerStates.A,
@@ -131,7 +131,7 @@ describe("Crossfade Default Behavior - Tests", () => {
     });
 
     // Simulate auto-load by changing tracks without user action
-    const autoLoadStates = {
+    const _autoLoadStates = {
       ...mockPlayerStates,
       B: {
         ...mockPlayerStates.B,

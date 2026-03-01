@@ -19,6 +19,8 @@ export interface CrossfadeControlsV2Props {
   onSetCrossfadeDuration: (duration: number) => void;
   onSetAutoCrossfadeThreshold: (threshold: number) => void;
   onSetMinTimeRemaining: (minTime: number) => void;
+  /** When provided, clicking a suggestion runs this crossfade (fromDeck → toDeck) */
+  onSuggestionClick?: (fromDeck: "A" | "B", toDeck: "A" | "B") => void;
   className?: string;
 }
 
@@ -35,6 +37,7 @@ const CrossfadeControlsV2: React.FC<CrossfadeControlsV2Props> = ({
   onSetCrossfadeDuration,
   onSetAutoCrossfadeThreshold,
   onSetMinTimeRemaining,
+  onSuggestionClick,
   className = "",
 }) => {
   const [showAdvancedSettings, setShowAdvancedSettings] = React.useState(false);
@@ -150,17 +153,27 @@ const CrossfadeControlsV2: React.FC<CrossfadeControlsV2Props> = ({
             <span className="text-xs font-mono text-white">Suggestions</span>
           </div>
           <div className="space-y-0.5">
-            {crossfadeSuggestions.slice(0, 2).map((suggestion, index) => (
-              <div
-                key={index}
-                className={`text-xs font-mono ${getPriorityColor(
-                  suggestion.priority
-                )}`}
-              >
-                {getPriorityIcon(suggestion.priority)} {suggestion.reason} (
-                {suggestion.fromDeck} → {suggestion.toDeck})
-              </div>
-            ))}
+            {crossfadeSuggestions.slice(0, 2).map((suggestion, index) => {
+              const clickable = !!onSuggestionClick && !isCrossfadeActive;
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() =>
+                    clickable &&
+                    onSuggestionClick?.(suggestion.fromDeck, suggestion.toDeck)
+                  }
+                  disabled={!clickable}
+                  title={clickable ? "Click to start crossfade now" : undefined}
+                  className={`w-full text-left text-xs font-mono rounded px-1 py-0.5 transition-colors ${getPriorityColor(
+                    suggestion.priority
+                  )} ${clickable ? "hover:bg-white/10 cursor-pointer" : "cursor-default"}`}
+                >
+                  {getPriorityIcon(suggestion.priority)} {suggestion.reason} (
+                  {suggestion.fromDeck} → {suggestion.toDeck})
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

@@ -38,6 +38,8 @@ export async function GET(request: Request) {
           maxResults: 10,
           q: query,
           type: "video",
+          videoEmbeddable: "true", // only videos that can be played in embedded players
+          videoSyndicated: "true", // only videos that can be played outside youtube.com
           key: API_KEY,
           pageToken: pageToken || undefined,
         },

@@ -51,6 +51,7 @@ const UserAvatar: React.FC = () => {
         {/* Avatar */}
         <div className="w-8 h-8 bg-gradient-to-br from-[#FF6B6B] to-[#4ECDC4] rounded-full flex items-center justify-center">
           {user?.image && !imageError ? (
+            // eslint-disable-next-line @next/next/no-img-element -- dynamic external avatar URL
             <img
               src={user.image}
               alt={user.name || "User"}

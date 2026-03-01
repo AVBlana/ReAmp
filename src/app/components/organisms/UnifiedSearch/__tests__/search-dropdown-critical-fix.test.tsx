@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import UnifiedSearchRefactored from "../UnifiedSearchRefactored";
+import UnifiedSearch from "../index";
 import { useUnifiedContext } from "@/app/context/UnifiedContext";
 
 // Mock the UnifiedContext
@@ -74,7 +74,7 @@ describe("Search Dropdown Clearing - Critical Fix", () => {
     ];
 
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}
@@ -130,7 +130,7 @@ describe("Search Dropdown Clearing - Critical Fix", () => {
     ];
 
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}
@@ -186,7 +186,7 @@ describe("Search Dropdown Clearing - Critical Fix", () => {
     ];
 
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}
@@ -244,7 +244,7 @@ describe("Search Dropdown Clearing - Critical Fix", () => {
 
   it("should reset hasSearched state when clearing", async () => {
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}
@@ -276,7 +276,7 @@ describe("Search Dropdown Clearing - Critical Fix", () => {
   it("should work across all pages with search component", () => {
     // Test that the clearing behavior works regardless of where the search component is used
     const { rerender } = render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}
@@ -298,7 +298,7 @@ describe("Search Dropdown Clearing - Critical Fix", () => {
 
     // Rerender with different props (simulating different page)
     rerender(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={true}
@@ -316,7 +316,7 @@ describe("Search Dropdown Clearing - Critical Fix", () => {
 
   it("should handle empty input edge case", async () => {
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}
@@ -347,7 +347,7 @@ describe("Search Dropdown Clearing - Critical Fix", () => {
 
   it("should handle repeated queries edge case", async () => {
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}
@@ -382,7 +382,7 @@ describe("Search Dropdown Clearing - Critical Fix", () => {
     const mockClearTimeout = jest.spyOn(global, "clearTimeout");
 
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}
@@ -406,7 +406,7 @@ describe("Search Dropdown Clearing - Critical Fix", () => {
     const mockClearTimeout = jest.spyOn(global, "clearTimeout");
 
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}

@@ -11,8 +11,15 @@ import SearchResultItem from "@/app/components/molecules/SearchResultItem";
 
 type SearchResult = YoutubeVideo | Song;
 
+/** Called before applying results; return false to ignore (stale search). */
+export type IsCurrentSearch = () => boolean;
+
 interface UnifiedSearchProps {
-  onSearch: (query: string, service: ServiceType) => void;
+  onSearch: (
+    query: string,
+    service: ServiceType,
+    isCurrentSearch?: IsCurrentSearch
+  ) => void | Promise<void>;
   onLoadMore?: (service: ServiceType) => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
@@ -115,22 +122,33 @@ export default function UnifiedSearch({
   const searchRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSearchQueryRef = useRef<string>("");
+  const searchGenerationRef = useRef(0);
+  const onSearchRef = useRef(onSearch);
+  onSearchRef.current = onSearch;
 
-  // Handle clicking outside
+  // Reset last search when query is cleared so next search can run
+  useEffect(() => {
+    if (!query.trim()) {
+      lastSearchQueryRef.current = "";
+    }
+  }, [query]);
+
+  // Handle clicking outside - only close/clear when click is outside ALL search UIs
+  // (Header renders search twice for desktop/mobile; the other instance would otherwise treat + click as "outside" and clear context)
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (
-        searchRef.current &&
-        !searchRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-        setQuery(""); // Clear the search term
-        // Clear search results
-        youtube.setSearchResults([]);
-        spotify.setSearchResults([]);
-        // Clear the last search query to prevent reopening
-        lastSearchQueryRef.current = "";
-      }
+      const target = event.target as Node;
+      if (!searchRef.current) return;
+      if (searchRef.current.contains(target)) return;
+
+      const el = target as Element;
+      if (el?.closest?.("[data-search-root]")) return;
+
+      setIsOpen(false);
+      setQuery("");
+      youtube.setSearchResults([]);
+      spotify.setSearchResults([]);
+      lastSearchQueryRef.current = "";
     }
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -139,38 +157,42 @@ export default function UnifiedSearch({
     };
   }, [youtube, spotify]);
 
-  // Debounced search effect
+  // Debounced search effect - only depend on query so timeout isn't cleared when parent re-renders
   useEffect(() => {
-    if (query.trim() && query !== lastSearchQueryRef.current) {
-      // Clear any existing timeout
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
+    const trimmed = query.trim();
+    if (!trimmed) return;
 
-      // Set new timeout for search
-      searchTimeoutRef.current = setTimeout(async () => {
-        setIsSearching(true);
-        try {
-          // Search both services simultaneously
-          await Promise.all([
-            onSearch(query.trim(), ServiceType.Youtube),
-            onSearch(query.trim(), ServiceType.Spotify),
-          ]);
-          lastSearchQueryRef.current = query.trim();
-          setIsOpen(true);
-        } finally {
-          setIsSearching(false);
-        }
-      }, 500); // 500ms delay
+    if (trimmed === lastSearchQueryRef.current) return;
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
 
-    // Cleanup timeout on unmount or query change
+    searchTimeoutRef.current = setTimeout(async () => {
+      const generation = ++searchGenerationRef.current;
+      const isCurrentSearch = () => searchGenerationRef.current === generation;
+
+      setIsSearching(true);
+      try {
+        const searchFn = onSearchRef.current;
+        await Promise.all([
+          searchFn(trimmed, ServiceType.Youtube, isCurrentSearch),
+          searchFn(trimmed, ServiceType.Spotify, isCurrentSearch),
+        ]);
+        if (!isCurrentSearch()) return;
+        lastSearchQueryRef.current = trimmed;
+        setIsOpen(true);
+      } finally {
+        if (isCurrentSearch()) setIsSearching(false);
+      }
+    }, 500);
+
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [query, onSearch]);
+  }, [query]);
 
   const handleLoadMore = useCallback(async () => {
     if (isLoadingMore || isSearching) return;
@@ -203,14 +225,17 @@ export default function UnifiedSearch({
     (result: SearchResult, service: ServiceType) => {
       if (service === ServiceType.Youtube) {
         const video = result as YoutubeVideo;
-        // Add to unified playlist
+        const videoId =
+          typeof video.id === "string"
+            ? video.id
+            : video.id?.videoId ?? getResultId(result);
+        if (!videoId) return;
         unified.addToPlaylist({
-          id: video.id.videoId,
+          id: videoId,
           type: ServiceType.Youtube,
           data: video,
         });
       } else if (service === ServiceType.Spotify && isSpotifySong(result)) {
-        // Add to unified playlist
         unified.addToPlaylist({
           id: result.id,
           type: ServiceType.Spotify,
@@ -245,16 +270,12 @@ export default function UnifiedSearch({
       return titleA.localeCompare(titleB);
     });
 
-  // Generate a unique key for each result
-  const getUniqueKey = (result: SearchResult): string => {
-    const resultId = getResultId(result);
-    const serviceType = getServiceType(result);
-    const timestamp = Date.now(); // Add timestamp to ensure uniqueness
-    return `${serviceType}-${resultId}-${timestamp}`;
-  };
-
   return (
-    <div className="relative w-full" ref={searchRef}>
+    <div
+      className="relative w-full"
+      ref={searchRef}
+      data-search-root
+    >
       <form onSubmit={handleSearch} className="relative">
         <div className="relative flex items-center">
           {/* Search Input - Now using SearchBar molecule */}
@@ -273,7 +294,7 @@ export default function UnifiedSearch({
         </div>
       </form>
 
-      {/* Search Results */}
+      {/* Search Results - stop mousedown so clicking plus/add doesn't close dropdown; only click outside closes */}
       <SearchResultsContainer
         isOpen={isOpen && combinedResults.length > 0}
         theme={{
@@ -283,22 +304,23 @@ export default function UnifiedSearch({
         hasMore={hasMore && !isSearching}
         onLoadMore={handleLoadMore}
         isLoadingMore={isLoadingMore || isSearching}
+        onMouseDown={(e) => e.stopPropagation()}
       >
-        {combinedResults.map((result) => {
-          const resultId = getResultId(result);
-          const serviceType = getServiceType(result);
-          const isYoutube = serviceType === ServiceType.Youtube;
-          const isInPlaylist = unified.playlist.some((item) => {
-            if (serviceType === ServiceType.Youtube) {
-              return item.id === resultId && item.type === ServiceType.Youtube;
-            } else {
-              return item.id === resultId && item.type === ServiceType.Spotify;
-            }
-          });
+          {combinedResults.map((result) => {
+            const resultId = getResultId(result);
+            const serviceType = getServiceType(result);
+            const isYoutube = serviceType === ServiceType.Youtube;
+            const isInPlaylist = unified.playlist.some((item) => {
+              if (serviceType === ServiceType.Youtube) {
+                return item.id === resultId && item.type === ServiceType.Youtube;
+              } else {
+                return item.id === resultId && item.type === ServiceType.Spotify;
+              }
+            });
 
-          return (
-            <SearchResultItem
-              key={getUniqueKey(result)}
+            return (
+              <SearchResultItem
+                key={`${serviceType}-${resultId}`}
               title={getTitle(result)}
               subtitle={getSubtitle(result)}
               thumbnail={getThumbnailUrl(result)}

@@ -14,6 +14,8 @@ interface SearchResultsContainerProps {
   hasMore?: boolean;
   onLoadMore?: () => void;
   isLoadingMore?: boolean;
+  /** Prevent mousedown from bubbling so click-outside doesn't close when clicking inside */
+  onMouseDown?: (e: React.MouseEvent) => void;
 }
 
 export default function SearchResultsContainer({
@@ -24,12 +26,15 @@ export default function SearchResultsContainer({
   hasMore = false,
   onLoadMore,
   isLoadingMore = false,
+  onMouseDown,
 }: SearchResultsContainerProps) {
   if (!isOpen) return null;
 
   return (
     <div
+      data-testid="search-results-container"
       className={`absolute z-50 w-full mt-2 bg-[#1A1A1A] border border-[${theme.primary}]/20 rounded-lg shadow-lg max-h-[400px] overflow-y-auto ${className} [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-[#1A1A1A] [&::-webkit-scrollbar-thumb]:bg-[${theme.primary}]/20 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-[${theme.primary}]/40 [&::-webkit-scrollbar-thumb]:transition-colors [&::-webkit-scrollbar-thumb]:duration-300`}
+      onMouseDown={onMouseDown}
     >
       <div className="relative">
         {/* Top shadow */}

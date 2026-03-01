@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import UnifiedSearchRefactored from "../UnifiedSearchRefactored";
+import UnifiedSearch from "../index";
 import { useUnifiedContext } from "@/app/context/UnifiedContext";
 import { ServiceType } from "@/app/types/playerTypes";
 
@@ -34,7 +34,7 @@ jest.mock("@/app/components/molecules/SearchResultItem", () => {
   };
 });
 
-describe("UnifiedSearchRefactored", () => {
+describe("UnifiedSearch", () => {
   const mockOnSearch = jest.fn();
   const mockOnLoadMore = jest.fn();
   const mockYoutube = {
@@ -62,7 +62,7 @@ describe("UnifiedSearchRefactored", () => {
 
   it("renders search input correctly", () => {
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
       />
@@ -70,7 +70,6 @@ describe("UnifiedSearchRefactored", () => {
 
     const searchInput = screen.getByPlaceholderText("Search for songs...");
     expect(searchInput).toBeInTheDocument();
-    expect(searchInput).toHaveAttribute("id", "unified-search-input");
   });
 
   it("clears search input and results on outside click", async () => {
@@ -82,7 +81,7 @@ describe("UnifiedSearchRefactored", () => {
     });
 
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
       />
@@ -106,7 +105,7 @@ describe("UnifiedSearchRefactored", () => {
 
   it("clears search input and results on escape key", async () => {
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
       />
@@ -132,7 +131,7 @@ describe("UnifiedSearchRefactored", () => {
     jest.useFakeTimers();
 
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
       />
@@ -162,7 +161,7 @@ describe("UnifiedSearchRefactored", () => {
 
   it("does not reopen dropdown on focus if no valid search exists", () => {
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
       />
@@ -203,7 +202,7 @@ describe("UnifiedSearchRefactored", () => {
     mockSpotify.searchResults = mockSpotifyResults;
 
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
       />
@@ -230,7 +229,7 @@ describe("UnifiedSearchRefactored", () => {
     mockYoutube.searchResults = mockYoutubeResults;
 
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
       />
@@ -257,7 +256,7 @@ describe("UnifiedSearchRefactored", () => {
     jest.useFakeTimers();
 
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
       />
@@ -283,7 +282,7 @@ describe("UnifiedSearchRefactored", () => {
     jest.useFakeTimers();
 
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
       />

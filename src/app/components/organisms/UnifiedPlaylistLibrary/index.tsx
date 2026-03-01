@@ -235,7 +235,8 @@ const UnifiedPlaylistLibrary = memo(
           }
         }
       }
-    }, [mounted]); // Only depend on mounted state
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only run when mounted
+    }, [mounted]);
 
     // Handlers
     const handleCreatePlaylist = useCallback(() => {

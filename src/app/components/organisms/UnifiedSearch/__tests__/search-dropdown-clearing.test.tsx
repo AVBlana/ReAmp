@@ -1,6 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import UnifiedSearchRefactored from "../UnifiedSearchRefactored";
+import UnifiedSearch from "../index";
 import { useUnifiedContext } from "@/app/context/UnifiedContext";
 
 // Mock the UnifiedContext
@@ -67,7 +67,7 @@ describe("Search Dropdown Clearing Behavior", () => {
     ];
 
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}
@@ -115,7 +115,7 @@ describe("Search Dropdown Clearing Behavior", () => {
     ];
 
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}
@@ -163,7 +163,7 @@ describe("Search Dropdown Clearing Behavior", () => {
     ];
 
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}
@@ -211,7 +211,7 @@ describe("Search Dropdown Clearing Behavior", () => {
 
   it("should reset hasSearched state when clearing", async () => {
     render(
-      <UnifiedSearchRefactored
+      <UnifiedSearch
         onSearch={mockOnSearch}
         onLoadMore={mockOnLoadMore}
         hasMore={false}

@@ -5,7 +5,6 @@ import { FaHome } from "react-icons/fa";
 import { ReactNode } from "react";
 // Import atomic design components
 import Button from "@/app/components/atoms/Button";
-import Icon from "@/app/components/atoms/Icon";
 import UserAvatar from "@/app/components/molecules/UserAvatar";
 
 export interface HeaderProps {

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { ServiceType, Song } from "@/app/types/playerTypes";
 import { YoutubeVideo } from "@/app/types/youtubeTypes";
 import {
@@ -11,11 +11,16 @@ import { useAuth } from "@/app/context/AuthContext";
 interface UseUnifiedPlayerProps {
   onPlayerStateChange?: (deckId: "A" | "B", state: PlayerInstance) => void;
   onCrossfadeStateChange?: (state: CrossfadeState) => void;
+  /** Ref to call with fresh manager state so auto-crossfade can run from the progress loop */
+  autoCrossfadeCheckRef?: React.MutableRefObject<
+    ((states: { A: PlayerInstance; B: PlayerInstance }) => void) | null
+  >;
 }
 
 export function useUnifiedPlayer({
   onPlayerStateChange,
   onCrossfadeStateChange,
+  autoCrossfadeCheckRef,
 }: UseUnifiedPlayerProps = {}) {
   const { getSpotifyToken } = useAuth();
   const [isInitialized, setIsInitialized] = useState(false);
@@ -61,6 +66,8 @@ export function useUnifiedPlayer({
 
   const managerRef = useRef<UnifiedPlayerManager | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSeekRef = useRef<{ time: number; deckId: string } | null>(null);
+  const SEEK_THROTTLE_MS = 80;
 
   // Initialize the manager
   useEffect(() => {
@@ -84,6 +91,7 @@ export function useUnifiedPlayer({
 
     return () => {
       if (managerRef.current) {
+        managerRef.current.setOnEmbedDisabled(() => {});
         managerRef.current.destroy();
       }
       if (progressIntervalRef.current) {
@@ -110,6 +118,18 @@ export function useUnifiedPlayer({
     }
   }, [onPlayerStateChange]);
 
+  // When YouTube reports embed disabled (150/101), refresh state so UI shows "Watch on YouTube"
+  useEffect(() => {
+    const manager = managerRef.current;
+    if (!manager || !isInitialized) return;
+    manager.setOnEmbedDisabled(() => {
+      updatePlayerStates();
+    });
+    return () => {
+      manager.setOnEmbedDisabled(() => {});
+    };
+  }, [isInitialized, updatePlayerStates]);
+
   // Update crossfade state from manager
   const updateCrossfadeState = useCallback(() => {
     if (!managerRef.current) return;
@@ -131,33 +151,23 @@ export function useUnifiedPlayer({
       progressIntervalRef.current = setInterval(async () => {
         if (!managerRef.current) return;
 
-        const currentStates = {
-          A: managerRef.current.getPlayerState("A"),
-          B: managerRef.current.getPlayerState("B"),
-        };
-
         // Update progress from service managers
         await managerRef.current.updateProgress();
 
-        // Update UI states
+        // Update UI states and crossfade state (so isActive stays in sync during/after crossfade)
         updatePlayerStates();
+        updateCrossfadeState();
 
-        // Check for auto-crossfade (less frequently to avoid conflicts)
+        // Run smart auto-crossfade check with fresh state (every ~1s)
         try {
-          // Only check auto-crossfade every few seconds to avoid excessive checking
           const now = Date.now();
-          const shouldCheckCrossfade = now % 2000 < 250; // Check roughly every 2 seconds
-
-          if (shouldCheckCrossfade) {
-            // Check if deck A should auto-crossfade
-            if (currentStates.A.isPlaying && currentStates.A.isReady) {
-              await managerRef.current!.triggerAutoCrossfadeIfNeeded("A");
-            }
-
-            // Check if deck B should auto-crossfade
-            if (currentStates.B.isPlaying && currentStates.B.isReady) {
-              await managerRef.current!.triggerAutoCrossfadeIfNeeded("B");
-            }
+          const shouldCheckCrossfade = now % 1000 < 250;
+          if (shouldCheckCrossfade && autoCrossfadeCheckRef?.current) {
+            const freshStates = {
+              A: managerRef.current.getPlayerState("A"),
+              B: managerRef.current.getPlayerState("B"),
+            };
+            autoCrossfadeCheckRef.current(freshStates);
           }
         } catch (error) {
           console.warn("Error checking auto-crossfade:", error);
@@ -172,6 +182,7 @@ export function useUnifiedPlayer({
         clearInterval(progressIntervalRef.current);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refs and stable callbacks only
   }, [isInitialized, updatePlayerStates, updateCrossfadeState]);
 
   // Load track into a deck
@@ -344,12 +355,23 @@ export function useUnifiedPlayer({
     [updatePlayerStates]
   );
 
-  // Seek in a deck - now calls service managers directly
+  // Seek in a deck - throttled so scratching doesn't flood Spotify API (429) or break YouTube
   const seekDeck = useCallback(
     async (deckId: "A" | "B", position: number) => {
       if (!managerRef.current) {
         throw new Error("Player manager not initialized");
       }
+
+      const now = Date.now();
+      const last = lastSeekRef.current;
+      if (
+        last &&
+        last.deckId === deckId &&
+        now - last.time < SEEK_THROTTLE_MS
+      ) {
+        return;
+      }
+      lastSeekRef.current = { time: now, deckId };
 
       try {
         const player = managerRef.current.getPlayerState(deckId);
@@ -367,16 +389,12 @@ export function useUnifiedPlayer({
           }
         }
 
-        // Update player state
         managerRef.current!.updatePlayerState(deckId, {
           currentTime: position,
           lastActivity: Date.now(),
         });
 
         updatePlayerStates();
-        console.log(
-          `⏩ Seeked deck ${deckId} to ${Math.round(position / 1000)}s`
-        );
       } catch (error) {
         console.error(`❌ Failed to seek deck ${deckId}:`, error);
         throw error;
@@ -393,12 +411,22 @@ export function useUnifiedPlayer({
       }
 
       try {
-        await managerRef.current.startCrossfade(fromDeck, toDeck, duration);
+        // Start crossfade; manager sets isActive = true synchronously before first await
+        const promise = managerRef.current.startCrossfade(
+          fromDeck,
+          toDeck,
+          duration ?? 2000
+        );
+        // Sync crossfade state immediately so isCrossfadeActive() is true during crossfade (prevents double-trigger and keeps UI correct)
+        updateCrossfadeState();
+
+        await promise;
         updatePlayerStates();
         updateCrossfadeState();
         console.log(`🔄 Crossfade started from ${fromDeck} to ${toDeck}`);
       } catch (error) {
         console.error(`❌ Failed to start crossfade:`, error);
+        updateCrossfadeState(); // sync so isActive becomes false after error
         throw error;
       }
     },

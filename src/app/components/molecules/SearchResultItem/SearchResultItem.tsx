@@ -72,10 +72,12 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({
         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
           {onAddToPlaylist && (
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onAddToPlaylist();
               }}
+              onMouseDown={(e) => e.stopPropagation()}
               disabled={isInPlaylist}
               className={`p-1.5 rounded-full transition-all duration-200 ${
                 isInPlaylist
@@ -99,6 +101,29 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({
           {subtitle}
         </p>
       </div>
+
+      {/* Add to playlist - always visible so user can add without closing dropdown */}
+      {onAddToPlaylist && (
+        <button
+          type="button"
+          draggable={false}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            onAddToPlaylist();
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          disabled={isInPlaylist}
+          className={`flex-shrink-0 p-2 rounded-full transition-all duration-200 ${
+            isInPlaylist
+              ? "bg-gray-500 cursor-not-allowed text-white"
+              : "bg-[#FF6B6B] hover:bg-[#FF5252] text-white hover:scale-110 shadow-lg hover:shadow-[#FF6B6B]/25"
+          }`}
+          title={isInPlaylist ? "Already in playlist" : "Add to playlist"}
+        >
+          <FaPlus size={14} />
+        </button>
+      )}
 
       {/* Service Icon */}
       <div className="flex-shrink-0">

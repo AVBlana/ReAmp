@@ -3,14 +3,12 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import Home from "../page";
 import { useAuth } from "@/app/context/AuthContext";
 
-// Mock the auth context
 jest.mock("@/app/context/AuthContext");
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 
-// Mock fetch for connected services API
 global.fetch = jest.fn();
 
-describe("Landing Page - Comprehensive Tests", () => {
+describe("Landing Page", () => {
   const mockSignIn = jest.fn();
   const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
 
@@ -37,7 +35,6 @@ describe("Landing Page - Comprehensive Tests", () => {
       .getByText("Continue with Spotify")
       .closest("button");
 
-    // Check Spotify brand colors
     expect(spotifyButton).toHaveClass("bg-[#1DB954]", "hover:bg-[#1AA34A]");
     expect(spotifyButton).toHaveClass(
       "border-[#1DB954]",
@@ -63,7 +60,6 @@ describe("Landing Page - Comprehensive Tests", () => {
       .getByText("Continue with Google")
       .closest("button");
 
-    // Check Google brand colors
     expect(googleButton).toHaveClass("bg-[#4285F4]", "hover:bg-[#3367D6]");
     expect(googleButton).toHaveClass(
       "border-[#4285F4]",
@@ -147,7 +143,6 @@ describe("Landing Page - Comprehensive Tests", () => {
       getGoogleToken: jest.fn(),
     });
 
-    // Mock connected services API response
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -179,7 +174,6 @@ describe("Landing Page - Comprehensive Tests", () => {
       getGoogleToken: jest.fn(),
     });
 
-    // Mock connected services API response
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -211,7 +205,6 @@ describe("Landing Page - Comprehensive Tests", () => {
       getGoogleToken: jest.fn(),
     });
 
-    // Mock connected services API response
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -242,7 +235,6 @@ describe("Landing Page - Comprehensive Tests", () => {
       getGoogleToken: jest.fn(),
     });
 
-    // Mock API error
     mockFetch.mockRejectedValueOnce(new Error("API Error"));
 
     const consoleSpy = jest
@@ -255,7 +247,6 @@ describe("Landing Page - Comprehensive Tests", () => {
       expect(mockFetch).toHaveBeenCalledWith("/api/user/connected-services");
     });
 
-    // Should fallback to "Connect" text when API fails
     expect(screen.getByText("Connect Spotify")).toBeInTheDocument();
     expect(screen.getByText("Connect Google")).toBeInTheDocument();
 
@@ -288,7 +279,6 @@ describe("Landing Page - Comprehensive Tests", () => {
       .getByText("Continue with Google")
       .closest("button");
 
-    // Check hover effects
     expect(spotifyButton).toHaveClass(
       "hover:bg-[#1AA34A]",
       "hover:border-[#1AA34A]"
@@ -298,15 +288,12 @@ describe("Landing Page - Comprehensive Tests", () => {
       "hover:border-[#3367D6]"
     );
 
-    // Check shadow effects
     expect(spotifyButton).toHaveClass("shadow-lg", "hover:shadow-xl");
     expect(googleButton).toHaveClass("shadow-lg", "hover:shadow-xl");
 
-    // Check rounded corners
     expect(spotifyButton).toHaveClass("rounded-2xl");
     expect(googleButton).toHaveClass("rounded-2xl");
 
-    // Check transitions
     expect(spotifyButton).toHaveClass("transition-all", "duration-300");
     expect(googleButton).toHaveClass("transition-all", "duration-300");
   });
@@ -329,7 +316,6 @@ describe("Landing Page - Comprehensive Tests", () => {
       .getByText("Continue with Spotify")
       .closest("div")?.parentElement;
 
-    // Check responsive classes
     expect(buttonContainer).toHaveClass(
       "flex",
       "flex-col",
@@ -356,11 +342,9 @@ describe("Landing Page - Comprehensive Tests", () => {
     const spotifyButton = screen.getByText("Continue with Spotify");
     const googleButton = screen.getByText("Continue with Google");
 
-    // Check that buttons are accessible
     expect(spotifyButton.closest("button")).toBeInTheDocument();
     expect(googleButton.closest("button")).toBeInTheDocument();
 
-    // Check button text is descriptive
     expect(spotifyButton).toHaveTextContent("Continue with Spotify");
     expect(googleButton).toHaveTextContent("Continue with Google");
   });
@@ -401,7 +385,6 @@ describe("Landing Page - Comprehensive Tests", () => {
       getGoogleToken: jest.fn(),
     });
 
-    // Mock connected services API response
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -448,7 +431,6 @@ describe("Landing Page - Comprehensive Tests", () => {
       .getByText("Continue with Google")
       .closest("button");
 
-    // Check text styling
     const spotifyText = spotifyButton?.querySelector("span");
     const googleText = googleButton?.querySelector("span");
 
@@ -477,7 +459,6 @@ describe("Landing Page - Comprehensive Tests", () => {
       .getByText("Continue with Google")
       .closest("button");
 
-    // Check spacing classes
     expect(spotifyButton).toHaveClass(
       "flex",
       "items-center",

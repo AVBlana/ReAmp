@@ -42,23 +42,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const handleSignIn = useCallback(
     async (provider?: string, options?: { callbackUrl?: string }) => {
       try {
-        console.log(
-          "🔐 AuthContext: Attempting sign in with provider:",
-          provider
-        );
-        console.log("🔐 AuthContext: Current session:", session?.user?.email);
-        console.log("🔐 AuthContext: Is authenticated:", !!session);
-        console.log("🔐 AuthContext: Callback URL:", options?.callbackUrl);
-
-        const result = await signIn(provider, {
-          callbackUrl: options?.callbackUrl || "/reamp",
+        const callbackUrl = options?.callbackUrl ?? "/reamp";
+        await signIn(provider, {
+          callbackUrl,
+          redirect: true,
         });
-        console.log("🔐 AuthContext: SignIn result:", result);
       } catch (error) {
         console.error("Sign in error:", error);
       }
     },
-    [session]
+    []
   );
 
   const handleSignOut = useCallback(async () => {
