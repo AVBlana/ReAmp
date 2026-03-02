@@ -79,14 +79,14 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({
               }}
               onMouseDown={(e) => e.stopPropagation()}
               disabled={isInPlaylist}
-              className={`p-1.5 rounded-full transition-all duration-200 ${
+              className={`min-w-[44px] min-h-[44px] p-2 rounded-full transition-all duration-200 touch-manipulation flex items-center justify-center ${
                 isInPlaylist
                   ? "bg-gray-500 cursor-not-allowed text-white"
                   : "bg-[#FF6B6B] hover:bg-[#FF5252] text-white hover:scale-110 shadow-lg hover:shadow-xl hover:shadow-[#FF6B6B]/25"
               }`}
               title={isInPlaylist ? "Already in playlist" : "Add to playlist"}
             >
-              <FaPlus size={12} />
+              <FaPlus size={14} />
             </button>
           )}
         </div>
@@ -114,7 +114,7 @@ const SearchResultItem: React.FC<SearchResultItemProps> = ({
           }}
           onMouseDown={(e) => e.stopPropagation()}
           disabled={isInPlaylist}
-          className={`flex-shrink-0 p-2 rounded-full transition-all duration-200 ${
+          className={`flex-shrink-0 min-w-[44px] min-h-[44px] p-2 rounded-full transition-all duration-200 touch-manipulation flex items-center justify-center ${
             isInPlaylist
               ? "bg-gray-500 cursor-not-allowed text-white"
               : "bg-[#FF6B6B] hover:bg-[#FF5252] text-white hover:scale-110 shadow-lg hover:shadow-[#FF6B6B]/25"

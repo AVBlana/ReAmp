@@ -88,6 +88,12 @@ export class UnifiedPlayerManager {
     this.onEmbedDisabledCallback = callback;
   }
 
+  /** If set, we will not create/load a YouTube player for videoIds for which this returns false (e.g. known 150). */
+  private canLoadYouTubeCheck: ((videoId: string) => boolean) | null = null;
+  setCanLoadYouTubeCheck(check: (videoId: string) => boolean): void {
+    this.canLoadYouTubeCheck = check;
+  }
+
   private createPlayerInstance(deckId: "A" | "B"): PlayerInstance {
     return {
       id: deckId,
@@ -199,7 +205,6 @@ export class UnifiedPlayerManager {
           lastActivity: Date.now(),
           embedDisabled: false,
         });
-        this.onEmbedDisabledCallback?.(deckId);
         await new Promise((r) => requestAnimationFrame(r));
       }
 
@@ -328,6 +333,12 @@ export class UnifiedPlayerManager {
 
     if (service === ServiceType.Youtube) {
       const youtubeTrack = track as YoutubeVideo;
+      const videoId = youtubeTrack.id.videoId;
+
+      if (this.canLoadYouTubeCheck && !this.canLoadYouTubeCheck(videoId)) {
+        throw new Error("VIDEO_EMBED_DISABLED");
+      }
+
       const container = this.getYouTubeContainer(deckId);
 
       if (!container) {
@@ -340,11 +351,11 @@ export class UnifiedPlayerManager {
         // Player exists, just load the new video without autoplay
         try {
           // Load video with autoplay disabled to prevent automatic playback
-          existingPlayer.loadVideoById(youtubeTrack.id.videoId);
+          existingPlayer.loadVideoById(videoId);
           // Ensure the player is paused after loading to prevent autoplay
           existingPlayer.pauseVideo();
           console.log(
-            `✅ Loaded video ${youtubeTrack.id.videoId} into existing player ${deckId} (autoplay disabled)`
+            `✅ Loaded video ${videoId} into existing player ${deckId} (autoplay disabled)`
           );
         } catch (error) {
           console.log(
@@ -353,13 +364,10 @@ export class UnifiedPlayerManager {
           );
           await this.youtubeManager.createPlayer(
             deckId,
-            youtubeTrack.id.videoId,
+            videoId,
             container,
             {
-              onEmbedDisabled: () => {
-                this.updatePlayerState(deckId, { embedDisabled: true });
-                this.onEmbedDisabledCallback?.(deckId);
-              },
+              onEmbedDisabled: () => this.onEmbedDisabled(deckId),
             }
           );
         }
@@ -367,13 +375,10 @@ export class UnifiedPlayerManager {
         // No existing player, create new one
         await this.youtubeManager.createPlayer(
           deckId,
-          youtubeTrack.id.videoId,
+          videoId,
           container,
           {
-            onEmbedDisabled: () => {
-              this.updatePlayerState(deckId, { embedDisabled: true });
-              this.onEmbedDisabledCallback?.(deckId);
-            },
+            onEmbedDisabled: () => this.onEmbedDisabled(deckId),
           }
         );
       }
@@ -615,6 +620,15 @@ export class UnifiedPlayerManager {
         try {
           if (toPlayer.service === ServiceType.Youtube) {
             this.youtubeManager.playPlayer(toDeck);
+            // Wait for YouTube to reach PLAYING (or BUFFERING) so the ramp fades in real audio instead of silence
+            const ytPlayingState = 1;
+            const ytBufferingState = 3;
+            const deadline = Date.now() + 1200;
+            while (Date.now() < deadline) {
+              const state = this.youtubeManager.getPlayerState(toDeck);
+              if (state === ytPlayingState || state === ytBufferingState) break;
+              await new Promise((r) => setTimeout(r, 50));
+            }
           } else if (toPlayer.service === ServiceType.Spotify && toPlayer.currentTrack) {
             await this.spotifyManager.playTrack(toDeck, (toPlayer.currentTrack as Song).id);
           }
@@ -641,8 +655,17 @@ export class UnifiedPlayerManager {
         }
       }
 
-      // Perform crossfade
-      await this.performCrossfade(fromDeck, toDeck, duration);
+      // Perform crossfade (skip volume ramp for Spotify→Spotify: one device, ramping "from" to 0 would mute the only playing device)
+      const bothSpotify =
+        fromPlayer.service === ServiceType.Spotify &&
+        toPlayer.service === ServiceType.Spotify;
+      if (!bothSpotify) {
+        await this.performCrossfade(fromDeck, toDeck, duration);
+      } else {
+        this.crossfadeState.progress = 100;
+      }
+
+      if (!this.crossfadeState.isActive) return; // e.g. target deck hit 150, abortCrossfade already restored from-deck
 
       // Complete crossfade
       await this.completeCrossfade(fromDeck, toDeck);
@@ -688,8 +711,14 @@ export class UnifiedPlayerManager {
 
     const fromP = this.playerPool[fromDeck];
     const toP = this.playerPool[toDeck];
+    const toInitialTrackId = toP.currentTrack ? this.getTrackId(toP.currentTrack) : null;
+    const toInitialService = toP.service;
+    // When target deck changes mid-ramp (e.g. YouTube 150 → refill loads Spotify), we must start the new track
+    // or the shared Spotify device keeps playing the "from" deck and sounds "stuck in background"
+    let targetTrackStartedForId: string | null = toInitialTrackId;
 
     for (let i = 0; i <= steps; i++) {
+      if (!this.crossfadeState.isActive) break; // e.g. target deck hit 150 and we aborted
       const linearProgress = i / steps;
       const progress = UnifiedPlayerManager.easeInOut(linearProgress);
 
@@ -698,14 +727,43 @@ export class UnifiedPlayerManager {
       const fromVolR = Math.round(fromVolume);
       const toVolR = Math.round(toVolume);
 
-      if (fromP.isReady) {
-        if (fromP.service === ServiceType.Youtube) this.youtubeManager.setVolume(fromDeck, fromVolR);
-        else if (fromP.service === ServiceType.Spotify) this.spotifyManager.setVolume(fromDeck, fromVolume, { quiet: true }).catch(() => {});
+      // Re-read pool each step in case deck was recreated/cleared during ramp (e.g. YouTube 150, refill)
+      const fromNow = this.playerPool[fromDeck];
+      const toNow = this.playerPool[toDeck];
+
+      // If target deck's track or service changed (e.g. refill replaced YouTube with Spotify), start that track now
+      if (toNow.currentTrack && toNow.isReady) {
+        const toTrackId = this.getTrackId(toNow.currentTrack);
+        const targetChanged = toTrackId !== toInitialTrackId || toNow.service !== toInitialService;
+        if (targetChanged && targetTrackStartedForId !== toTrackId) {
+          try {
+            if (toNow.service === ServiceType.Youtube) {
+              this.youtubeManager.playPlayer(toDeck);
+            } else if (toNow.service === ServiceType.Spotify) {
+              await this.spotifyManager.playTrack(toDeck, (toNow.currentTrack as Song).id);
+            }
+            this.updatePlayerState(toDeck, { isPlaying: true, lastActivity: Date.now() });
+            targetTrackStartedForId = toTrackId;
+          } catch (e) {
+            console.warn(`⚠️ Failed to start target deck ${toDeck} after track change during ramp:`, e);
+          }
+        }
+      }
+
+      if (fromNow.isReady) {
+        if (fromNow.service === ServiceType.Youtube) {
+          if (this.youtubeManager.getPlayer(fromDeck)) this.youtubeManager.setVolume(fromDeck, fromVolR);
+        } else if (fromNow.service === ServiceType.Spotify) {
+          this.spotifyManager.setVolume(fromDeck, fromVolume, { quiet: true }).catch(() => {});
+        }
         this.updatePlayerState(fromDeck, { volume: fromVolR, lastActivity: Date.now() });
       }
-      if (toP.isReady) {
-        if (toP.service === ServiceType.Youtube) this.youtubeManager.setVolume(toDeck, toVolR);
-        else if (toP.service === ServiceType.Spotify) this.spotifyManager.setVolume(toDeck, toVolume, { quiet: true }).catch(() => {});
+      if (toNow.isReady) {
+        if (toNow.service === ServiceType.Youtube) {
+          if (this.youtubeManager.getPlayer(toDeck)) this.youtubeManager.setVolume(toDeck, toVolR);
+        } else if (toNow.service === ServiceType.Spotify) {
+          this.spotifyManager.setVolume(toDeck, toVolume, { quiet: true }).catch(() => {});
+        }
         this.updatePlayerState(toDeck, { volume: toVolR, lastActivity: Date.now() });
       }
 
@@ -785,6 +843,39 @@ export class UnifiedPlayerManager {
       progress: 0,
       startTime: 0,
     };
+  }
+
+  /**
+   * Abort crossfade when target deck hits YouTube 150: restore from-deck volume so
+   * the user keeps hearing the previous track instead of silence.
+   */
+  private abortCrossfade(): void {
+    const { fromDeck, toDeck } = this.crossfadeState;
+    if (!fromDeck) {
+      this.resetCrossfade();
+      return;
+    }
+    const fromPlayer = this.playerPool[fromDeck];
+    const vol = fromPlayer.volume > 0 ? fromPlayer.volume : 75;
+    if (fromPlayer.service === ServiceType.Youtube && this.youtubeManager.getPlayer(fromDeck)) {
+      this.youtubeManager.setVolume(fromDeck, vol);
+    } else if (fromPlayer.service === ServiceType.Spotify) {
+      this.spotifyManager.setVolume(fromDeck, vol, { quiet: true }).catch(() => {});
+    }
+    this.updatePlayerState(fromDeck, { volume: vol, lastActivity: Date.now() });
+    this.resetCrossfade();
+    console.log(
+      `⚠️ Crossfade aborted: target deck ${toDeck} hit YouTube 150, restored deck ${fromDeck} volume to ${vol}`
+    );
+  }
+
+  /** Called when a deck's YouTube embed is disabled (150/101). Aborts crossfade if this deck was the target. */
+  private onEmbedDisabled(deckId: "A" | "B"): void {
+    if (this.crossfadeState.isActive && this.crossfadeState.toDeck === deckId) {
+      this.abortCrossfade();
+    }
+    this.updatePlayerState(deckId, { embedDisabled: true });
+    this.onEmbedDisabledCallback?.(deckId);
   }
 
   /**

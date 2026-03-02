@@ -243,6 +243,8 @@ const DroppableContent = memo(
 
 DroppableContent.displayName = "DroppableContent";
 
+type PlaylistFilter = "all" | "youtube" | "spotify";
+
 // Main component with stable references
 const UnifiedPlaylistView = () => {
   const { unified, youtube, spotify } = useUnifiedContext();
@@ -250,6 +252,7 @@ const UnifiedPlaylistView = () => {
   const [tempName, setTempName] = useState(unified.playlistName);
   const playlistContainerRef = useRef<HTMLDivElement>(null);
   const [isClient, setIsClient] = useState(false);
+  const [serviceFilter, setServiceFilter] = useState<PlaylistFilter>("all");
 
   // Handle hydration
   useEffect(() => {
@@ -301,6 +304,14 @@ const UnifiedPlaylistView = () => {
       data: item.data,
     }));
   }, [unified.playlist]);
+
+  // Filter by service when user selects YouTube or Spotify
+  const filteredPlaylistItems = useMemo(() => {
+    if (serviceFilter === "all") return playlistItems;
+    const type =
+      serviceFilter === "youtube" ? ServiceType.Youtube : ServiceType.Spotify;
+    return playlistItems.filter((item) => item.type === type);
+  }, [playlistItems, serviceFilter]);
 
   // Memoize handlers to prevent unnecessary re-renders
   const handlePlaylistNameChange = useCallback(
@@ -399,40 +410,85 @@ const UnifiedPlaylistView = () => {
           </div>
         </div>
 
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            {(() => {
-              const youtubeCount = unified.playlist.filter(
-                (item) => item.type === ServiceType.Youtube
-              ).length;
-              const spotifyCount = unified.playlist.filter(
-                (item) => item.type === ServiceType.Spotify
-              ).length;
-              return (
-                <>
-                  {youtubeCount > 0 && (
-                    <div className="flex items-center text-red-500">
-                      <ServiceIcon
-                        service="youtube"
-                        size="sm"
-                        variant="watermelon"
-                      />
-                      <span className="text-sm ml-1">{youtubeCount}</span>
-                    </div>
-                  )}
-                  {spotifyCount > 0 && (
-                    <div className="flex items-center text-green-500">
-                      <ServiceIcon
-                        service="spotify"
-                        size="sm"
-                        variant="watermelon"
-                      />
-                      <span className="text-sm ml-1">{spotifyCount}</span>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
+        <div className="flex items-center space-x-3">
+          {/* Service filter: click YouTube or Spotify to show only that service's songs */}
+          <div className="flex items-center gap-1 border border-white/10 rounded-lg p-1 bg-black/20">
+            <button
+              type="button"
+              onClick={() =>
+                setServiceFilter((prev) =>
+                  prev === "youtube" ? "all" : "youtube"
+                )
+              }
+              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md min-h-[36px] sm:min-h-[32px] transition-colors touch-manipulation ${
+                serviceFilter === "youtube"
+                  ? "bg-[#FF0000]/30 text-[#FF0000] border border-[#FF0000]/50"
+                  : "text-gray-400 hover:text-[#FF0000] hover:bg-white/5 border border-transparent"
+              }`}
+              title={
+                serviceFilter === "youtube"
+                  ? "Show all (click again to clear filter)"
+                  : "Show only YouTube tracks"
+              }
+            >
+              <ServiceIcon
+                service="youtube"
+                size="sm"
+                variant={serviceFilter === "youtube" ? "filled" : "default"}
+              />
+              <span className="text-xs font-medium hidden sm:inline">
+                YouTube
+              </span>
+              {unified.playlist.some((i) => i.type === ServiceType.Youtube) && (
+                <span className="text-xs opacity-80">
+                  (
+                  {
+                    unified.playlist.filter(
+                      (i) => i.type === ServiceType.Youtube
+                    ).length
+                  }
+                  )
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setServiceFilter((prev) =>
+                  prev === "spotify" ? "all" : "spotify"
+                )
+              }
+              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md min-h-[36px] sm:min-h-[32px] transition-colors touch-manipulation ${
+                serviceFilter === "spotify"
+                  ? "bg-[#1DB954]/30 text-[#1DB954] border border-[#1DB954]/50"
+                  : "text-gray-400 hover:text-[#1DB954] hover:bg-white/5 border border-transparent"
+              }`}
+              title={
+                serviceFilter === "spotify"
+                  ? "Show all (click again to clear filter)"
+                  : "Show only Spotify tracks"
+              }
+            >
+              <ServiceIcon
+                service="spotify"
+                size="sm"
+                variant={serviceFilter === "spotify" ? "filled" : "default"}
+              />
+              <span className="text-xs font-medium hidden sm:inline">
+                Spotify
+              </span>
+              {unified.playlist.some((i) => i.type === ServiceType.Spotify) && (
+                <span className="text-xs opacity-80">
+                  (
+                  {
+                    unified.playlist.filter(
+                      (i) => i.type === ServiceType.Spotify
+                    ).length
+                  }
+                  )
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </div>
@@ -447,7 +503,7 @@ const UnifiedPlaylistView = () => {
             <DroppableContent
               provided={provided}
               snapshot={snapshot}
-              items={playlistItems}
+              items={filteredPlaylistItems}
             />
           )}
         </Droppable>

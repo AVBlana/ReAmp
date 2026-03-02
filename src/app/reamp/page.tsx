@@ -149,7 +149,7 @@ function ReAMPContent() {
   );
 
   return (
-    <div className="min-h-screen lg:h-screen bg-[#0A0A0A] text-gray-100 flex flex-col overflow-y-auto lg:overflow-hidden">
+    <div className="min-h-screen lg:h-screen bg-[#0A0A0A] text-gray-100 flex flex-col overflow-x-hidden overflow-y-auto lg:overflow-hidden">
       {/* Background Grid */}
       <div className="fixed inset-0 bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black_70%)]" />
 
@@ -169,12 +169,12 @@ function ReAMPContent() {
       />
 
       {/* Main Content */}
-      <main className="flex-1 w-full p-6 relative z-10 overflow-visible lg:overflow-hidden">
+      <main className="flex-1 w-full min-w-0 p-6 relative z-10 overflow-x-hidden lg:overflow-hidden">
         {/* Main Layout Container - Responsive */}
-        <div className="flex flex-col lg:flex-row gap-6 min-h-full lg:h-full">
-          {/* Library Section - Vertical in desktop, Horizontal in tablet/mobile */}
-          <div className="flex flex-row lg:flex-col">
-            <motion.div className="bg-black/20 rounded-lg p-4 flex flex-col min-h-0 max-h-full">
+        <div className="flex flex-col lg:flex-row gap-6 min-h-full lg:h-full min-w-0">
+          {/* Library Section - Vertical on desktop, two-row on mobile; constrained to prevent horizontal scroll */}
+          <div className="flex-shrink-0 lg:flex-shrink-0 w-full lg:w-auto min-w-0 max-w-full">
+            <motion.div className="bg-black/20 rounded-lg p-4 flex flex-col min-h-0 max-h-full min-w-0 overflow-hidden">
               <UnifiedPlaylistLibrary
                 theme={{
                   primary: "#FF6B6B",
@@ -186,7 +186,7 @@ function ReAMPContent() {
           </div>
 
           {/* Content Section - Playlist and Player */}
-          <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
+          <div className="flex-1 min-w-0 flex flex-col lg:flex-row gap-6 min-h-0">
             {/* Playlist Section - Smaller in portrait mode, normal in desktop */}
             <div className="w-full lg:w-1/3 bg-black/20 rounded-lg overflow-hidden flex flex-col min-h-[200px] lg:min-h-0 max-h-[40vh] lg:max-h-none">
               <div className="flex-1 overflow-y-auto custom-scrollbar">

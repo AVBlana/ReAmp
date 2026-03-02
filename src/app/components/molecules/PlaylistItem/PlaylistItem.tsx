@@ -81,9 +81,9 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
                 e.stopPropagation();
                 onPlay();
               }}
-              className="p-1.5 rounded-full bg-[#FF6B6B] hover:bg-[#FF5252] text-white hover:scale-110 shadow-lg hover:shadow-xl hover:shadow-[#FF6B6B]/25 transition-all duration-200"
+              className="min-w-[44px] min-h-[44px] p-2 rounded-full bg-[#FF6B6B] hover:bg-[#FF5252] text-white hover:scale-110 shadow-lg hover:shadow-xl hover:shadow-[#FF6B6B]/25 transition-all duration-200 touch-manipulation flex items-center justify-center"
             >
-              {isPlaying ? <FaPause size={12} /> : <FaPlay size={12} />}
+              {isPlaying ? <FaPause size={14} /> : <FaPlay size={14} />}
             </button>
           )}
         </div>
@@ -119,7 +119,8 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
             e.stopPropagation();
             onRemove();
           }}
-          className="p-2 text-gray-400 hover:text-[#FF6B6B] hover:bg-[#FF6B6B]/20 rounded-full transition-all duration-200 opacity-0 group-hover:opacity-100 hover:scale-110 flex-shrink-0 mr-3"
+          className="min-w-[44px] min-h-[44px] p-2 text-gray-400 hover:text-[#FF6B6B] hover:bg-[#FF6B6B]/20 rounded-full transition-all duration-200 opacity-0 group-hover:opacity-100 hover:scale-110 flex-shrink-0 mr-3 touch-manipulation flex items-center justify-center"
+          aria-label="Remove from playlist"
         >
           <FaTrash size={14} />
         </button>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import localFont from "next/font/local";
 import "./globals.css";
 import ClientProviders from "@/app/components/providers/ClientProviders";
@@ -29,7 +30,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ClientProviders>{children}</ClientProviders>
+        <Suspense fallback={null}>
+          <ClientProviders>{children}</ClientProviders>
+        </Suspense>
       </body>
     </html>
   );

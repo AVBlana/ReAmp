@@ -15,12 +15,18 @@ interface UseUnifiedPlayerProps {
   autoCrossfadeCheckRef?: React.MutableRefObject<
     ((states: { A: PlayerInstance; B: PlayerInstance }) => void) | null
   >;
+  /** Called when YouTube reports embed disabled (150/101) for a deck – e.g. mark track played and clear deck for refill */
+  onEmbedDisabled?: (deckId: "A" | "B") => void;
+  /** Return false to block loading this YouTube video (e.g. known 150). Prevents mounting embed-disabled videos. */
+  canLoadYouTubeCheck?: (videoId: string) => boolean;
 }
 
 export function useUnifiedPlayer({
   onPlayerStateChange,
   onCrossfadeStateChange,
   autoCrossfadeCheckRef,
+  onEmbedDisabled,
+  canLoadYouTubeCheck,
 }: UseUnifiedPlayerProps = {}) {
   const { getSpotifyToken } = useAuth();
   const [isInitialized, setIsInitialized] = useState(false);
@@ -118,17 +124,21 @@ export function useUnifiedPlayer({
     }
   }, [onPlayerStateChange]);
 
-  // When YouTube reports embed disabled (150/101), refresh state so UI shows "Watch on YouTube"
+  // When YouTube reports embed disabled (150/101), refresh state and notify so consumer can mark played + refill
   useEffect(() => {
     const manager = managerRef.current;
     if (!manager || !isInitialized) return;
-    manager.setOnEmbedDisabled(() => {
+    manager.setOnEmbedDisabled((deckId) => {
       updatePlayerStates();
+      onEmbedDisabled?.(deckId);
     });
+    if (canLoadYouTubeCheck) {
+      manager.setCanLoadYouTubeCheck(canLoadYouTubeCheck);
+    }
     return () => {
       manager.setOnEmbedDisabled(() => {});
     };
-  }, [isInitialized, updatePlayerStates]);
+  }, [isInitialized, updatePlayerStates, onEmbedDisabled, canLoadYouTubeCheck]);
 
   // Update crossfade state from manager
   const updateCrossfadeState = useCallback(() => {

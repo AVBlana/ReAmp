@@ -89,20 +89,12 @@ function HomeContent() {
 
       <div className="relative z-10 flex flex-col items-center space-y-16">
         <div className="relative">
-          <motion.h1
+          <h1
             className="text-8xl md:text-9xl font-bold text-transparent tracking-tighter relative"
             style={{ WebkitTextStroke: "1px #ff6b6b" }}
-            animate={{
-              filter: [
-                "drop-shadow(0 0 8px rgba(255, 107, 107, 0.8)) drop-shadow(0 0 16px rgba(255, 107, 107, 0.6)) drop-shadow(0 0 24px rgba(255, 107, 107, 0.4)) drop-shadow(0 0 32px rgba(255, 107, 107, 0.2))",
-                "drop-shadow(0 0 12px rgba(255, 107, 107, 1)) drop-shadow(0 0 24px rgba(255, 107, 107, 0.8)) drop-shadow(0 0 36px rgba(255, 107, 107, 0.6)) drop-shadow(0 0 48px rgba(255, 107, 107, 0.4))",
-                "drop-shadow(0 0 8px rgba(255, 107, 107, 0.8)) drop-shadow(0 0 16px rgba(255, 107, 107, 0.6)) drop-shadow(0 0 24px rgba(255, 107, 107, 0.4)) drop-shadow(0 0 32px rgba(255, 107, 107, 0.2))",
-              ],
-            }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           >
             ReAMP
-          </motion.h1>
+          </h1>
         </div>
 
         <div className="flex flex-col items-center space-y-8">
@@ -114,16 +106,10 @@ function HomeContent() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-[#1DB954] to-[#1ED760] rounded-2xl blur-xl"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: hovered === "spotify" ? 1 : 0 }}
-                transition={{ duration: 0.5 }}
-              />
               <Button
                 onClick={() => handleConnect("spotify")}
                 disabled={isConnecting === "spotify" || servicesLoading}
-                className="relative flex items-center space-x-3 px-8 py-4 bg-[#1DB954] hover:bg-[#1AA34A] disabled:bg-gray-600 disabled:cursor-not-allowed rounded-2xl border border-[#1DB954] hover:border-[#1AA34A] transition-all duration-300 shadow-lg hover:shadow-xl"
+                className="relative flex items-center space-x-3 min-h-[48px] px-6 py-4 sm:px-8 bg-[#1DB954] hover:bg-[#1AA34A] disabled:bg-gray-600 disabled:cursor-not-allowed rounded-2xl border border-[#1DB954] hover:border-[#1AA34A] transition-all duration-300"
               >
                 <FaSpotify size={24} className="text-white" />
                 <span className="text-white text-lg font-medium">
@@ -146,16 +132,10 @@ function HomeContent() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-[#4285F4] to-[#3367D6] rounded-2xl blur-xl"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: hovered === "google" ? 1 : 0 }}
-                transition={{ duration: 0.5 }}
-              />
               <Button
                 onClick={() => handleConnect("google")}
                 disabled={isConnecting === "google" || servicesLoading}
-                className="relative flex items-center space-x-3 px-8 py-4 bg-[#4285F4] hover:bg-[#3367D6] disabled:bg-gray-600 disabled:cursor-not-allowed rounded-2xl border border-[#4285F4] hover:border-[#3367D6] transition-all duration-300 shadow-lg hover:shadow-xl"
+                className="relative flex items-center space-x-3 min-h-[48px] px-6 py-4 sm:px-8 bg-[#4285F4] hover:bg-[#3367D6] disabled:bg-gray-600 disabled:cursor-not-allowed rounded-2xl border border-[#4285F4] hover:border-[#3367D6] transition-all duration-300"
               >
                 <FaGoogle size={24} className="text-white" />
                 <span className="text-white text-lg font-medium">
@@ -179,7 +159,7 @@ function HomeContent() {
             <Button
               onClick={handleDropBeat}
               disabled={!hasConnectedService}
-              className={`px-12 py-4 text-xl font-bold rounded-2xl transition-all duration-300 shadow-lg ${
+              className={`min-h-[48px] px-8 py-4 sm:px-12 text-lg sm:text-xl font-bold rounded-2xl transition-all duration-300 ${
                 hasConnectedService
                   ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white cursor-pointer"
                   : "bg-gray-600 text-gray-400 cursor-not-allowed"

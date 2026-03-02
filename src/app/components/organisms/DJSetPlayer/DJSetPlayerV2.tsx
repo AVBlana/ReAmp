@@ -8,6 +8,8 @@ import { ServiceType, Song } from "@/app/types/playerTypes";
 import { YoutubeVideo } from "@/app/types/youtubeTypes";
 import { useUnifiedPlayer } from "@/app/hooks/useUnifiedPlayer";
 import { useSmartCrossfade } from "@/app/hooks/useSmartCrossfade";
+import { useDeckRefill } from "@/app/hooks/useDeckRefill";
+import { getDeckTrackId } from "@/lib/playbackEngine";
 import VinylPlayer from "./VinylPlayer";
 import CrossfadeControlsV2 from "@/app/components/molecules/CrossfadeControls/CrossfadeControlsV2";
 import DeckLabel from "@/app/components/molecules/DeckLabel";
@@ -28,6 +30,10 @@ export default function DJSetPlayerV2({
     ((states: { A: PlayerInstance; B: PlayerInstance }) => void) | null
   >(null);
 
+  // Ref so embed-disabled handler can use markTrackPlayed/clearDeck from hooks called after useUnifiedPlayer
+  const onEmbedDisabledRef = useRef<(deckId: "A" | "B") => void>(() => {});
+  const isEmbedDisabledRef = useRef<(trackId: string) => boolean>(() => false);
+
   // Use the unified player system
   const {
     isInitialized,
@@ -44,11 +50,42 @@ export default function DJSetPlayerV2({
     isDeckReady,
     isDeckPlaying,
     hasTrack,
+    clearDeck,
   } = useUnifiedPlayer({
     onPlayerStateChange: () => {},
     onCrossfadeStateChange: () => {},
     autoCrossfadeCheckRef,
+    onEmbedDisabled: (deckId) => onEmbedDisabledRef.current(deckId),
+    canLoadYouTubeCheck: (videoId) => !isEmbedDisabledRef.current(videoId),
   });
+
+  // Deck auto-refill: when a deck is empty, fill from playlist (unused, not in decks).
+  const deckTrackIdA = getDeckTrackId(getDeckState("A").currentTrack) ?? null;
+  const deckTrackIdB = getDeckTrackId(getDeckState("B").currentTrack) ?? null;
+  const { markTrackPlayed, setPreferSpotifyForNextRefill, markEmbedDisabled, isEmbedDisabled } = useDeckRefill({
+    playlist: unified.playlist,
+    getDeckState,
+    deckTrackIdA,
+    deckTrackIdB,
+    loadTrack,
+    enabled: true,
+    refillDelayMs: 500,
+  });
+
+  isEmbedDisabledRef.current = isEmbedDisabled;
+
+  // When YouTube embed is disabled (150/101): remember so we never load it again, mark played, prefer Spotify for next refill, clear deck
+  useEffect(() => {
+    onEmbedDisabledRef.current = (deckId: "A" | "B") => {
+      const trackId = getDeckTrackId(getDeckState(deckId).currentTrack);
+      if (trackId) {
+        markEmbedDisabled(trackId);
+        markTrackPlayed(trackId);
+      }
+      setPreferSpotifyForNextRefill(deckId);
+      clearDeck(deckId);
+    };
+  }, [getDeckState, markTrackPlayed, markEmbedDisabled, clearDeck, setPreferSpotifyForNextRefill]);
 
   // Use the smart crossfade system
   const {
@@ -239,6 +276,12 @@ export default function DJSetPlayerV2({
         }
 
         if (song) {
+          // Don't load YouTube tracks that are known to be embed-disabled (150)
+          if (service === ServiceType.Youtube && isEmbedDisabled(id)) {
+            console.warn(`⏭️ Skipping YouTube track ${id} – embed disabled (150), not loading`);
+            alert("This video can't be played here (owner disabled embedding). It won't be loaded.");
+            return;
+          }
           try {
             // Load the track into the deck
             await loadTrack(playerId as "A" | "B", song);
@@ -305,6 +348,7 @@ Please try searching again or refresh the page.`);
     unified.playlist,
     loadTrack,
     isCrossfadeActive,
+    isEmbedDisabled,
   ]);
 
   // Render player drop zone

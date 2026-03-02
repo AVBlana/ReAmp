@@ -138,22 +138,26 @@ const PlaylistItem = memo(
     return (
       <div className="flex-none">
         <div className="group relative">
-          {/* Delete button - appears on hover */}
-          <div className="absolute -right-1 -top-1 opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-full z-10">
+          {/* Delete button - small on mobile so tap selects playlist; appears on hover */}
+          <div className="absolute -right-0.5 -top-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-all duration-300 rounded-full z-10">
             <Button
-              onClick={() => onDelete(playlist.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(playlist.id);
+              }}
               variant="danger"
               size="sm"
-              className="w-5 h-5 p-0 min-w-0"
+              className="w-5 h-5 min-w-0 min-h-0 p-0 flex items-center justify-center rounded-full lg:w-5 lg:h-5"
+              aria-label={`Delete playlist ${playlist.name}`}
             >
               <FaTrash size={8} />
             </Button>
           </div>
 
-          {/* Playlist button */}
+          {/* Playlist button - finger-sized on mobile (min 48px) */}
           <button
             onClick={() => onLoad(playlist)}
-            className={`flex-none w-12 h-12 rounded-lg flex items-center justify-center transform-none hover:transform-none ${
+            className={`flex-none min-w-[48px] min-h-[48px] w-12 h-12 rounded-lg flex items-center justify-center transform-none hover:transform-none touch-manipulation ${
               isActive
                 ? "bg-gradient-to-br from-white/20 to-white/10 backdrop-blur-sm border-2 border-[#FF6B6B]"
                 : "hover:bg-gradient-to-br hover:from-white/10 hover:to-white/5 backdrop-blur-sm border border-transparent hover:border-2 hover:border-[#FF6B6B]/60"
@@ -300,69 +304,68 @@ const UnifiedPlaylistLibrary = memo(
     if (!mounted) return <LoadingComponent />;
 
     return (
-      <div className="flex flex-row lg:flex-col items-center lg:items-start space-x-2 lg:space-x-0 lg:space-y-2 h-full">
-        {/* Library Icon */}
-        <div className="flex-none w-12 h-12 flex items-center justify-center text-gray-400 bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg backdrop-blur-sm border border-white/5">
-          <Icon icon={<FaMusic size={20} />} color="gray" />
-        </div>
-
-        {/* Create New Playlist Button */}
-        <Button
-          onClick={handleCreatePlaylist}
-          variant="watermelon"
-          size="lg"
-          className="w-12 h-12 p-0 min-w-0"
-        >
-          <FaPlus size={20} />
-        </Button>
-
-        {/* Save Current Playlist Button */}
-        {unified.hasUnsavedChanges && (
-          <Button
-            onClick={handleSavePlaylist}
-            variant="secondary"
-            size="lg"
-            className="w-12 h-12 p-0 min-w-0"
-          >
-            <FaCheck size={20} />
-          </Button>
-        )}
-
-        {/* Status Indicator */}
-        {unified.playlist.length > 0 &&
-          (unified.isJustSaved ? (
-            <div className="flex-none px-2 py-1 bg-green-500/20 border border-green-500/30 rounded-lg">
-              <span className="text-xs text-green-400 font-medium">Saved</span>
+      <div className="flex flex-col lg:flex-col gap-3 lg:gap-2 h-full min-w-0">
+        {/* Mobile: single row — actions then playlists using remaining space. Desktop: column as before. */}
+        <div className="flex flex-row lg:flex-col items-center lg:items-start gap-2 min-w-0 flex-1 lg:flex-initial">
+          {/* Actions: icon, create, save, status, clear */}
+          <div className="flex flex-row lg:flex-col items-center lg:items-start gap-2 flex-shrink-0">
+            <div className="flex-none w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center text-gray-400 bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg backdrop-blur-sm border border-white/5">
+              <Icon icon={<FaMusic size={20} />} color="gray" />
             </div>
-          ) : unified.hasUnsavedChanges ? (
-            <div className="flex-none px-2 py-1 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
-              <span className="text-xs text-yellow-400 font-medium">
-                Unsaved Changes
-              </span>
+            <Button
+              onClick={handleCreatePlaylist}
+              variant="watermelon"
+              size="lg"
+              className="min-w-[48px] min-h-[48px] w-12 h-12 p-0 shrink-0"
+            >
+              <FaPlus size={20} />
+            </Button>
+            {unified.hasUnsavedChanges && (
+              <Button
+                onClick={handleSavePlaylist}
+                variant="secondary"
+                size="lg"
+                className="min-w-[48px] min-h-[48px] w-12 h-12 p-0 shrink-0"
+              >
+                <FaCheck size={20} />
+              </Button>
+            )}
+            {unified.playlist.length > 0 &&
+              (unified.isJustSaved ? (
+                <div className="flex-none px-2 py-1.5 min-h-[48px] flex items-center bg-green-500/20 border border-green-500/30 rounded-lg shrink-0">
+                  <span className="text-xs text-green-400 font-medium">Saved</span>
+                </div>
+              ) : unified.hasUnsavedChanges ? (
+                <div className="flex-none px-2 py-1.5 min-h-[48px] flex items-center bg-yellow-500/20 border border-yellow-500/30 rounded-lg shrink-0">
+                  <span className="text-xs text-yellow-400 font-medium">
+                    Unsaved Changes
+                  </span>
+                </div>
+              ) : null)}
+            <Button
+              onClick={handleClearAll}
+              variant="danger"
+              size="lg"
+              className="min-w-[48px] min-h-[48px] w-12 h-12 p-0 shrink-0"
+            >
+              <FaTrash size={20} />
+            </Button>
+          </div>
+
+          {/* Playlists: on mobile same row, flex-1 + horizontal scroll; on desktop below actions */}
+          <div className="min-w-0 flex-1 lg:flex-initial w-full overflow-hidden">
+            <div className="flex flex-row flex-nowrap lg:flex-col gap-2 min-w-0 w-full overflow-x-auto overflow-y-hidden lg:overflow-visible scrollbar-hide touch-pan-x items-center lg:items-start py-1 lg:py-0 -mx-1 lg:mx-0 h-full">
+              {unified.savedPlaylists.map((playlist) => (
+                <PlaylistItem
+                  key={playlist.id}
+                  playlist={playlist}
+                  onLoad={handleSelectPlaylist}
+                  onDelete={handleDeletePlaylist}
+                  isActive={unified.currentPlaylistId === playlist.id}
+                />
+              ))}
             </div>
-          ) : null)}
-
-        {/* Clear All Button */}
-        <Button
-          onClick={handleClearAll}
-          variant="danger"
-          size="lg"
-          className="w-12 h-12 p-0 min-w-0"
-        >
-          <FaTrash size={20} />
-        </Button>
-
-        {/* Playlists */}
-        <div className="flex-none flex flex-row lg:flex-col items-center lg:items-start space-x-2 lg:space-x-0 lg:space-y-2">
-          {unified.savedPlaylists.map((playlist) => (
-            <PlaylistItem
-              key={playlist.id}
-              playlist={playlist}
-              onLoad={handleSelectPlaylist}
-              onDelete={handleDeletePlaylist}
-              isActive={unified.currentPlaylistId === playlist.id}
-            />
-          ))}
+          </div>
         </div>
       </div>
     );

@@ -40,14 +40,14 @@ export default function Header({
             </h1>
           </div>
 
-          {/* Right: User actions */}
+          {/* Right: User actions - finger-sized touch targets on mobile */}
           <div className="flex items-center space-x-2 flex-shrink-0">
             <Link
               href="/"
-              className="text-gray-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-gray-700/50 flex items-center justify-center"
+              className="text-gray-400 hover:text-white transition-colors min-w-[44px] min-h-[44px] p-2 rounded-lg hover:bg-gray-700/50 flex items-center justify-center touch-manipulation"
               aria-label="Home"
             >
-              <FaHome size={18} />
+              <FaHome size={20} />
             </Link>
             <UserAvatar />
             {showLogout && onLogout && (
@@ -55,7 +55,7 @@ export default function Header({
                 onClick={onLogout}
                 variant="danger"
                 size="sm"
-                className="px-2 py-1"
+                className="min-h-[44px] min-w-[44px] px-3 py-2 lg:px-2 lg:py-1 lg:min-h-0 lg:min-w-0"
               >
                 Logout
               </Button>

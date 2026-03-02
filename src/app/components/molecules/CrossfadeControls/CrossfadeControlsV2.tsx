@@ -1,5 +1,5 @@
-import React from "react";
-import { FaExchangeAlt, FaPlay, FaCog, FaLightbulb } from "react-icons/fa";
+import React, { useEffect } from "react";
+import { FaExchangeAlt, FaPlay, FaCog, FaLightbulb, FaTimes } from "react-icons/fa";
 
 export interface CrossfadeControlsV2Props {
   crossfadeEnabled: boolean;
@@ -42,6 +42,13 @@ const CrossfadeControlsV2: React.FC<CrossfadeControlsV2Props> = ({
 }) => {
   const [showAdvancedSettings, setShowAdvancedSettings] = React.useState(false);
 
+  useEffect(() => {
+    if (showAdvancedSettings) document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [showAdvancedSettings]);
+
   const getPriorityColor = (priority: "high" | "medium" | "low") => {
     switch (priority) {
       case "high":
@@ -49,7 +56,7 @@ const CrossfadeControlsV2: React.FC<CrossfadeControlsV2Props> = ({
       case "medium":
         return "text-yellow-400";
       case "low":
-        return "text-blue-400";
+        return "text-[#4ECDC4]";
       default:
         return "text-gray-400";
     }
@@ -68,20 +75,22 @@ const CrossfadeControlsV2: React.FC<CrossfadeControlsV2Props> = ({
     }
   };
 
+  const rangeInputClass =
+    "flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#FF6B6B] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#FF6B6B] [&::-webkit-slider-thumb]:cursor-pointer";
+
   return (
     <div className={`relative ${className}`}>
-      {/* Main Crossfade Controls - Mobile Responsive */}
-      <div className="flex flex-row items-center gap-1 sm:gap-3 flex-wrap justify-center sm:justify-start">
-        {/* Crossfade Toggle Button */}
+      {/* Main Crossfade Controls - app style: black/20, borders, primary/secondary colors */}
+      <div className="flex flex-row items-center gap-2 sm:gap-3 flex-wrap justify-center sm:justify-start">
         <button
           onClick={onToggleCrossfade}
           disabled={isCrossfadeActive}
-          className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg font-mono text-xs transition-all duration-200 ${
+          className={`min-h-[44px] sm:min-h-[40px] px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 touch-manipulation ${
             isCrossfadeActive
-              ? "bg-gradient-to-r from-[#4ECDC4] to-[#4ECDC4] text-white shadow-lg shadow-[#4ECDC4]/25 cursor-not-allowed"
+              ? "bg-[#4ECDC4]/80 text-white cursor-not-allowed border border-[#4ECDC4]/50"
               : crossfadeEnabled
-              ? "bg-gradient-to-r from-[#FF6B6B] to-[#FF5252] hover:from-[#FF5252] hover:to-[#FF4040] text-white shadow-lg hover:shadow-xl hover:shadow-[#FF6B6B]/30"
-              : "bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-500 hover:to-gray-600 text-white shadow-lg hover:shadow-xl"
+              ? "bg-[#FF6B6B] hover:bg-[#FF5252] text-white border border-[#FF6B6B]/60"
+              : "bg-black/30 hover:bg-white/10 text-gray-400 border border-white/10"
           }`}
           title={
             crossfadeEnabled
@@ -89,11 +98,9 @@ const CrossfadeControlsV2: React.FC<CrossfadeControlsV2Props> = ({
               : "Click to enable crossfade"
           }
         >
-          <div className="flex items-center gap-1 sm:gap-1.5">
+          <div className="flex items-center gap-2">
             <FaExchangeAlt
-              className={`inline text-xs sm:text-sm ${
-                isCrossfadeActive ? "animate-spin" : ""
-              }`}
+              className={`inline text-sm ${isCrossfadeActive ? "animate-spin" : ""}`}
             />
             <span className="hidden sm:inline">
               {isCrossfadeActive
@@ -108,14 +115,13 @@ const CrossfadeControlsV2: React.FC<CrossfadeControlsV2Props> = ({
           </div>
         </button>
 
-        {/* Manual Crossfade Button */}
         <button
           onClick={onManualCrossfade}
           disabled={isCrossfadeActive || !canCrossfade || !crossfadeEnabled}
-          className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg font-mono text-xs transition-all duration-200 ${
+          className={`min-h-[44px] sm:min-h-[40px] px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 touch-manipulation ${
             isCrossfadeActive || !canCrossfade || !crossfadeEnabled
-              ? "bg-gray-600 text-gray-400 cursor-not-allowed"
-              : "bg-gradient-to-r from-[#4ECDC4] to-[#45B7AA] hover:from-[#45B7AA] hover:to-[#4ECDC4] text-white shadow-lg hover:shadow-xl hover:shadow-[#4ECDC4]/30"
+              ? "bg-black/20 text-gray-500 border border-white/5 cursor-not-allowed"
+              : "bg-[#4ECDC4] hover:bg-[#45B7AA] text-white border border-[#4ECDC4]/50"
           }`}
           title={
             !crossfadeEnabled
@@ -125,32 +131,31 @@ const CrossfadeControlsV2: React.FC<CrossfadeControlsV2Props> = ({
               : "Manually trigger crossfade now"
           }
         >
-          <div className="flex items-center gap-1 sm:gap-1.5">
-            <FaPlay className="inline text-xs sm:text-sm" />
-            <span className="hidden sm:inline">MANUAL</span>
+          <div className="flex items-center gap-2">
+            <FaPlay className="inline text-sm" />
+            <span className="hidden sm:inline">Manual</span>
           </div>
         </button>
 
-        {/* Advanced Settings Toggle */}
         <button
           onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-          className="px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-lg font-mono text-xs bg-gray-600 hover:bg-gray-500 text-white transition-all duration-200"
+          className="min-h-[44px] sm:min-h-[40px] px-3 py-2 rounded-lg text-sm font-medium bg-black/20 hover:bg-white/10 text-gray-300 border border-white/10 transition-all duration-200 touch-manipulation"
           title="Advanced crossfade settings"
         >
           <FaCog
-            className={`inline text-xs sm:text-sm transition-transform duration-200 ${
+            className={`inline text-sm transition-transform duration-200 ${
               showAdvancedSettings ? "rotate-90" : ""
             }`}
           />
         </button>
       </div>
 
-      {/* Crossfade Suggestions - Compact */}
+      {/* Suggestions - app panel style */}
       {crossfadeEnabled && crossfadeSuggestions.length > 0 && (
-        <div className="mt-2 bg-black/30 rounded-lg p-2 border border-gray-600">
+        <div className="mt-2 bg-black/20 rounded-lg p-2 border border-white/10">
           <div className="flex items-center gap-2 mb-1">
-            <FaLightbulb className="text-yellow-400 text-xs" />
-            <span className="text-xs font-mono text-white">Suggestions</span>
+            <FaLightbulb className="text-[#FFE66D] text-xs" />
+            <span className="text-xs text-white font-medium">Suggestions</span>
           </div>
           <div className="space-y-0.5">
             {crossfadeSuggestions.slice(0, 2).map((suggestion, index) => {
@@ -165,7 +170,7 @@ const CrossfadeControlsV2: React.FC<CrossfadeControlsV2Props> = ({
                   }
                   disabled={!clickable}
                   title={clickable ? "Click to start crossfade now" : undefined}
-                  className={`w-full text-left text-xs font-mono rounded px-1 py-0.5 transition-colors ${getPriorityColor(
+                  className={`w-full text-left text-xs rounded px-2 py-1.5 transition-colors ${getPriorityColor(
                     suggestion.priority
                   )} ${clickable ? "hover:bg-white/10 cursor-pointer" : "cursor-default"}`}
                 >
@@ -178,101 +183,113 @@ const CrossfadeControlsV2: React.FC<CrossfadeControlsV2Props> = ({
         </div>
       )}
 
-      {/* Advanced Settings Panel - Mobile Responsive Overlay */}
+      {/* Advanced Settings: full-screen overlay on mobile, dropdown on desktop; scrollable content */}
       {showAdvancedSettings && (
-        <div className="absolute top-full right-0 mt-2 w-72 sm:w-80 bg-black/95 rounded-lg p-3 sm:p-4 border border-gray-600 shadow-2xl z-50">
-          <h3 className="text-sm font-mono text-white border-b border-gray-600 pb-2 mb-3">
-            Advanced Crossfade Settings
-          </h3>
+        <>
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] sm:bg-transparent sm:backdrop-blur-none sm:block sm:inset-auto sm:absolute sm:top-full sm:right-0 sm:mt-2 sm:w-80 sm:rounded-lg sm:border sm:border-white/10 sm:shadow-xl sm:z-50"
+            aria-hidden
+            onClick={() => setShowAdvancedSettings(false)}
+          />
+          <div className="fixed inset-4 sm:inset-auto sm:absolute sm:top-full sm:right-0 sm:mt-2 sm:w-80 sm:max-w-[calc(100vw-2rem)] flex flex-col sm:block z-[101] sm:z-50 pointer-events-none sm:pointer-events-auto">
+            <div className="bg-[#0A0A0A] rounded-xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[70vh] pointer-events-auto m-auto sm:m-0 w-full sm:w-80">
+              <div className="flex items-center justify-between flex-shrink-0 px-4 py-3 border-b border-white/10">
+                <h3 className="text-sm font-semibold text-white">
+                  Crossfade Settings
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowAdvancedSettings(false)}
+                  className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center sm:min-w-0 sm:min-h-0 sm:p-1"
+                  aria-label="Close settings"
+                >
+                  <FaTimes className="text-lg sm:text-base" />
+                </button>
+              </div>
+              <div className="overflow-y-auto custom-scrollbar flex-1 p-4 space-y-4">
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">
+                    Duration: {Math.round(crossfadeDuration / 1000)}s
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min="500"
+                      max="5000"
+                      step="100"
+                      value={crossfadeDuration}
+                      onChange={(e) =>
+                        onSetCrossfadeDuration(Number(e.target.value))
+                      }
+                      className={rangeInputClass}
+                    />
+                    <span className="text-xs text-gray-400 w-8 shrink-0">
+                      {Math.round(crossfadeDuration / 1000)}s
+                    </span>
+                  </div>
+                </div>
 
-          {/* Crossfade Duration */}
-          <div className="space-y-2 mb-3">
-            <label className="text-xs font-mono text-gray-300">
-              Duration: {Math.round(crossfadeDuration / 1000)}s
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min="500"
-                max="5000"
-                step="100"
-                value={crossfadeDuration}
-                onChange={(e) => onSetCrossfadeDuration(Number(e.target.value))}
-                className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-              />
-              <span className="text-xs font-mono text-gray-400 w-8">
-                {Math.round(crossfadeDuration / 1000)}s
-              </span>
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">
+                    Auto threshold: {Math.round(autoCrossfadeThreshold / 1000)}s
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min="3000"
+                      max="15000"
+                      step="1000"
+                      value={autoCrossfadeThreshold}
+                      onChange={(e) =>
+                        onSetAutoCrossfadeThreshold(Number(e.target.value))
+                      }
+                      className={rangeInputClass}
+                    />
+                    <span className="text-xs text-gray-400 w-8 shrink-0">
+                      {Math.round(autoCrossfadeThreshold / 1000)}s
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-300 mb-1">
+                    Min time: {Math.round(minTimeRemaining / 1000)}s
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min="1000"
+                      max="5000"
+                      step="500"
+                      value={minTimeRemaining}
+                      onChange={(e) =>
+                        onSetMinTimeRemaining(Number(e.target.value))
+                      }
+                      className={rangeInputClass}
+                    />
+                    <span className="text-xs text-gray-400 w-8 shrink-0">
+                      {Math.round(minTimeRemaining / 1000)}s
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-xs text-gray-400 space-y-1 pt-3 border-t border-white/10">
+                  <div>Status: {crossfadeEnabled ? "On" : "Off"}</div>
+                  <div>Can crossfade: {canCrossfade ? "Yes" : "No"}</div>
+                  <div>Active: {isCrossfadeActive ? "Yes" : "No"}</div>
+                </div>
+              </div>
             </div>
           </div>
-
-          {/* Auto-crossfade Threshold */}
-          <div className="space-y-2 mb-3">
-            <label className="text-xs font-mono text-gray-300">
-              Threshold: {Math.round(autoCrossfadeThreshold / 1000)}s
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min="3000"
-                max="15000"
-                step="1000"
-                value={autoCrossfadeThreshold}
-                onChange={(e) =>
-                  onSetAutoCrossfadeThreshold(Number(e.target.value))
-                }
-                className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-              />
-              <span className="text-xs font-mono text-gray-400 w-8">
-                {Math.round(autoCrossfadeThreshold / 1000)}s
-              </span>
-            </div>
-          </div>
-
-          {/* Minimum Time Remaining */}
-          <div className="space-y-2 mb-3">
-            <label className="text-xs font-mono text-gray-300">
-              Min Time: {Math.round(minTimeRemaining / 1000)}s
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min="1000"
-                max="5000"
-                step="500"
-                value={minTimeRemaining}
-                onChange={(e) => onSetMinTimeRemaining(Number(e.target.value))}
-                className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
-              />
-              <span className="text-xs font-mono text-gray-400 w-8">
-                {Math.round(minTimeRemaining / 1000)}s
-              </span>
-            </div>
-          </div>
-
-          {/* Status Information */}
-          <div className="text-xs font-mono text-gray-400 space-y-1 pt-2 border-t border-gray-600">
-            <div>Status: {crossfadeEnabled ? "Enabled" : "Disabled"}</div>
-            <div>Can Crossfade: {canCrossfade ? "Yes" : "No"}</div>
-            <div>Active: {isCrossfadeActive ? "Yes" : "No"}</div>
-          </div>
-        </div>
+        </>
       )}
 
-      {/* Status indicator - Mobile Responsive */}
       <div
-        className={`text-xs font-mono mt-1 text-center sm:text-left ${
-          crossfadeEnabled ? "text-green-400" : "text-gray-500"
+        className={`text-xs mt-1 text-center sm:text-left ${
+          crossfadeEnabled ? "text-[#4ECDC4]" : "text-gray-500"
         }`}
       >
-        <span className="hidden sm:inline">
-          {crossfadeEnabled
-            ? "Auto-crossfade enabled"
-            : "Auto-crossfade disabled"}
-        </span>
-        <span className="sm:hidden">
-          {crossfadeEnabled ? "Auto enabled" : "Auto disabled"}
-        </span>
+        {crossfadeEnabled ? "Auto crossfade on" : "Auto crossfade off"}
       </div>
     </div>
   );
